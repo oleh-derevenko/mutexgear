@@ -20,7 +20,15 @@
  *	\file
  *	\brief MutexGear Wheel API Implementation
  *
+ *	NOTE:
+ *
+ *	The "Wheel" set of functions defined in this file
+ *	implements a synchronization mechanism being a subject
+ *	of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and Image Database search
+ *	(currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
  */
+
+
 
 
 #include <mutexgear/wheel.h>
@@ -551,3 +559,11 @@ int mutexgear_wheel_release(mutexgear_wheel_t *__wheel)
 	return !fault ? EOK : ret;
 }
 
+
+/*
+ *	NOTE:
+ *	The "Wheel" set of functions defined in this file
+ *	implements a synchronization mechanism being a subject
+ *	of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and Image Database search
+ *	(currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
+ */

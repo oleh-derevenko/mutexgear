@@ -26,6 +26,13 @@
  *	The header defines a "toggle" object.
  *	The toggle implements the coordinated operation mode as described
  *	in the Patent specification.
+ *
+ *	NOTE:
+ *
+ *	The "Toggle" set of functions declared in this file
+ *	implements a synchronization mechanism being a subject
+ *	of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and Image Database search
+ *	(currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
  */
 
 
@@ -180,6 +187,15 @@ _MUTEXGEAR_API int mutexgear_toggle_pushon(mutexgear_toggle_t *__toggle);
 
 //////////////////////////////////////////////////////////////////////////
 
+
+/*
+ *	NOTE:
+ *
+ *	The "Toggle" set of functions declared in this file
+ *	implements a synchronization mechanism being a subject
+ *	of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and Image Database search
+ *	(currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
+ */
 
 _MUTEXGEAR_END_EXTERN_C();
 

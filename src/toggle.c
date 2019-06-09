@@ -20,6 +20,12 @@
  *	\file
  *	\brief MutexGear Toggle API Implementation
  *
+ *	NOTE:
+ *
+ *	The "Toggle" set of functions defined in this file
+ *	implements a synchronization mechanism being a subject
+ *	of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and Image Database search
+ *	(currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
  */
 
 
@@ -376,3 +382,12 @@ int mutexgear_toggle_pushon(mutexgear_toggle_t *__toggle)
 	return !fault ? EOK : ret;
 }
 
+
+/*
+ *	NOTE:
+ *
+ *	The "Toggle" set of functions defined in this file
+ *	implements a synchronization mechanism being a subject
+ *	of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and Image Database search
+ *	(currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
+ */

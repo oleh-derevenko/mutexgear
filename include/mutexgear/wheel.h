@@ -26,6 +26,13 @@
  *	The header defines a "wheel" object.
  *	The wheel implements independent operation mode as described
  *	in the Patent specification.
+ *
+ *	NOTE:
+ *
+ *	The "Wheel" set of functions declared in this file
+ *	implements a synchronization mechanism being a subject
+ *	of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and Image Database search
+ *	(currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
  */
 
 
@@ -214,5 +221,14 @@ _MUTEXGEAR_API int mutexgear_wheel_release(mutexgear_wheel_t *__wheel);
 
 _MUTEXGEAR_END_EXTERN_C();
 
+
+/*
+ *	NOTE:
+ *
+ *	The "Wheel" set of functions declared in this file
+ *	implements a synchronization mechanism being a subject
+ *	of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and Image Database search
+ *	(currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
+ */
 
 #endif // #ifndef __MUTEXGEAR_WHEEL_H_INCLUDED
