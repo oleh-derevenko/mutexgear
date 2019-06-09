@@ -1,2 +1,6 @@
 # mutexgear
-MutexGear Library
+MutexGear Library Preview
+
+THIS PROJECT CONTAINS PRE-RELEASE LIBRARY SNAPSHOTS FOR EVALUATION PURPOSES ONLY.
+
+AWAIT THE RELEASE AT https://mutexgear.com
