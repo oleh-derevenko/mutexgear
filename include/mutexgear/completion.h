@@ -8,12 +8,12 @@
 /*                                                                      */
 /* WARNING!                                                             */
 /* This library contains a synchronization technique protected by       */
-/* the U.S. Parent 9,983,913.                                           */
+/* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2019 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -311,45 +311,6 @@ typedef struct _mutexgear_completion_locktoken *mutexgear_completion_locktoken_t
 // Completion DrainableQueue Types
 
 /**
- *	\struct mutexgear_completion_drainableitem_t
- *	\brief A wrapper for \c mutexgear_completion_item_t to be used with a derived class of \c mutexgear_completion_drainablequeue_t.
- *
- *	The wrapper was introduced for the sake of possible extensibility.
- *	\see mutexgear_completion_drainablequeue_t
- */
-typedef struct _mutexgear_completion_drainableitem
-{
-	mutexgear_completion_item_t	basic_item;
-
-} mutexgear_completion_drainableitem_t;
-
-// mutexgear_completion_drainableitem_t field public accessors
-
-/**
- *	\fn mutexgear_completion_item_t *mutexgear_completion_drainableitem_getitem(const mutexgear_completion_drainableitem_t *__item_instance)
- *	\brief Returns a pointer to the base item class
- */
-_MUTEXGEAR_PURE_INLINE
-mutexgear_completion_item_t *mutexgear_completion_drainableitem_getitem(const mutexgear_completion_drainableitem_t *__item_instance)
-{
-	const mutexgear_completion_item_t *ret = __item_instance  != NULL ? &__item_instance->basic_item : NULL;
-	return (mutexgear_completion_item_t *)ret;
-}
-
-/**
- *	\fn mutexgear_completion_item_t *mutexgear_completion_drainableitem_getunsafeitem(const mutexgear_completion_drainableitem_t *__item_instance)
- *	\brief Returns a pointer to the base item class assuming the item is not NULL
- */
-_MUTEXGEAR_PURE_INLINE
-mutexgear_completion_item_t *mutexgear_completion_drainableitem_getunsafeitem(const mutexgear_completion_drainableitem_t *__item_instance)
-{
-	MG_ASSERT(__item_instance != NULL);
-
-	const mutexgear_completion_item_t *ret = &__item_instance->basic_item;
-	return (mutexgear_completion_item_t *)ret;
-}
-
-/**
  *	\typedef mutexgear_completion_drainidx_t
  *	\brief A type to contain drain sequential counters.
  */
@@ -386,45 +347,6 @@ typedef struct _mutexgear_completion_drain
 
 //////////////////////////////////////////////////////////////////////////
 // Completion CancelableQueue Types
-
-/**
- *	\struct mutexgear_completion_cancelableitem_t
- *	\brief A wrapper for \c mutexgear_completion_item_t to be used with a derived class of \c mutexgear_completion_cancelablequeue_t
- *
- *	The wrapper was introduced for the sake of possible extensibility.
- *	\see mutexgear_completion_cancelablequeue_t
- */
-typedef struct _mutexgear_completion_cancelableitem
-{
-	mutexgear_completion_item_t	basic_item;
-
-} mutexgear_completion_cancelableitem_t;
-
-// mutexgear_completion_drainableitem_t field public accessors
-
-/**
- *	\fn mutexgear_completion_item_t *mutexgear_completion_cancelableitem_getitem(const mutexgear_completion_cancelableitem_t *__item_instance)
- *	\brief Returns a pointer to the base item class
- */
-_MUTEXGEAR_PURE_INLINE
-mutexgear_completion_item_t *mutexgear_completion_cancelableitem_getitem(const mutexgear_completion_cancelableitem_t *__item_instance)
-{
-	const mutexgear_completion_item_t *ret = __item_instance != NULL ? &__item_instance->basic_item : NULL;
-	return (mutexgear_completion_item_t *)ret;
-}
-
-/**
- *	\fn mutexgear_completion_item_t *mutexgear_completion_cancelableitem_getunsafeitem(const mutexgear_completion_cancelableitem_t *__item_instance)
- *	\brief Returns a pointer to the base item class assuming the item is not NULL
- */
-_MUTEXGEAR_PURE_INLINE
-mutexgear_completion_item_t *mutexgear_completion_cancelableitem_getunsafeitem(const mutexgear_completion_cancelableitem_t *__item_instance)
-{
-	MG_ASSERT(__item_instance != NULL);
-
-	const mutexgear_completion_item_t *ret = &__item_instance->basic_item;
-	return (mutexgear_completion_item_t *)ret;
-}
 
 /**
  *	\struct mutexgear_completion_cancelablequeue_t
@@ -835,53 +757,6 @@ _MUTEXGEAR_API int mutexgear_completion_drain_destroy(mutexgear_completion_drain
 
 
 /**
- *	\fn void mutexgear_completion_drainableitem_init(mutexgear_completion_drainableitem_t *__item_instance)
- *	\brief An inherited method for \c mutexgear_completion_item_init
- *
- *	\return EOK on success or a system error code on failure.
- *	\see mutexgear_completion_item_init
- */
-_MUTEXGEAR_PURE_INLINE void mutexgear_completion_drainableitem_init(mutexgear_completion_drainableitem_t *__item_instance);
-
-/**
- *	\fn void mutexgear_completion_drainableitem_reinit(mutexgear_completion_drainableitem_t *__item_instance)
- *	\brief An inherited method for \c mutexgear_completion_item_reinit
- *
- *	\return EOK on success or a system error code on failure.
- *	\see mutexgear_completion_item_reinit
- */
-_MUTEXGEAR_PURE_INLINE void mutexgear_completion_drainableitem_reinit(mutexgear_completion_drainableitem_t *__item_instance);
-
-/**
- *	\fn bool mutexgear_completion_drainableitem_isasinit(const mutexgear_completion_drainableitem_t *__item_instance)
- *	\brief An inherited method for \c mutexgear_completion_item_isasinit
- *
- *	\return true if the parameter is as just initialized
- *	\see mutexgear_completion_item_isasinit
- */
-_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainableitem_isasinit(const mutexgear_completion_drainableitem_t *__item_instance);
-
-/**
- *	\fn void mutexgear_completion_drainableitem_destroy(mutexgear_completion_drainableitem_t *__item_instance)
- *	\brief An inherited method for \c mutexgear_completion_item_destroy
- *
- *	\return EOK on success or a system error code on failure.
- *	\see mutexgear_completion_item_destroy
- */
-_MUTEXGEAR_PURE_INLINE void mutexgear_completion_drainableitem_destroy(mutexgear_completion_drainableitem_t *__item_instance);
-
-
-/**
- *	\fn void mutexgear_completion_drainableitem_prestart(mutexgear_completion_drainableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
- *	\brief An inherited method for \c mutexgear_completion_item_prestart
- *
- *	\return EOK on success or a system error code on failure.
- *	\see mutexgear_completion_item_prestart
- */
-_MUTEXGEAR_PURE_INLINE void mutexgear_completion_drainableitem_prestart(mutexgear_completion_drainableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
-
-
-/**
  *	\fn int mutexgear_completion_drainablequeue_init(mutexgear_completion_drainablequeue_t *__queue_instance, const mutexgear_completion_genattr_t *__attr_instance)
  *	\brief Initialize a Drainable Queue instance
  *
@@ -948,7 +823,7 @@ _MUTEXGEAR_API int mutexgear_completion_drainablequeue_getindex(mutexgear_comple
  *	\see mutexgear_completion_drainablequeue_getindex
  */
 _MUTEXGEAR_API int mutexgear_completion_drainablequeue_drain(mutexgear_completion_drainablequeue_t *__queue_instance,
-	mutexgear_completion_drainableitem_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,
+	mutexgear_completion_item_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,
 	mutexgear_completion_drain_t *__target_drain, mutexgear_completion_locktoken_t __lock_hint/*=NULL*/, bool *__out_drain_execution_status/*=NULL*/);
 
 /**
@@ -968,7 +843,7 @@ _MUTEXGEAR_API int mutexgear_completion_drainablequeue_plainunlock(mutexgear_com
  *	\see mutexgear_completion_queue_unlockandwait
  */
 _MUTEXGEAR_API int mutexgear_completion_drainablequeue_unlockandwait(mutexgear_completion_drainablequeue_t *__queue_instance,
-	mutexgear_completion_drainableitem_t *__item_to_be_waited, mutexgear_completion_waiter_t *__waiter_instance);
+	mutexgear_completion_item_t *__item_to_be_waited, mutexgear_completion_waiter_t *__waiter_instance);
 
 
 /**
@@ -987,7 +862,7 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_lodisempty(const
  *	\return true if the queue was not empty
  *	\see mutexgear_completion_queue_gettail
  */
-_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_gettail(mutexgear_completion_drainableitem_t **__out_tail_item,
+_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_gettail(mutexgear_completion_item_t **__out_tail_item,
 	mutexgear_completion_drainablequeue_t *__queue_instance);
 
 /**
@@ -997,8 +872,8 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_gettail(mutexgea
  *	\return true if the preceding item existed
  *	\see mutexgear_completion_queue_getpreceding
  */
-_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_getpreceding(mutexgear_completion_drainableitem_t **__out_preceding_item,
-	mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_drainableitem_t *__item_instance);
+_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_getpreceding(mutexgear_completion_item_t **__out_preceding_item,
+	mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance);
 
 /**
  *	\fn mutexgear_completion_drainableitem_t *mutexgear_completion_drainablequeue_getunsafepreceding(mutexgear_completion_drainableitem_t *__item_instance)
@@ -1007,7 +882,7 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_getpreceding(mut
  *	\return The preceding item for the parameter
  *	\see mutexgear_completion_queue_getunsafepreceding
  */
-_MUTEXGEAR_PURE_INLINE mutexgear_completion_drainableitem_t *mutexgear_completion_drainablequeue_getunsafepreceding(mutexgear_completion_drainableitem_t *__item_instance);
+_MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_drainablequeue_getunsafepreceding(mutexgear_completion_item_t *__item_instance);
 
 /**
  *	\fn bool mutexgear_completion_drainablequeue_unsafegethead(mutexgear_completion_drainableitem_t **__out_head_item, mutexgear_completion_drainablequeue_t *__queue_instance)
@@ -1016,7 +891,7 @@ _MUTEXGEAR_PURE_INLINE mutexgear_completion_drainableitem_t *mutexgear_completio
  *	\return true if the queue was not empty
  *	\see mutexgear_completion_queue_unsafegethead
  */
-_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_unsafegethead(mutexgear_completion_drainableitem_t **__out_head_item,
+_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_unsafegethead(mutexgear_completion_item_t **__out_head_item,
 	mutexgear_completion_drainablequeue_t *__queue_instance);
 
 /**
@@ -1026,8 +901,8 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_unsafegethead(mu
  *	\return true if the next item existed
  *	\see mutexgear_completion_queue_unsafegetnext
  */
-_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_unsafegetnext(mutexgear_completion_drainableitem_t **__out_next_item,
-	mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_drainableitem_t *__item_instance);
+_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_unsafegetnext(mutexgear_completion_item_t **__out_next_item,
+	mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance);
 
 /**
  *	\fn mutexgear_completion_drainableitem_t *mutexgear_completion_drainablequeue_unsafegetunsafenext(mutexgear_completion_drainableitem_t *__item_instance)
@@ -1036,7 +911,7 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_drainablequeue_unsafegetnext(mu
  *	\return The next item for the parameter
  *	\see mutexgear_completion_queue_unsafegetunsafenext
  */
-_MUTEXGEAR_PURE_INLINE mutexgear_completion_drainableitem_t *mutexgear_completion_drainablequeue_unsafegetunsafenext(mutexgear_completion_drainableitem_t *__item_instance);
+_MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_drainablequeue_unsafegetunsafenext(mutexgear_completion_item_t *__item_instance);
 
 /**
  *	\fn int mutexgear_completion_drainablequeue_enqueue(mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_drainableitem_t *__item_instance, mutexgear_completion_locktoken_t __lock_hint, mutexgear_completion_drainidx_t *__out_queue_drain_index)
@@ -1049,7 +924,7 @@ _MUTEXGEAR_PURE_INLINE mutexgear_completion_drainableitem_t *mutexgear_completio
  *	\see mutexgear_completion_drainablequeue_getindex 
  *	\see mutexgear_completion_queue_enqueue
  */
-_MUTEXGEAR_API int mutexgear_completion_drainablequeue_enqueue(mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_drainableitem_t *__item_instance,
+_MUTEXGEAR_API int mutexgear_completion_drainablequeue_enqueue(mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance,
 	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/, mutexgear_completion_drainidx_t *__out_queue_drain_index/*=NULL*/);
 
 /**
@@ -1058,7 +933,7 @@ _MUTEXGEAR_API int mutexgear_completion_drainablequeue_enqueue(mutexgear_complet
  *
  *	\see mutexgear_completion_queue_unsafedequeue
  */
-_MUTEXGEAR_API void mutexgear_completion_drainablequeue_unsafedequeue(mutexgear_completion_drainableitem_t *__item_instance);
+_MUTEXGEAR_API void mutexgear_completion_drainablequeue_unsafedequeue(mutexgear_completion_item_t *__item_instance);
 
 
 /**
@@ -1073,7 +948,7 @@ _MUTEXGEAR_API void mutexgear_completion_drainablequeue_unsafedequeue(mutexgear_
  *	\see mutexgear_completion_queueditem_finish
  */
 _MUTEXGEAR_API int mutexgear_completion_drainablequeueditem_finish(mutexgear_completion_drainablequeue_t *__queue_instance,
-	mutexgear_completion_drainableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
+	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
 	mutexgear_completion_drainidx_t __item_drain_index/*=MUTEXGEAR_COMPLETION_INVALID_DRAINIDX*/, mutexgear_completion_drain_t *__target_drain/*=NULL*/,
 	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/);
 
@@ -1095,49 +970,6 @@ enum _mutexgear_completion_cancelablequeue_itemtag
 
 	mutexgear_completion_cancelablequeue_itemtag__max, //!< The first available tag index to be used as a base for enumerations in derived classes
 };
-
-
-/**
- *	\fn void mutexgear_completion_cancelableitem_init(mutexgear_completion_cancelableitem_t *__item_instance)
- *	\brief An inherited method for \c mutexgear_completion_item_init
- *
- *	\see mutexgear_completion_item_init
- */
-_MUTEXGEAR_PURE_INLINE void mutexgear_completion_cancelableitem_init(mutexgear_completion_cancelableitem_t *__item_instance);
-
-/**
- *	\fn void mutexgear_completion_cancelableitem_reinit(mutexgear_completion_cancelableitem_t *__item_instance)
- *	\brief An inherited method for \c mutexgear_completion_item_reinit
- *
- *	\see mutexgear_completion_item_reinit
- */
-_MUTEXGEAR_PURE_INLINE void mutexgear_completion_cancelableitem_reinit(mutexgear_completion_cancelableitem_t *__item_instance);
-
-/**
- *	\fn bool mutexgear_completion_cancelableitem_isasinit(const mutexgear_completion_cancelableitem_t *__item_instance)
- *	\brief An inherited method for \c mutexgear_completion_item_isasinit
- *
- *	\return true if the parameter is as just initialized
- *	\see mutexgear_completion_item_isasinit
- */
-_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelableitem_isasinit(const mutexgear_completion_cancelableitem_t *__item_instance);
-
-/**
- *	\fn void mutexgear_completion_cancelableitem_destroy(mutexgear_completion_cancelableitem_t *__item_instance)
- *	\brief An inherited method for \c mutexgear_completion_item_destroy
- *
- *	\see mutexgear_completion_item_destroy
- */
-_MUTEXGEAR_PURE_INLINE void mutexgear_completion_cancelableitem_destroy(mutexgear_completion_cancelableitem_t *__item_instance);
-
-
-/**
- *	\fn void mutexgear_completion_cancelableitem_prestart(mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
- *	\brief An inherited method for \c mutexgear_completion_item_prestart
- *
- *	\see mutexgear_completion_item_prestart
- */
-_MUTEXGEAR_PURE_INLINE void mutexgear_completion_cancelableitem_prestart(mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
 
 
 /**
@@ -1188,7 +1020,7 @@ _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_plainunlock(mutexgear_co
  *	\see mutexgear_completion_queue_unlockandwait
  */
 _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_unlockandwait(mutexgear_completion_cancelablequeue_t *__queue_instance,
-	mutexgear_completion_cancelableitem_t *__item_to_be_waited, mutexgear_completion_waiter_t *__waiter_instance);
+	mutexgear_completion_item_t *__item_to_be_waited, mutexgear_completion_waiter_t *__waiter_instance);
 
 
 /**
@@ -1211,8 +1043,8 @@ _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_unlockandwait(mutexgear_
  *	\see mutexgear_completion_cancelablequeue_enqueue
  */
 _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_unlockandcancel(mutexgear_completion_cancelablequeue_t *__queue_instance,
-	mutexgear_completion_cancelableitem_t *__item_to_be_canceled, mutexgear_completion_waiter_t *__waiter_instance,
-	void(*__item_cancel_fn/*=NULL*/)(void *__cancel_context, mutexgear_completion_cancelablequeue_t *__queue, mutexgear_completion_worker_t *__worker, mutexgear_completion_cancelableitem_t *__item), void *__cancel_context/*=NULL*/,
+	mutexgear_completion_item_t *__item_to_be_canceled, mutexgear_completion_waiter_t *__waiter_instance,
+	void(*__item_cancel_fn/*=NULL*/)(void *__cancel_context, mutexgear_completion_cancelablequeue_t *__queue, mutexgear_completion_worker_t *__worker, mutexgear_completion_item_t *__item), void *__cancel_context/*=NULL*/,
 	mutexgear_completion_ownership_t *__out_item_resulting_ownership);
 
 
@@ -1232,7 +1064,7 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_lodisempty(cons
  *	\return true if the queue was not empty
  *	\see mutexgear_completion_queue_gettail
  */
-_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_gettail(mutexgear_completion_cancelableitem_t **__out_tail_item,
+_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_gettail(mutexgear_completion_item_t **__out_tail_item,
 	mutexgear_completion_cancelablequeue_t *__queue_instance);
 
 /**
@@ -1242,8 +1074,8 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_gettail(mutexge
  *	\return true if the preceding item existed
  *	\see mutexgear_completion_queue_getpreceding
  */
-_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_getpreceding(mutexgear_completion_cancelableitem_t **__out_preceding_item,
-	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_instance);
+_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_getpreceding(mutexgear_completion_item_t **__out_preceding_item,
+	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance);
 
 /**
  *	\fn mutexgear_completion_cancelableitem_t *mutexgear_completion_cancelablequeue_getunsafepreceding(mutexgear_completion_cancelableitem_t *__item_instance)
@@ -1252,7 +1084,7 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_getpreceding(mu
  *	\return The preceding item for the parameter
  *	\see mutexgear_completion_queue_getunsafepreceding
  */
-_MUTEXGEAR_PURE_INLINE mutexgear_completion_cancelableitem_t *mutexgear_completion_cancelablequeue_getunsafepreceding(mutexgear_completion_cancelableitem_t *__item_instance);
+_MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_cancelablequeue_getunsafepreceding(mutexgear_completion_item_t *__item_instance);
 
 /**
  *	\fn bool mutexgear_completion_cancelablequeue_unsafegethead(mutexgear_completion_cancelableitem_t **__out_head_item, mutexgear_completion_cancelablequeue_t *__queue_instance)
@@ -1261,7 +1093,7 @@ _MUTEXGEAR_PURE_INLINE mutexgear_completion_cancelableitem_t *mutexgear_completi
  *	\return true if the queue was not empty
  *	\see mutexgear_completion_queue_unsafegethead
  */
-_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_unsafegethead(mutexgear_completion_cancelableitem_t **__out_head_item,
+_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_unsafegethead(mutexgear_completion_item_t **__out_head_item,
 	mutexgear_completion_cancelablequeue_t *__queue_instance);
 
 /**
@@ -1271,8 +1103,8 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_unsafegethead(m
  *	\return true if the next item existed
  *	\see mutexgear_completion_queue_unsafegetnext
  */
-_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_unsafegetnext(mutexgear_completion_cancelableitem_t **__out_next_item,
-	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_instance);
+_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_unsafegetnext(mutexgear_completion_item_t **__out_next_item,
+	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance);
 
 /**
  *	\fn mutexgear_completion_cancelableitem_t *mutexgear_completion_cancelablequeue_unsafegetunsafenext(mutexgear_completion_cancelableitem_t *__item_instance)
@@ -1281,7 +1113,7 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_cancelablequeue_unsafegetnext(m
  *	\return The next item for the parameter
  *	\see mutexgear_completion_queue_unsafegetunsafenext
  */
-_MUTEXGEAR_PURE_INLINE mutexgear_completion_cancelableitem_t *mutexgear_completion_cancelablequeue_unsafegetunsafenext(mutexgear_completion_cancelableitem_t *__item_instance);
+_MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_cancelablequeue_unsafegetunsafenext(mutexgear_completion_item_t *__item_instance);
 
 /**
  *	\fn int mutexgear_completion_cancelablequeue_enqueue(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_locktoken_t __lock_hint)
@@ -1293,7 +1125,7 @@ _MUTEXGEAR_PURE_INLINE mutexgear_completion_cancelableitem_t *mutexgear_completi
  *	\see mutexgear_completion_queue_enqueue
  *	\see mutexgear_completion_cancelablequeueditem_start
  */
-_MUTEXGEAR_API int mutexgear_completion_cancelablequeue_enqueue(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_instance,
+_MUTEXGEAR_API int mutexgear_completion_cancelablequeue_enqueue(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance,
 	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/);
 
 /**
@@ -1302,7 +1134,7 @@ _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_enqueue(mutexgear_comple
  *
  *	\see mutexgear_completion_queue_unsafedequeue
  */
-_MUTEXGEAR_API void mutexgear_completion_cancelablequeue_unsafedequeue(mutexgear_completion_cancelableitem_t *__item_instance);
+_MUTEXGEAR_API void mutexgear_completion_cancelablequeue_unsafedequeue(mutexgear_completion_item_t *__item_instance);
 
 
 /**
@@ -1321,7 +1153,7 @@ _MUTEXGEAR_API void mutexgear_completion_cancelablequeue_unsafedequeue(mutexgear
  *	\see mutexgear_completion_cancelablequeueditem_iscanceled
  *	\see mutexgear_completion_cancelablequeueditem_finish
  */
-_MUTEXGEAR_API int mutexgear_completion_cancelablequeueditem_start(mutexgear_completion_cancelableitem_t **__out_acquired_item,
+_MUTEXGEAR_API int mutexgear_completion_cancelablequeueditem_start(mutexgear_completion_item_t **__out_acquired_item,
 	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_worker_t *__worker_instance,
 	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/);
 
@@ -1340,7 +1172,7 @@ _MUTEXGEAR_API int mutexgear_completion_cancelablequeueditem_start(mutexgear_com
  *	\see mutexgear_completion_cancelablequeueditem_start
  *	\see mutexgear_completion_cancelablequeueditem_finish
  */
-_MUTEXGEAR_API bool mutexgear_completion_cancelablequeueditem_iscanceled(mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
+_MUTEXGEAR_API bool mutexgear_completion_cancelablequeueditem_iscanceled(mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
 
 /**
  *	\fn int mutexgear_completion_cancelablequeueditem_finish(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_locktoken_t __lock_hint)
@@ -1349,7 +1181,7 @@ _MUTEXGEAR_API bool mutexgear_completion_cancelablequeueditem_iscanceled(mutexge
  *	\return EOK on success or a system error code on failure.
  *	\see mutexgear_completion_queueditem_finish
  */
-_MUTEXGEAR_API int mutexgear_completion_cancelablequeueditem_finish(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
+_MUTEXGEAR_API int mutexgear_completion_cancelablequeueditem_finish(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
 	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/);
 
 
@@ -1588,48 +1420,6 @@ mutexgear_completion_item_t *mutexgear_completion_queue_unsafegetunsafenext(mute
 // Completion DrainableQueue Inline Method Implementations
 
 _MUTEXGEAR_PURE_INLINE
-mutexgear_completion_drainableitem_t *_mutexgear_completion_drainableitem_getfromitem(const mutexgear_completion_item_t *__item_instance)
-{
-	MG_ASSERT(__item_instance != NULL);
-
-	MG_DECLARE_TYPE_CAST(mutexgear_completion_drainableitem_t);
-	return MG_PERFORM_TYPE_CAST((uint8_t *)__item_instance - offsetof(mutexgear_completion_drainableitem_t, basic_item));
-}
-
-
-_MUTEXGEAR_PURE_INLINE
-void mutexgear_completion_drainableitem_init(mutexgear_completion_drainableitem_t *__item_instance)
-{
-	mutexgear_completion_item_init(&__item_instance->basic_item);
-}
-
-_MUTEXGEAR_PURE_INLINE 
-void mutexgear_completion_drainableitem_reinit(mutexgear_completion_drainableitem_t *__item_instance)
-{
-	mutexgear_completion_item_reinit(&__item_instance->basic_item);
-}
-
-_MUTEXGEAR_PURE_INLINE 
-bool mutexgear_completion_drainableitem_isasinit(const mutexgear_completion_drainableitem_t *__item_instance)
-{
-	return mutexgear_completion_item_isasinit(&__item_instance->basic_item);
-}
-
-_MUTEXGEAR_PURE_INLINE 
-void mutexgear_completion_drainableitem_destroy(mutexgear_completion_drainableitem_t *__item_instance)
-{
-	mutexgear_completion_item_destroy(&__item_instance->basic_item);
-}
-
-
-_MUTEXGEAR_PURE_INLINE 
-void mutexgear_completion_drainableitem_prestart(mutexgear_completion_drainableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
-{
-	mutexgear_completion_item_prestart(&__item_instance->basic_item, __worker_instance);
-}
-
-
-_MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_drainablequeue_lodisempty(const mutexgear_completion_drainablequeue_t *__queue_instance)
 {
 	bool ret = mutexgear_completion_queue_lodisempty(&__queue_instance->basic_queue);
@@ -1637,99 +1427,57 @@ bool mutexgear_completion_drainablequeue_lodisempty(const mutexgear_completion_d
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool mutexgear_completion_drainablequeue_gettail(mutexgear_completion_drainableitem_t **__out_tail_item,
+bool mutexgear_completion_drainablequeue_gettail(mutexgear_completion_item_t **__out_tail_item,
 	mutexgear_completion_drainablequeue_t *__queue_instance)
 {
 	mutexgear_completion_item_t *tail_basic_item;
 	bool ret = mutexgear_completion_queue_gettail(&tail_basic_item, &__queue_instance->basic_queue);
-	return ret == EOK ? (*__out_tail_item = _mutexgear_completion_drainableitem_getfromitem(tail_basic_item), EOK) : ret;
+	return ret == EOK ? (*__out_tail_item = tail_basic_item, EOK) : ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool mutexgear_completion_drainablequeue_getpreceding(mutexgear_completion_drainableitem_t **__out_preceding_item,
-	mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_drainableitem_t *__item_instance)
+bool mutexgear_completion_drainablequeue_getpreceding(mutexgear_completion_item_t **__out_preceding_item,
+	mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance)
 {
 	mutexgear_completion_item_t *preceding_basic_item;
-	bool ret = mutexgear_completion_queue_getpreceding(&preceding_basic_item, &__queue_instance->basic_queue, &__item_instance->basic_item);
-	return ret == EOK ? (*__out_preceding_item = _mutexgear_completion_drainableitem_getfromitem(preceding_basic_item), EOK) : ret;
+	bool ret = mutexgear_completion_queue_getpreceding(&preceding_basic_item, &__queue_instance->basic_queue, __item_instance);
+	return ret == EOK ? (*__out_preceding_item = preceding_basic_item, EOK) : ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
-mutexgear_completion_drainableitem_t *mutexgear_completion_drainablequeue_getunsafepreceding(mutexgear_completion_drainableitem_t *__item_instance)
+mutexgear_completion_item_t *mutexgear_completion_drainablequeue_getunsafepreceding(mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_completion_item_t *preceding_basic_item = mutexgear_completion_queue_getunsafepreceding(&__item_instance->basic_item);
-	return _mutexgear_completion_drainableitem_getfromitem(preceding_basic_item);
+	mutexgear_completion_item_t *preceding_basic_item = mutexgear_completion_queue_getunsafepreceding(__item_instance);
+	return preceding_basic_item;
 }
 
 _MUTEXGEAR_PURE_INLINE 
-bool mutexgear_completion_drainablequeue_unsafegethead(mutexgear_completion_drainableitem_t **__out_head_item,
+bool mutexgear_completion_drainablequeue_unsafegethead(mutexgear_completion_item_t **__out_head_item,
 	mutexgear_completion_drainablequeue_t *__queue_instance)
 {
 	mutexgear_completion_item_t *head_basic_item;
 	bool ret = mutexgear_completion_queue_unsafegethead(&head_basic_item, &__queue_instance->basic_queue);
-	return ret == EOK ? (*__out_head_item = _mutexgear_completion_drainableitem_getfromitem(head_basic_item), EOK) : ret;
+	return ret == EOK ? (*__out_head_item = head_basic_item, EOK) : ret;
 }
 
 _MUTEXGEAR_PURE_INLINE 
-bool mutexgear_completion_drainablequeue_unsafegetnext(mutexgear_completion_drainableitem_t **__out_next_item,
-	mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_drainableitem_t *__item_instance)
+bool mutexgear_completion_drainablequeue_unsafegetnext(mutexgear_completion_item_t **__out_next_item,
+	mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance)
 {
 	mutexgear_completion_item_t *next_basic_item;
-	bool ret = mutexgear_completion_queue_unsafegetnext(&next_basic_item, &__queue_instance->basic_queue, &__item_instance->basic_item);
-	return ret == EOK ? (*__out_next_item = _mutexgear_completion_drainableitem_getfromitem(next_basic_item), EOK) : ret;
+	bool ret = mutexgear_completion_queue_unsafegetnext(&next_basic_item, &__queue_instance->basic_queue, __item_instance);
+	return ret == EOK ? (*__out_next_item = next_basic_item, EOK) : ret;
 }
 
-_MUTEXGEAR_PURE_INLINE mutexgear_completion_drainableitem_t *mutexgear_completion_drainablequeue_unsafegetunsafenext(mutexgear_completion_drainableitem_t *__item_instance)
+_MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_drainablequeue_unsafegetunsafenext(mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_completion_item_t *next_basic_item = mutexgear_completion_queue_unsafegetunsafenext(&__item_instance->basic_item);
-	return _mutexgear_completion_drainableitem_getfromitem(next_basic_item);
+	mutexgear_completion_item_t *next_basic_item = mutexgear_completion_queue_unsafegetunsafenext(__item_instance);
+	return next_basic_item;
 }
 
 
 //////////////////////////////////////////////////////////////////////////
 // Completion CancelableQueue Inline Method Implementations
-
-_MUTEXGEAR_PURE_INLINE
-mutexgear_completion_cancelableitem_t *_mutexgear_completion_cancelableitem_getfromitem(const mutexgear_completion_item_t *__item_instance)
-{
-	MG_ASSERT(__item_instance != NULL);
-
-	MG_DECLARE_TYPE_CAST(mutexgear_completion_cancelableitem_t);
-	return MG_PERFORM_TYPE_CAST((uint8_t *)__item_instance - offsetof(mutexgear_completion_cancelableitem_t, basic_item));
-}
-
-
-_MUTEXGEAR_PURE_INLINE
-void mutexgear_completion_cancelableitem_init(mutexgear_completion_cancelableitem_t *__item_instance)
-{
-	mutexgear_completion_item_init(&__item_instance->basic_item);
-}
-
-_MUTEXGEAR_PURE_INLINE
-void mutexgear_completion_cancelableitem_reinit(mutexgear_completion_cancelableitem_t *__item_instance)
-{
-	mutexgear_completion_item_reinit(&__item_instance->basic_item);
-}
-
-_MUTEXGEAR_PURE_INLINE
-bool mutexgear_completion_cancelableitem_isasinit(const mutexgear_completion_cancelableitem_t *__item_instance)
-{
-	return mutexgear_completion_item_isasinit(&__item_instance->basic_item);
-}
-
-_MUTEXGEAR_PURE_INLINE
-void mutexgear_completion_cancelableitem_destroy(mutexgear_completion_cancelableitem_t *__item_instance)
-{
-	mutexgear_completion_item_destroy(&__item_instance->basic_item);
-}
-
-
-_MUTEXGEAR_PURE_INLINE
-void mutexgear_completion_cancelableitem_prestart(mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
-{
-	mutexgear_completion_item_prestart(&__item_instance->basic_item, __worker_instance);
-}
-
 
 _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_cancelablequeue_lodisempty(const mutexgear_completion_cancelablequeue_t *__queue_instance)
@@ -1739,52 +1487,52 @@ bool mutexgear_completion_cancelablequeue_lodisempty(const mutexgear_completion_
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool mutexgear_completion_cancelablequeue_gettail(mutexgear_completion_cancelableitem_t **__out_tail_item,
+bool mutexgear_completion_cancelablequeue_gettail(mutexgear_completion_item_t **__out_tail_item,
 	mutexgear_completion_cancelablequeue_t *__queue_instance)
 {
 	mutexgear_completion_item_t *tail_basic_item;
 	bool ret = mutexgear_completion_queue_gettail(&tail_basic_item, &__queue_instance->basic_queue);
-	return ret == EOK ? (*__out_tail_item = _mutexgear_completion_cancelableitem_getfromitem(tail_basic_item), EOK) : ret;
+	return ret == EOK ? (*__out_tail_item = tail_basic_item, EOK) : ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool mutexgear_completion_cancelablequeue_getpreceding(mutexgear_completion_cancelableitem_t **__out_preceding_item,
-	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_instance)
+bool mutexgear_completion_cancelablequeue_getpreceding(mutexgear_completion_item_t **__out_preceding_item,
+	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance)
 {
 	mutexgear_completion_item_t *preceding_basic_item;
-	bool ret = mutexgear_completion_queue_getpreceding(&preceding_basic_item, &__queue_instance->basic_queue, &__item_instance->basic_item);
-	return ret == EOK ? (*__out_preceding_item = _mutexgear_completion_cancelableitem_getfromitem(preceding_basic_item), EOK) : ret;
+	bool ret = mutexgear_completion_queue_getpreceding(&preceding_basic_item, &__queue_instance->basic_queue, __item_instance);
+	return ret == EOK ? (*__out_preceding_item = preceding_basic_item, EOK) : ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
-mutexgear_completion_cancelableitem_t *mutexgear_completion_cancelablequeue_getunsafepreceding(mutexgear_completion_cancelableitem_t *__item_instance)
+mutexgear_completion_item_t *mutexgear_completion_cancelablequeue_getunsafepreceding(mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_completion_item_t *preceding_basic_item = mutexgear_completion_queue_getunsafepreceding(&__item_instance->basic_item);
-	return _mutexgear_completion_cancelableitem_getfromitem(preceding_basic_item);
+	mutexgear_completion_item_t *preceding_basic_item = mutexgear_completion_queue_getunsafepreceding(__item_instance);
+	return preceding_basic_item;
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool mutexgear_completion_cancelablequeue_unsafegethead(mutexgear_completion_cancelableitem_t **__out_head_item,
+bool mutexgear_completion_cancelablequeue_unsafegethead(mutexgear_completion_item_t **__out_head_item,
 	mutexgear_completion_cancelablequeue_t *__queue_instance)
 {
 	mutexgear_completion_item_t *head_basic_item;
 	bool ret = mutexgear_completion_queue_unsafegethead(&head_basic_item, &__queue_instance->basic_queue);
-	return ret == EOK ? (*__out_head_item = _mutexgear_completion_cancelableitem_getfromitem(head_basic_item), EOK) : ret;
+	return ret == EOK ? (*__out_head_item = head_basic_item, EOK) : ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool mutexgear_completion_cancelablequeue_unsafegetnext(mutexgear_completion_cancelableitem_t **__out_next_item,
-	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_instance)
+bool mutexgear_completion_cancelablequeue_unsafegetnext(mutexgear_completion_item_t **__out_next_item,
+	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance)
 {
 	mutexgear_completion_item_t *next_basic_item;
-	bool ret = mutexgear_completion_queue_unsafegetnext(&next_basic_item, &__queue_instance->basic_queue, &__item_instance->basic_item);
-	return ret == EOK ? (*__out_next_item = _mutexgear_completion_cancelableitem_getfromitem(next_basic_item), EOK) : ret;
+	bool ret = mutexgear_completion_queue_unsafegetnext(&next_basic_item, &__queue_instance->basic_queue, __item_instance);
+	return ret == EOK ? (*__out_next_item = next_basic_item, EOK) : ret;
 }
 
-_MUTEXGEAR_PURE_INLINE mutexgear_completion_cancelableitem_t *mutexgear_completion_cancelablequeue_unsafegetunsafenext(mutexgear_completion_cancelableitem_t *__item_instance)
+_MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_cancelablequeue_unsafegetunsafenext(mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_completion_item_t *next_basic_item = mutexgear_completion_queue_unsafegetunsafenext(&__item_instance->basic_item);
-	return _mutexgear_completion_cancelableitem_getfromitem(next_basic_item);
+	mutexgear_completion_item_t *next_basic_item = mutexgear_completion_queue_unsafegetunsafenext(__item_instance);
+	return next_basic_item;
 }
 
 

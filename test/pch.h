@@ -127,6 +127,12 @@ int _mutexgear_rwlock_rdlock(_MG_RWLOCK_T *__rwlock)
 }
 
 _MUTEXGEAR_PURE_INLINE
+int _mutexgear_rwlock_tryrdlock(_MG_RWLOCK_T *__rwlock)
+{
+	return TryAcquireSRWLockShared(__rwlock) ? EOK : EBUSY;
+}
+
+_MUTEXGEAR_PURE_INLINE
 int _mutexgear_rwlock_rdunlock(_MG_RWLOCK_T *__rwlock)
 {
 	ReleaseSRWLockShared(__rwlock);
@@ -138,6 +144,12 @@ int _mutexgear_rwlock_wrlock(_MG_RWLOCK_T *__rwlock)
 {
 	AcquireSRWLockExclusive(__rwlock);
 	return EOK;
+}
+
+_MUTEXGEAR_PURE_INLINE
+int _mutexgear_rwlock_trywrlock(_MG_RWLOCK_T *__rwlock)
+{
+	return TryAcquireSRWLockExclusive(__rwlock) ? EOK : EBUSY;
 }
 
 _MUTEXGEAR_PURE_INLINE
@@ -174,6 +186,12 @@ int _mutexgear_rwlock_rdlock(_MG_RWLOCK_T *__rwlock)
 }
 
 _MUTEXGEAR_PURE_INLINE
+int _mutexgear_rwlock_tryrdlock(_MG_RWLOCK_T *__rwlock)
+{
+	return pthread_rwlock_tryrdlock(__rwlock);
+}
+
+_MUTEXGEAR_PURE_INLINE
 int _mutexgear_rwlock_rdunlock(_MG_RWLOCK_T *__rwlock)
 {
 	return pthread_rwlock_unlock(__rwlock);
@@ -183,6 +201,12 @@ _MUTEXGEAR_PURE_INLINE
 int _mutexgear_rwlock_wrlock(_MG_RWLOCK_T *__rwlock)
 {
 	return pthread_rwlock_wrlock(__rwlock);
+}
+
+_MUTEXGEAR_PURE_INLINE
+int _mutexgear_rwlock_trywrlock(_MG_RWLOCK_T *__rwlock)
+{
+	return pthread_rwlock_trywrlock(__rwlock);
 }
 
 _MUTEXGEAR_PURE_INLINE

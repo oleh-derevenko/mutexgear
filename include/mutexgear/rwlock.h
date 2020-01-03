@@ -8,12 +8,12 @@
 /*                                                                      */
 /* WARNING!                                                             */
 /* This library contains a synchronization technique protected by       */
-/* the U.S. Parent 9,983,913.                                           */
+/* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2019 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -56,6 +56,7 @@
  *	Whenever frequencies of read and write access are comparable or writes prevail, 
  *	consider aggregating or packeting the writes at earlier stages separately 
  *	to decrease their number and have the object write locks being requested less frequently.
+ *
  */
 
 
@@ -219,13 +220,92 @@ _MUTEXGEAR_API int mutexgear_rwlockattr_getwritechannels(mutexgear_rwlockattr_t 
 
 /**
  *	\struct mutexgear_rwlock_t
- *	\brief An opaque structure to represent a read-write lock (RWLock) object
+ *	\brief An opaque structure to represent a read-write lock (RWLock) object without tryrdlock operation
+ *
+ *	This is a basic RWLock class with wrlock, wrunlock, rdlock, rdunlock, and with trywrlock 
+ *	but without tryrdlock operation support. For additional tryrdlock, use 
+ *	\c mutexgear_trdl_rwlock_t object instead.
+ *
+ *	The operation pseudo-codes are provided below.
+ *
+ *	wrlock(__worker_instance, __waiter_instance, __item_instance)
+ *
+ *	----------
+ *
+ *	\li 1. acquire the mutex of \c acquired_reads;
+ *	\li 2. if \c acquired_reads is empty then exit;
+ *	\li 3. release the mutex of \c acquired_reads;
+ *	\li 4. add \c __item_instance (or an internally allocated item) with \c __worker_instance into \c waiting_writes;
+ *	\li 5. acquire one of \c reader_push_locks;
+ *	\li 6. acquire the mutex of \c acquired_reads;
+ *	\li 7. if \c acquired_reads is not empty then wait on its tail with \c __waiter_instance, atomically releasing the mutex of \c acquired_reads; then goto 6;
+ *	\li 8. release the owned mutex of \c reader_push_locks;
+ *	\li 9. remove \c __item_instance from \c waiting_writes awakening a reader waiting there, if any.
+ *
+ *	(exiting having the mutex of \c acquired_reads acquired)
+ *
+ *
+ *	trywrlock()
+ *
+ *	----------
+ *
+ *	\li 1. try-acquire the mutex of \c acquired_reads, exit with EBUSY if the mutex is busy;
+ *	\li 2. if \c acquired_reads is empty then exit with EOK;
+ *	\li 3. release the mutex of \c acquired_reads;
+ *	\li 4. exit with EBUSY;
+ *
+ *	(exiting having the mutex of \c acquired_reads acquired in case of success)
+ *
+ *
+ *	wrunlock()
+ *
+ *	----------
+ *
+ *	\li 1. release the mutex of \c acquired_reads.
+ *
+ *
+ *	rdlock(__worker_instance, __waiter_instance, __item_instance)
+ *
+ *	----------
+ *
+ *	\li 1. acquire the mutex of \c acquired_reads;
+ *	\li 2. if \c waiting_writes is empty then goto 13;
+ *	\li 3. release the mutex of \c acquired_reads;
+ *	\li 4. add \c __item_instance with \c __worker_instance into \c waiting_reads; if the queue was not empty then goto 10;
+ *	\li 5. acquire the mutex of \c waiting_writes;
+ *	\li 6. if \c waiting_writes is not empty then wait on its tail with \c __waiter_instance, atomically releasing the mutex of \c waiting_writes; then goto 5;
+ *	\li 7. release the mutex of \c waiting_writes;
+ *	\li 8. splice all the items of \c waiting_reads into \c read_wait_drain; remove \c __item_instance from the moved queue awakening the next queued reader there, if any;
+ *	\li 9. goto 1;
+ *	\li 10. wait on the former last item in \c waiting_reads with \c __waiter_instance, atomically releasing the mutex of \c acquired_reads;
+ *	\li 11. remove \c __item_instance from its current queue awakening the next queued reader there, if any;
+ *	\li 12. goto 1;
+ *	\li 13. add \c __item_instance with \c __worker_instance into \c acquired_reads;
+ *	\li 14. release the mutex of \c acquired_reads.
+ *
+ *	(exiting with having the \c __item_instance with the \c __worker_instance added into \c acquired_reads)
+ *
+ *
+ *	rdunlock(__worker_instance, __item_instance)
+ *
+ *	----------
+ *
+ *	\li 1. remove \c __item_instance from \c acquired_reads awakening a writer waiting there, if any.
+ *
+ *	\see mutexgear_rwlock_init
+ *	\see mutexgear_rwlock_destroy
+ *	\see mutexgear_rwlock_wrlock
+ *	\see mutexgear_rwlock_trywrlock
+ *	\see mutexgear_rwlock_wrunlock
+ *	\see mutexgear_rwlock_rdlock
+ *	\see mutexgear_rwlock_rdunlock
+ *	\see mutexgear_trdl_rwlock_t
  */
 typedef struct _mutexgear_rwlock
 {
 	// Fields modified by readers
 	mutexgear_completion_drainablequeue_t waiting_reads;
-	// Flags are kept after the drainablequeue to match odd size of the latter
+	// Flags are kept after the drainablequeue to fit with its odd size
 	unsigned int                 mode_flags;
 	// Rarely modified fields for separation
 	mutexgear_completion_queue_t waiting_writes;
@@ -239,8 +319,88 @@ typedef struct _mutexgear_rwlock
 
 
 /**
+ *	\struct mutexgear_trdl_rwlock_t
+ *	\brief An opaque structure to represent a read-write lock (RWLock) object with tryrdlock operation
+ *
+ *	This is an enhanced RWLock class with the full operation set support, namely wrlock, wrunlock, rdlock, rdunlock, 
+ *	trywrlock, and tryrdlock. However, it allocates an extra atomic counter and an extra mutex, thus requiring 
+ *	more memory and kernel objects. Also, wrlock and trywrlock operations perform an extra lock-unlock sequence 
+ *	on the extra mutex to guard against potential tryrdlock's. If you don't intend using tryrdlock restrain from 
+ *	using this object and create basic \c mutexgear_rwlock_t instead.
+ *
+ *	The operation pseudo-codes for operations altered with respect to the basic implementation are provided below.
+ *
+ *	wrlock(__worker_instance, __waiter_instance, __item_instance)
+ *
+ *	----------
+ *
+ *	\li 1. atomically increment \c wrlock_waits;
+ *	\li 2. lock and imediately unlock \c tryread_wrapper_lock;
+ *
+ *	(the following steps match those of the basic implementation starting from its step 1.)
+ *
+ *
+ *	trywrlock()
+ *
+ *	----------
+ *
+ *	\li 1. atomically increment \c wrlock_waits;
+ *	\li 2. lock and imediately unlock \c tryread_wrapper_lock;
+ *	\li 1. try-acquire the mutex of \c acquired_reads, decrementing the \c wrlock_waits and exiting with EBUSY if the mutex is busy;
+ *	\li 2. if \c acquired_reads is empty then exit with EOK;
+ *	\li 3. release the mutex of \c acquired_reads and atomically decrement \c wrlock_waits;
+ *	\li 4. exit with EBUSY;
+ *
+ *	(exiting having the mutex of \c acquired_reads acquired in case of success)
+ *
+ *
+ *	wrunlock()
+ *
+ *	----------
+ *
+ *	\li 1. atomically decrement \c wrlock_waits;
+ *	\li 2. release the mutex of \c acquired_reads.
+ *
+ *
+ *	tryrdlock(__worker_instance, __item_instance)
+ *
+ *	----------
+ *
+ *	\li 1. acquire \c tryread_wrapper_lock;
+ *	\li 2. check if wrlock_waits is zero, releasing the \c tryread_wrapper_lock and exiting with EBUSY if not;
+ *	\li 3. acquire the mutex of \c acquired_reads;
+ *	\li 4. release \c tryread_wrapper_lock;
+ *	\li 5. add \c __item_instance with \c __worker_instance into \c acquired_reads;
+ *	\li 6. release the mutex of \c acquired_reads.
+ *
+ *	(exiting with having the \c __item_instance with the \c __worker_instance added into \c acquired_reads)
+ *
+ *	\see mutexgear_rwlock_init
+ *	\see mutexgear_rwlock_destroy
+ *	\see mutexgear_rwlock_wrlock
+ *	\see mutexgear_rwlock_trywrlock
+ *	\see mutexgear_rwlock_wrunlock
+ *	\see mutexgear_rwlock_rdlock
+ *	\see mutexgear_rwlock_tryrdlock
+ *	\see mutexgear_rwlock_rdunlock
+ *	\see mutexgear_rwlock_t
+ */
+typedef struct _mutexgear_trdl_rwlock
+{
+	// The basic rwlock
+	mutexgear_rwlock_t           basic_lock;
+	// Extra fields for tryrdlock operation support
+	ptrdiff_t                    wrlock_waits;
+	_MUTEXGEAR_LOCK_T            tryread_wrapper_lock;
+
+} mutexgear_trdl_rwlock_t;
+
+
+/**
  *	\fn int mutexgear_rwlock_init(mutexgear_rwlock_t *__rwlock_instance, mutexgear_rwlockattr_t *__attr_instance=NULL)
  *	\brief Creates an RWLock object
+ *
+ *	The function can also be called for \c mutexgear_trdl_rwlock_t objects.
  *
  *	The object is initialized accordingly to the \p __attr_instance values.
  *	\param __attr_instance An initialized attributes structure or NULL to use defaults
@@ -249,9 +409,32 @@ typedef struct _mutexgear_rwlock
  */
 _MUTEXGEAR_API int mutexgear_rwlock_init(mutexgear_rwlock_t *__rwlock_instance, mutexgear_rwlockattr_t *__attr_instance/*=NULL*/);
 
+_MUTEXGEAR_API int mutexgear_trdl_rwlock_init(mutexgear_trdl_rwlock_t *__rwlock_instance, mutexgear_rwlockattr_t *__attr_instance/*=NULL*/);
+
+#if defined(__cplusplus)
+_MUTEXGEAR_END_EXTERN_C();
+
+static inline
+int mutexgear_rwlock_init(mutexgear_trdl_rwlock_t *__rwlock_instance, mutexgear_rwlockattr_t *__attr_instance/*=NULL*/)
+{
+	return mutexgear_trdl_rwlock_init(__rwlock_instance, __attr_instance);
+}
+
+_MUTEXGEAR_BEGIN_EXTERN_C();
+#endif // #if defined(__cplusplus)
+
+#if defined(MUTEXGEAR_USE_C11_GENERICS)
+#define mutexgear_rwlock_init(__rwlock_instance, __attr_instance) _Generic(__rwlock_instance, \
+	mutexgear_trdl_rwlock_t *: mutexgear_trdl_rwlock_init, \
+	default: mutexgear_rwlock_init)(__rwlock_instance, __attr_instance)
+#endif // #if defined(MUTEXGEAR_USE_C11_GENERICS)
+
+
 /**
  *	\fn int mutexgear_rwlock_destroy(mutexgear_rwlock_t *__rwlock_instance)
  *	\brief Destroys the RWLock object
+ *
+ *	The function can also be called for \c mutexgear_trdl_rwlock_t objects.
  *
  *	The object must be free of locks to be destroyed successfully.
  *	\return EOK on success or a system error code on failure.
@@ -259,12 +442,34 @@ _MUTEXGEAR_API int mutexgear_rwlock_init(mutexgear_rwlock_t *__rwlock_instance, 
  */
 _MUTEXGEAR_API int mutexgear_rwlock_destroy(mutexgear_rwlock_t *__rwlock_instance);
 
+_MUTEXGEAR_API int mutexgear_trdl_rwlock_destroy(mutexgear_trdl_rwlock_t *__rwlock_instance);
+
+#if defined(__cplusplus)
+_MUTEXGEAR_END_EXTERN_C();
+
+static inline
+int mutexgear_rwlock_destroy(mutexgear_trdl_rwlock_t *__rwlock_instance)
+{
+	return mutexgear_trdl_rwlock_destroy(__rwlock_instance);
+}
+
+_MUTEXGEAR_BEGIN_EXTERN_C();
+#endif // #if defined(__cplusplus)
+
+#if defined(MUTEXGEAR_USE_C11_GENERICS)
+#define mutexgear_rwlock_destroy(__rwlock_instance) _Generic(__rwlock_instance, \
+	mutexgear_trdl_rwlock_t *: mutexgear_trdl_rwlock_destroy, \
+	default: mutexgear_rwlock_destroy)(__rwlock_instance)
+#endif // #if defined(MUTEXGEAR_USE_C11_GENERICS)
+
 
 /**
  *	\fn int mutexgear_rwlock_wrlock(mutexgear_rwlock_t *__rwlock_instance, mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_waiter_t *__waiter_instance, mutexgear_completion_item_t *__item_instance=NULL)
  *	\brief Acquires the object write (exclusive) lock
  *
- *	The function requires initialized \p __worker_instance and \p __waiter_instance objects 
+ *	The function can also be called for \c mutexgear_trdl_rwlock_t objects.
+ *
+ *	The function requires initialized \p __worker_instance and \p __waiter_instance objects
  *	that must be allocated per calling thread (e.g. on stack) and may be disposed after the call returns.
  *	The \p __worker_instance must be locked with a \c mutexgear_completion_worker_lock call after initialization.
  *
@@ -274,8 +479,7 @@ _MUTEXGEAR_API int mutexgear_rwlock_destroy(mutexgear_rwlock_t *__rwlock_instanc
  *	calling thread for reuse, however.
  *
  *	If a thread may call both \c mutexgear_rwlock_wrlock and \c mutexgear_rwlock_rdlock 
- *	a single instance of \c mutexgear_completion_item_t can be used for the both 
- *	(see \c mutexgear_completion_drainableitem_getitem and \c mutexgear_completion_drainableitem_unsafegetitem).
+ *	a single instance of \c mutexgear_completion_item_t may be used for the both.
  *
  *	In case of inter-process synchronization all the parameters must be allocated in the same 
  *	shared section as the RWLock object.
@@ -285,33 +489,116 @@ _MUTEXGEAR_API int mutexgear_rwlock_destroy(mutexgear_rwlock_t *__rwlock_instanc
  *	\return EOK on success or a system error code on failure.
  *	\see mutexgear_rwlock_wrunlock
  *	\see mutexgear_completion_worker_lock
- *	\see mutexgear_completion_drainableitem_getitem
- *	\see mutexgear_completion_drainableitem_unsafegetitem
+ *	\see mutexgear_rwlock_trywrlock
  */
 _MUTEXGEAR_API int mutexgear_rwlock_wrlock(mutexgear_rwlock_t *__rwlock_instance,
 	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_waiter_t *__waiter_instance, mutexgear_completion_item_t *__item_instance/*=NULL*/);
 
+_MUTEXGEAR_API int mutexgear_trdl_rwlock_wrlock(mutexgear_trdl_rwlock_t *__rwlock_instance,
+	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_waiter_t *__waiter_instance, mutexgear_completion_item_t *__item_instance/*=NULL*/);
+
+#if defined(__cplusplus)
+_MUTEXGEAR_END_EXTERN_C();
+
+static inline
+int mutexgear_rwlock_wrlock(mutexgear_trdl_rwlock_t *__rwlock_instance,
+	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_waiter_t *__waiter_instance, mutexgear_completion_item_t *__item_instance/*=NULL*/)
+{
+	return mutexgear_trdl_rwlock_wrlock(__rwlock_instance, __worker_instance, __waiter_instance, __item_instance);
+}
+
+_MUTEXGEAR_BEGIN_EXTERN_C();
+#endif // #if defined(__cplusplus)
+
+#if defined(MUTEXGEAR_USE_C11_GENERICS)
+#define mutexgear_rwlock_wrlock(__rwlock_instance, __worker_instance, __waiter_instance, __item_instance) _Generic(__rwlock_instance, \
+	mutexgear_trdl_rwlock_t *: mutexgear_trdl_rwlock_wrlock, \
+	default: mutexgear_rwlock_wrlock)(__rwlock_instance, __worker_instance, __waiter_instance, __item_instance)
+#endif // #if defined(MUTEXGEAR_USE_C11_GENERICS)
+
+
+/**
+ *	\fn int mutexgear_rwlock_trywrlock(mutexgear_rwlock_t *__rwlock_instance)
+ *	\brief Tries to acquire the object write (exclusive) lock without blocking
+ *
+ *	The function can also be called for \c mutexgear_trdl_rwlock_t objects.
+ *
+ *	The object must not be locked for write by a single thread recursively.
+ *
+ *	\return EOK on success, EBUSY if the object is already locked by another thread, or a system error code on failure.
+ *	\see mutexgear_rwlock_wrunlock
+ *	\see mutexgear_rwlock_wrlock
+ */
+_MUTEXGEAR_API int mutexgear_rwlock_trywrlock(mutexgear_rwlock_t *__rwlock_instance);
+
+_MUTEXGEAR_API int mutexgear_trdl_rwlock_trywrlock(mutexgear_trdl_rwlock_t *__rwlock_instance);
+
+#if defined(__cplusplus)
+_MUTEXGEAR_END_EXTERN_C();
+
+static inline
+int mutexgear_rwlock_trywrlock(mutexgear_trdl_rwlock_t *__rwlock_instance)
+{
+	return mutexgear_trdl_rwlock_trywrlock(__rwlock_instance);
+}
+
+_MUTEXGEAR_BEGIN_EXTERN_C();
+#endif // #if defined(__cplusplus)
+
+#if defined(MUTEXGEAR_USE_C11_GENERICS)
+#define mutexgear_rwlock_trywrlock(__rwlock_instance) _Generic(__rwlock_instance, \
+	mutexgear_trdl_rwlock_t *: mutexgear_trdl_rwlock_trywrlock, \
+	default: mutexgear_rwlock_trywrlock)(__rwlock_instance)
+#endif // #if defined(MUTEXGEAR_USE_C11_GENERICS)
+
+
 /**
  *	\fn int mutexgear_rwlock_wrunlock(mutexgear_rwlock_t *__rwlock_instance)
  *	\brief Releases the previously acquired object write (exclusive) lock
- *	\return EOK on success or a system error code on failure.
+ *
+  *	The function can also be called for \c mutexgear_trdl_rwlock_t objects.
+ *
+*	\return EOK on success or a system error code on failure.
  *	\see mutexgear_rwlock_wrlock
+ *	\see mutexgear_rwlock_trywrlock
  */
 _MUTEXGEAR_API int mutexgear_rwlock_wrunlock(mutexgear_rwlock_t *__rwlock_instance);
+
+_MUTEXGEAR_API int mutexgear_trdl_rwlock_wrunlock(mutexgear_trdl_rwlock_t *__rwlock_instance);
+
+#if defined(__cplusplus)
+_MUTEXGEAR_END_EXTERN_C();
+
+static inline
+int mutexgear_rwlock_wrunlock(mutexgear_trdl_rwlock_t *__rwlock_instance)
+{
+	return mutexgear_trdl_rwlock_wrunlock(__rwlock_instance);
+}
+
+_MUTEXGEAR_BEGIN_EXTERN_C();
+#endif // #if defined(__cplusplus)
+
+#if defined(MUTEXGEAR_USE_C11_GENERICS)
+#define mutexgear_rwlock_wrunlock(__rwlock_instance) _Generic(__rwlock_instance, \
+	mutexgear_trdl_rwlock_t *: mutexgear_trdl_rwlock_wrunlock, \
+	default: mutexgear_rwlock_wrunlock)(__rwlock_instance)
+#endif // #if defined(MUTEXGEAR_USE_C11_GENERICS)
 
 
 /**
  *	\fn int mutexgear_rwlock_rdlock(mutexgear_rwlock_t *__rwlock_instance, mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_waiter_t *__waiter_instance, mutexgear_completion_item_t *__item_instance)
  *	\brief Acquires the object read (shared) lock
  *
- *	The function requires initialized \p __worker_instance, \p __waiter_instance objects and 
+ *	The function can also be called for \c mutexgear_trdl_rwlock_t objects.
+ *
+ *	The function requires initialized \p __worker_instance, \p __waiter_instance objects and
  *	\p __item_instance objects that must be allocated per calling thread (e.g. on stack).
  *	The \p __worker_instance and \p __item_instance must remain valid and not reused for other purposes 
  *	until the read lock is released with a call to \c mutexgear_rwlock_rdunlock (in particular, 
  *	the same parameters must not be used for enclosed read or write locks of other RWLock objects). 
  *	The \p __worker_instance must be locked with a \c mutexgear_completion_worker_lock call after initialization. 
  *	The \p __waiter_instance may be reused for nested acquisitions of other RWLock objects.
- *	It is recommended that the objects are allocated with the calling thread for its lifetime. 
+ *	It is recommended that the objects are allocated with a calling thread for its lifetime. 
  *	If a thread may call to acquire both read and write locks during its execution 
  *	the same set of objects may be used in all the calls.
  *
@@ -320,14 +607,84 @@ _MUTEXGEAR_API int mutexgear_rwlock_wrunlock(mutexgear_rwlock_t *__rwlock_instan
  *
  *	\return EOK on success or a system error code on failure.
  *	\see mutexgear_rwlock_rdunlock
+ *	\see mutexgear_rwlock_tryrdlock
  *	\see mutexgear_completion_worker_lock
  */
 _MUTEXGEAR_API int mutexgear_rwlock_rdlock(mutexgear_rwlock_t *__rwlock_instance,
-	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_waiter_t *__waiter_instance, mutexgear_completion_drainableitem_t *__item_instance);
+	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_waiter_t *__waiter_instance, mutexgear_completion_item_t *__item_instance);
+
+_MUTEXGEAR_API int mutexgear_trdl_rwlock_rdlock(mutexgear_trdl_rwlock_t *__rwlock_instance,
+	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_waiter_t *__waiter_instance, mutexgear_completion_item_t *__item_instance);
+
+#if defined(__cplusplus)
+_MUTEXGEAR_END_EXTERN_C();
+
+static inline
+int mutexgear_rwlock_rdlock(mutexgear_trdl_rwlock_t *__rwlock_instance,
+	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_waiter_t *__waiter_instance, mutexgear_completion_item_t *__item_instance)
+{
+	return mutexgear_trdl_rwlock_rdlock(__rwlock_instance, __worker_instance, __waiter_instance, __item_instance);
+}
+
+_MUTEXGEAR_BEGIN_EXTERN_C();
+#endif // #if defined(__cplusplus)
+
+#if defined(MUTEXGEAR_USE_C11_GENERICS)
+#define mutexgear_rwlock_rdlock(__rwlock_instance, __worker_instance, __waiter_instance, __item_instance) _Generic(__rwlock_instance, \
+	mutexgear_trdl_rwlock_t *: mutexgear_trdl_rwlock_rdlock, \
+	default: mutexgear_rwlock_rdlock)(__rwlock_instance, __worker_instance, __waiter_instance, __item_instance)
+#endif // #if defined(MUTEXGEAR_USE_C11_GENERICS)
+
+
+/**
+ *	\fn int mutexgear_rwlock_tryrdlock(mutexgear_trdl_rwlock_t *__rwlock_instance,	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_item_t *__item_instance)
+ *	\brief Tries to acquire the object read (shared) lock without blocking
+ *
+ *	The function is available for \c mutexgear_trdl_rwlock_t objects only.
+ *
+ *	The function may speculatively return EBUSY if there would be concurrent \c mutexgear_rwlock_trywrlock
+ *	calls from other threads even if those calls were going to fail due to the object being already read-locked 
+ *	by yet some other threads. Also, the call obeys write lock priority and will return EBUSY if there are
+ *	threads waiting to acquire the object for write.
+ *
+ *	The restrictions and requirements for \p __worker_instance, \p __waiter_instance objects and
+ *	\p __item_instance objects match those for \c mutexgear_rwlock_rdlock call.
+ *
+ *	In case of inter-process synchronization all the parameters must be allocated in the same
+ *	shared section as the RWLock object.
+ *
+ *	\return EOK on success, EBUSY if the object is already write-locked by another thread, or a system error code on failure.
+ *	\see mutexgear_rwlock_rdunlock
+ *	\see mutexgear_rwlock_rdlock
+ *	\see mutexgear_completion_worker_lock
+ */
+_MUTEXGEAR_API int mutexgear_trdl_rwlock_tryrdlock(mutexgear_trdl_rwlock_t *__rwlock_instance,
+	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_item_t *__item_instance);
+
+#if defined(__cplusplus)
+_MUTEXGEAR_END_EXTERN_C();
+
+static inline
+int mutexgear_rwlock_tryrdlock(mutexgear_trdl_rwlock_t *__rwlock_instance, 
+	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_item_t *__item_instance)
+{
+	return mutexgear_trdl_rwlock_tryrdlock(__rwlock_instance, __worker_instance, __item_instance);
+}
+
+_MUTEXGEAR_BEGIN_EXTERN_C();
+#endif // #if defined(__cplusplus)
+
+#if defined(MUTEXGEAR_USE_C11_GENERICS)
+#define mutexgear_rwlock_tryrdlock(__rwlock_instance, __worker_instance, __item_instance) _Generic(__rwlock_instance, \
+	mutexgear_trdl_rwlock_t *: mutexgear_trdl_rwlock_tryrdlock)(__rwlock_instance, __worker_instance, __item_instance)
+#endif // #if defined(MUTEXGEAR_USE_C11_GENERICS)
+
 
 /**
  *	\fn mutexgear_rwlock_rdunlock(mutexgear_rwlock_t *__rwlock_instance, mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_item_t *__item_instance)
  *	\brief Releases the previously acquired object read (shared) lock
+ *
+ *	The function can also be called for \c mutexgear_trdl_rwlock_t objects.
  *
  *	The \p __worker_instance and \p __item_instance must be the same objects that were used in the previous call
  *	to \c mutexgear_rwlock_rdlock on the RWLock.
@@ -335,14 +692,35 @@ _MUTEXGEAR_API int mutexgear_rwlock_rdlock(mutexgear_rwlock_t *__rwlock_instance
  *	\see mutexgear_rwlock_rdlock
  */
 _MUTEXGEAR_API int mutexgear_rwlock_rdunlock(mutexgear_rwlock_t *__rwlock_instance,
-	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_drainableitem_t *__item_instance);
+	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_item_t *__item_instance);
+
+_MUTEXGEAR_API int mutexgear_trdl_rwlock_rdunlock(mutexgear_trdl_rwlock_t *__rwlock_instance,
+	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_item_t *__item_instance);
+
+#if defined(__cplusplus)
+_MUTEXGEAR_END_EXTERN_C();
+
+static inline
+int mutexgear_rwlock_rdunlock(mutexgear_trdl_rwlock_t *__rwlock_instance, 
+	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_item_t *__item_instance)
+{
+	return mutexgear_trdl_rwlock_rdunlock(__rwlock_instance, __worker_instance, __item_instance);
+}
+
+_MUTEXGEAR_BEGIN_EXTERN_C();
+#endif // #if defined(__cplusplus)
+
+#if defined(MUTEXGEAR_USE_C11_GENERICS)
+#define mutexgear_rwlock_rdunlock(__rwlock_instance, __worker_instance, __item_instance) _Generic(__rwlock_instance, \
+	mutexgear_trdl_rwlock_t *: mutexgear_trdl_rwlock_rdunlock, \
+	default: mutexgear_rwlock_rdunlock)(__rwlock_instance, __worker_instance, __item_instance)
+#endif // #if defined(MUTEXGEAR_USE_C11_GENERICS)
 
 
 //////////////////////////////////////////////////////////////////////////
 
 
 _MUTEXGEAR_END_EXTERN_C();
-
 
 
 #endif // #ifndef __MUTEXGEAR_RWLOCK_H_INCLUDED

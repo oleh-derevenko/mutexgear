@@ -9,6 +9,16 @@
 #include <stdio.h>
 
 
+#define _MGTEST_TEST_TRDL		1
+
+
+#if _MGTEST_TEST_TRDL
+#define MUTEXGEAR_RWLOCK_VARIANT_T mutexgear_trdl_rwlock_t
+#else 
+#define MUTEXGEAR_RWLOCK_VARIANT_T mutexgear_rwlock_t
+#endif
+
+
 //////////////////////////////////////////////////////////////////////////
 
 typedef bool(*CFeatureTestProcedure)();
@@ -37,10 +47,14 @@ enum
 	LOCK_THREAD_NAME_LENGTH = 2,
 };
 
-static const char g_cOperationDetailMapSeparatorChar = ',';
+static const char g_cNormalVariantOperationDetailMapSeparatorChar = ',';
+static const char g_cTryVariantOperationDetailMapSeparatorChar = '.';
 static const char g_cWriterMapFirstChar = 'S';
 static const char g_cReaderMapFirstChar = 'A';
 
+#define ENCODE_SEQUENCE_WITH_TRYVARIANT(iiLockOperationSequence, bLockedWitTryVariant) (bLockedWitTryVariant ? (-1 - iiLockOperationSequence) : iiLockOperationSequence)
+#define DECODE_ENCODED_SEQUENCE(SwTV) ((operationsidxint)(SwTV) < 0 ? (-1 - (SwTV)) : (SwTV))
+#define DECODE_ENCODED_TRYVARIANT(SwTV) ((operationsidxint)(SwTV) < 0)
 
 static const char *const g_aszTestedObjectKindFileNameSuffixes[LTO__MAX] =
 {
@@ -138,10 +152,15 @@ public:
 		MG_CHECK(iDestroyResult, (iDestroyResult = _mutexgear_rwlock_destroy(&m_wlRWLock)) == EOK);
 	}
 
-	void LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
+	bool LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
 	{
-		int iLockResult;
-		MG_CHECK(iLockResult, (iLockResult = _mutexgear_rwlock_wrlock(&m_wlRWLock)) == EOK);
+		bool bLockedWithTryVariant = false;
+
+		int iLockResult = _mutexgear_rwlock_trywrlock(&m_wlRWLock);
+		MG_CHECK(iLockResult, (iLockResult == EOK && (bLockedWithTryVariant = true, true))
+			|| (iLockResult == EBUSY && (iLockResult = _mutexgear_rwlock_wrlock(&m_wlRWLock)) == EOK));
+
+		return bLockedWithTryVariant;
 	}
 
 	void UnlockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
@@ -150,10 +169,20 @@ public:
 		MG_CHECK(iUnlockResult, (iUnlockResult = _mutexgear_rwlock_wrunlock(&m_wlRWLock)) == EOK);
 	}
 
-	void LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
+	bool LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
 	{
+		bool bLockedWithTryVariant = false;
+
 		int iLockResult;
-		MG_CHECK(iLockResult, (iLockResult = _mutexgear_rwlock_rdlock(&m_wlRWLock)) == EOK);
+#if _MGTEST_TEST_TRDL
+		iLockResult = _mutexgear_rwlock_tryrdlock(&m_wlRWLock);
+#else
+		iLockResult = EBUSY;
+#endif
+		MG_CHECK(iLockResult, (iLockResult == EOK && (bLockedWithTryVariant = true, true))
+			|| (iLockResult == EBUSY && (iLockResult = _mutexgear_rwlock_rdlock(&m_wlRWLock)) == EOK));
+
+		return bLockedWithTryVariant;
 	}
 
 	void UnlockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
@@ -210,25 +239,30 @@ public:
 	public:
 		CLockReadExtraObjects()
 		{
-			mutexgear_completion_drainableitem_init(&m_ciLockCompletionItem);
+			mutexgear_completion_item_init(&m_ciLockCompletionItem);
 		}
 
 		~CLockReadExtraObjects()
 		{
-			mutexgear_completion_drainableitem_destroy(&m_ciLockCompletionItem);
+			mutexgear_completion_item_destroy(&m_ciLockCompletionItem);
 		}
 
 		operator CLockWriteExtraObjects &() { return m_eoWriteObjects; }
 
 		CLockWriteExtraObjects				m_eoWriteObjects;
-		mutexgear_completion_drainableitem_t m_ciLockCompletionItem;
+		mutexgear_completion_item_t			m_ciLockCompletionItem;
 	};
 
 public:
-	void LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
+	bool LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
 	{
-		int iLockResult;
-		MG_CHECK(iLockResult, (iLockResult = mutexgear_rwlock_wrlock(&m_wlRWLock, &eoRefExtraObjects.m_cwLockWorker, &eoRefExtraObjects.m_cwLockWaiter, NULL)) == EOK);
+		bool bLockedWithTryVariant = false;
+
+		int iLockResult = mutexgear_rwlock_trywrlock(&m_wlRWLock);
+		MG_CHECK(iLockResult, (iLockResult == EOK && (bLockedWithTryVariant = true, true))
+			|| (iLockResult == EBUSY && (iLockResult = mutexgear_rwlock_wrlock(&m_wlRWLock, &eoRefExtraObjects.m_cwLockWorker, &eoRefExtraObjects.m_cwLockWaiter, NULL)) == EOK));
+
+		return bLockedWithTryVariant;
 	}
 
 	void UnlockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
@@ -237,10 +271,20 @@ public:
 		MG_CHECK(iUnlockResult, (iUnlockResult = mutexgear_rwlock_wrunlock(&m_wlRWLock)) == EOK);
 	}
 
-	void LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
+	bool LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
 	{
+		bool bLockedWithTryVariant = false;
+
 		int iLockResult;
-		MG_CHECK(iLockResult, (iLockResult = mutexgear_rwlock_rdlock(&m_wlRWLock, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWaiter, &eoRefExtraObjects.m_ciLockCompletionItem)) == EOK);
+#if _MGTEST_TEST_TRDL
+		iLockResult = mutexgear_rwlock_tryrdlock(&m_wlRWLock, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, &eoRefExtraObjects.m_ciLockCompletionItem);
+#else
+		iLockResult = EBUSY;
+#endif
+		MG_CHECK(iLockResult, (iLockResult == EOK && (bLockedWithTryVariant = true, true))
+			|| (iLockResult == EBUSY && (iLockResult = mutexgear_rwlock_rdlock(&m_wlRWLock, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWaiter, &eoRefExtraObjects.m_ciLockCompletionItem)) == EOK));
+
+		return bLockedWithTryVariant;
 	}
 
 	void UnlockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
@@ -268,7 +312,7 @@ private:
 	}
 
 private:
-	mutexgear_rwlock_t		m_wlRWLock;
+	MUTEXGEAR_RWLOCK_VARIANT_T		m_wlRWLock;
 };
 
 
@@ -285,7 +329,7 @@ class CRWLockLockTestBase
 {
 public:
 	typedef unsigned int iterationcntint;
-	typedef unsigned int operationidxint; typedef _mg_atomic_uint_t atomic_operationidxint;
+	typedef unsigned int operationidxint; typedef signed int operationsidxint; typedef _mg_atomic_uint_t atomic_operationidxint;
 	typedef unsigned int threadcntint;
 
 	static inline void atomic_init_operationidxint(volatile atomic_operationidxint *piiDestination, operationidxint iiValue)
@@ -474,8 +518,13 @@ enum EEXECUTORLOCKOPERATIONKIND
 {
 	LOK__MIN,
 
-	LOK_ACUIORE_LOCK = LOK__MIN,
-	LOK_RELEASE_LOCK,
+	LOK__ENCODED_MIN = LOK__MIN,
+	
+	LOK_ACUIORE_LOCK = LOK__ENCODED_MIN,
+
+	LOK__ENCODED_MAX,
+
+	LOK_RELEASE_LOCK = LOK__ENCODED_MAX,
 
 	LOK__MAX,
 };
@@ -514,9 +563,9 @@ public:
 
 	static operationidxint GetThreadOperationCount(iterationcntint uiIterationCount) { return (operationidxint)uiIterationCount * LOK__MAX; }
 
-	void ApplyLock(COperationExtraObjects &eoRefExtraObjects)
+	bool ApplyLock(COperationExtraObjects &eoRefExtraObjects)
 	{
-		m_liRWLockInstance.LockRWLockWrite(eoRefExtraObjects);
+		return m_liRWLockInstance.LockRWLockWrite(eoRefExtraObjects);
 	}
 
 	void ReleaseLock(COperationExtraObjects &eoRefExtraObjects)
@@ -547,16 +596,20 @@ public:
 
 	static operationidxint GetThreadOperationCount(iterationcntint uiIterationCount) { return (operationidxint)uiIterationCount * LOK__MAX; }
 
-	void ApplyLock(COperationExtraObjects &eoRefExtraObjects)
+	bool ApplyLock(COperationExtraObjects &eoRefExtraObjects)
 	{
+		bool bLockedWithTryVariant;
+
 		if (tuiReaderWriteDivisor == 0 || ++m_ciLockIndex % tuiReaderWriteDivisor != 0)
 		{
-			m_liRWLockInstance.LockRWLockRead(eoRefExtraObjects);
+			bLockedWithTryVariant = m_liRWLockInstance.LockRWLockRead(eoRefExtraObjects);
 		}
 		else
 		{
-			m_liRWLockInstance.LockRWLockWrite(eoRefExtraObjects);
+			bLockedWithTryVariant = m_liRWLockInstance.LockRWLockWrite(eoRefExtraObjects);
 		}
+
+		return bLockedWithTryVariant;
 	}
 
 	void ReleaseLock(COperationExtraObjects &eoRefExtraObjects)
@@ -909,15 +962,26 @@ typename CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteD
 	operationidxint iiThreadCurrentOperationIndex = iiThreadLastOperationIndex;
 	for (; iiThreadCurrentOperationIndex != iiThreadOperationCount; ++iiThreadCurrentOperationIndex)
 	{
-		operationidxint iiThreadOperationSequence = piiThreadOperationIndices[iiThreadCurrentOperationIndex];
+		operationidxint iiRawThreadOperationSequence = piiThreadOperationIndices[iiThreadCurrentOperationIndex];
+		EEXECUTORLOCKOPERATIONKIND okOperationKind = CRWLockLockExecutorLogic::GetOperationIndexOperationKind(iiThreadCurrentOperationIndex);
+
+		bool bTryVariantWasUsed = false;
+		operationidxint iiThreadOperationSequence = iiRawThreadOperationSequence;
+		if (IN_RANGE(okOperationKind, LOK__ENCODED_MIN, LOK__ENCODED_MAX))
+		{
+			bTryVariantWasUsed = DECODE_ENCODED_TRYVARIANT(iiRawThreadOperationSequence);
+			iiThreadOperationSequence = DECODE_ENCODED_SEQUENCE(iiRawThreadOperationSequence);
+		}
+
 		if (iiThreadOperationSequence >= iiAcceptableOperationSequencesEnd)
 		{
 			break;
 		}
 
 		size_t siNameInsertOffset = (size_t)(iiThreadOperationSequence - iiLastSavedOperationIndex) * (LOCK_THREAD_NAME_LENGTH + 1);
+		ascMergeBuffer[siNameInsertOffset + LOCK_THREAD_NAME_LENGTH] = !bTryVariantWasUsed ? g_cNormalVariantOperationDetailMapSeparatorChar : g_cTryVariantOperationDetailMapSeparatorChar;
+
 		std::copy(ascThreadMapChars, ascThreadMapChars + LOCK_THREAD_NAME_LENGTH, ascMergeBuffer + siNameInsertOffset);
-		ascMergeBuffer[siNameInsertOffset + LOCK_THREAD_NAME_LENGTH] = g_cOperationDetailMapSeparatorChar;
 
 		const unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor;
 		if (uiReaderWriteDivisor != 0 && ascThreadMapChars[0] >= g_cReaderMapFirstChar)
@@ -930,7 +994,6 @@ typename CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteD
 			}
 		}
 
-		EEXECUTORLOCKOPERATIONKIND okOperationKind = CRWLockLockExecutorLogic::GetOperationIndexOperationKind(iiThreadCurrentOperationIndex);
 		ascMergeBuffer[siNameInsertOffset] += g_ascLockOperationKindThreadNameFirstCharModifiers[okOperationKind];
 	}
 
@@ -1083,16 +1146,18 @@ void CRWLockLockTestThread<TOperationExecutor>::ExecuteThread()
 template<class TOperationExecutor>
 void CRWLockLockTestThread<TOperationExecutor>::DoTheDirtyJob(CExecutorExtraObjects &eoRefExecutorExtraObjects, CRWLockLockTestProgress *ptpProgressInstance)
 {
+	volatile int iRandomNumber;
 	operationidxint *piiOperationIndexBuffer = m_piiOperationIndexBuffer;
 
 	const iterationcntint uiIterationCount = m_uiIterationCount;
 	for (iterationcntint uiIterationIndex = 0; uiIterationIndex != uiIterationCount; ++uiIterationIndex)
 	{
-		m_oeOperationExecutor.ApplyLock(eoRefExecutorExtraObjects);
+		bool bLockedWitTryVariant = m_oeOperationExecutor.ApplyLock(eoRefExecutorExtraObjects);
 		
 		operationidxint iiLockOperationSequence = ptpProgressInstance->GenerateOperationIndex();
-		*piiOperationIndexBuffer++ = iiLockOperationSequence;
+		*piiOperationIndexBuffer++ = ENCODE_SEQUENCE_WITH_TRYVARIANT(iiLockOperationSequence, bLockedWitTryVariant);
 
+		iRandomNumber = rand(); // Generate a random number to simulate a small delay
 
 		operationidxint iiUnlockOperationSequence = ptpProgressInstance->GenerateOperationIndex();
 		*piiOperationIndexBuffer++ = iiUnlockOperationSequence;

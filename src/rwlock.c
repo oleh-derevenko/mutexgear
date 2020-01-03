@@ -4,12 +4,12 @@
 /*                                                                      */
 /* WARNING!                                                             */
 /* This library contains a synchronization technique protected by       */
-/* the U.S. Parent 9,983,913.                                           */
+/* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2019 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -24,6 +24,22 @@
 
 
 #include <mutexgear/rwlock.h>
+
+#if defined(MUTEXGEAR_USE_C11_GENERICS)
+
+#undef mutexgear_rwlock_init
+#undef mutexgear_rwlock_destroy
+#undef mutexgear_rwlock_wrlock
+#undef mutexgear_rwlock_trywrlock
+#undef mutexgear_rwlock_wrunlock
+#undef mutexgear_rwlock_rdlock
+#undef mutexgear_rwlock_tryrdlock
+#undef mutexgear_rwlock_rdunlock
+
+
+#endif // #if defined(MUTEXGEAR_USE_C11_GENERICS)
+
+
 #include "completion.h"
 #include "utility.h"
 
@@ -201,6 +217,45 @@ typedef enum _rwlock_rdlock_item_tag
 
 
 /*extern */
+int mutexgear_trdl_rwlock_init(mutexgear_trdl_rwlock_t *__rwlock, mutexgear_rwlockattr_t *__attr/*=NULL*/)
+{
+	bool success = false;
+	int ret, mutex_destroy_status;
+
+	bool wrapper_lock_allocated = false;
+
+	do 
+	{
+		if ((ret = _mutexgear_lock_init(&__rwlock->tryread_wrapper_lock, __attr != NULL ? &__attr->lock_attr : NULL)) != EOK)
+		{
+			break;
+		}
+		wrapper_lock_allocated = true;
+
+		if ((ret = mutexgear_rwlock_init(&__rwlock->basic_lock, __attr)) != EOK)
+		{
+			break;
+		}
+
+		_mg_atomic_construct_ptrdiff(_MG_PA_PTRDIFF(&__rwlock->wrlock_waits));
+		_mg_atomic_init_ptrdiff(_MG_PA_PTRDIFF(&__rwlock->wrlock_waits), 0);
+
+		success = true;
+	}
+	while (false);
+
+	if (!success)
+	{
+		if (wrapper_lock_allocated)
+		{
+			MG_CHECK(mutex_destroy_status, (mutex_destroy_status = _mutexgear_lock_destroy(&__rwlock->tryread_wrapper_lock)) == EOK); // This should succeed normally
+		}
+	}
+
+	return success ? EOK : ret;
+}
+
+/*extern */
 int mutexgear_rwlock_init(mutexgear_rwlock_t *__rwlock, mutexgear_rwlockattr_t *__attr/*=NULL*/)
 {
 	bool success = false;
@@ -285,8 +340,6 @@ int mutexgear_rwlock_init(mutexgear_rwlock_t *__rwlock, mutexgear_rwlockattr_t *
 		}
 		// wheelattr_was_allocated = false;
 
-		ret = EOK;
-
 		success = true;
 	}
 	while (false);
@@ -331,13 +384,63 @@ int mutexgear_rwlock_init(mutexgear_rwlock_t *__rwlock, mutexgear_rwlockattr_t *
 		}
 	}
 
-	return ret;
+	return success ? EOK : ret;
 }
 
 
 /*extern */
+int mutexgear_trdl_rwlock_destroy(mutexgear_trdl_rwlock_t *__rwlock)
+{
+	bool success = false;
+	int ret, mutex_unlock_status, mutex_destroy_status;
+
+	bool wrapper_lock_acquired = false;
+
+	do 
+	{
+		ptrdiff_t wrlock_waits = _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->wrlock_waits));
+		
+		if (wrlock_waits != 0)
+		{
+			ret = wrlock_waits > 0 ? EBUSY : EINVAL;
+			break;
+		}
+
+		if ((ret = _mutexgear_lock_tryacquire(&__rwlock->tryread_wrapper_lock)) != EOK)
+		{
+			break;
+		}
+		wrapper_lock_acquired = true;
+
+		if ((ret = mutexgear_rwlock_destroy(&__rwlock->basic_lock)) != EOK)
+		{
+			break;
+		}
+
+		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__rwlock->tryread_wrapper_lock)) == EOK);
+		MG_CHECK(mutex_destroy_status, (mutex_destroy_status = _mutexgear_lock_destroy(&__rwlock->tryread_wrapper_lock)) == EOK);
+
+		_mg_atomic_destroy_ptrdiff(_MG_PA_PTRDIFF(&__rwlock->wrlock_waits));
+
+		success = true;
+	}
+	while (false);
+
+	if (!success)
+	{
+		if (wrapper_lock_acquired)
+		{
+			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__rwlock->tryread_wrapper_lock)) == EOK);
+		}
+	}
+
+	return success ? EOK : ret;
+}
+
+/*extern */
 int mutexgear_rwlock_destroy(mutexgear_rwlock_t *__rwlock)
 {
+	bool success = false;
 	int ret, mutex_unlock_status, mutex_destroy_status;
 
 	unsigned int mutex_index, mutex_count;
@@ -410,11 +513,11 @@ int mutexgear_rwlock_destroy(mutexgear_rwlock_t *__rwlock)
 		_mutexgear_completion_drainablequeue_completedestroy(&__rwlock->waiting_reads);
 		_mutexgear_completion_drain_completedestroy(&__rwlock->read_wait_drain);
 
-		ret = EOK;
+		success = true;
 	}
 	while (false);
 
-	if (ret != EOK)
+	if (!success)
 	{
 		if (drain_prepared)
 		{
@@ -445,7 +548,7 @@ int mutexgear_rwlock_destroy(mutexgear_rwlock_t *__rwlock)
 		}
 	}
 
-	return ret;
+	return success ? EOK : ret;
 }
 
 
@@ -457,6 +560,133 @@ static bool rwlock_wrlock_wait_all_reads_and_acquire_access(mutexgear_rwlock_t *
 	mutexgear_completion_item_t	*__last_reader_item, int *__out_status);
 static bool rwlock_wrlock_find_notmarked_reader_item(mutexgear_completion_item_t **__out_reader_item, 
 	mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *__reader_item);
+
+/*extern */
+int mutexgear_trdl_rwlock_wrlock(mutexgear_trdl_rwlock_t *__rwlock,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item/*=NULL*/)
+{
+	bool success = false;
+	int ret, mutex_unlock_status, item_completion_status;
+
+	bool item_initialized = false, wrwaits_incremented = false, wait_initialized = false, wait_inserted = false;
+
+	mutexgear_completion_item_t wait_completion_item;
+	mutexgear_completion_item_t *wait_completion_to_use = __item;
+
+	do
+	{
+		if (__item == NULL)
+		{
+			MG_STATIC_ASSERT(MUTEXGEAR_PROCESS_SHARED != 0);
+
+			if ((__rwlock->basic_lock.mode_flags & MUTEXGEAR_PROCESS_SHARED) != 0) // In case of shared mode, item parameter must not be NULL
+			{
+				ret = EINVAL;
+				break;
+			}
+
+			_mutexgear_completion_item_init(&wait_completion_item);
+			wait_completion_to_use = &wait_completion_item;
+			item_initialized = true;
+		}
+
+		ptrdiff_t wrlock_waits;
+		MG_CHECK(wrlock_waits, (wrlock_waits = _mg_atomic_fetch_add_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->wrlock_waits), 1)) >= 0); // A memory value corruption or an invalid memory modification
+		wrwaits_incremented = true;
+
+		if ((ret = _mutexgear_lock_acquire(&__rwlock->tryread_wrapper_lock)) != EOK)
+		{
+			break;
+		}
+
+		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__rwlock->tryread_wrapper_lock)) == EOK); // Should succeed normally
+
+		bool access_acquired = false;
+
+		if (_mutexgear_completion_queue_lodisempty(&__rwlock->basic_lock.acquired_reads))
+		{
+			if ((ret = _mutexgear_completion_queue_lock(NULL, &__rwlock->basic_lock.acquired_reads)) != EOK)
+			{
+				break;
+			}
+
+			if (_mutexgear_completion_queue_lodisempty(&__rwlock->basic_lock.acquired_reads))
+			{
+				access_acquired = true;
+			}
+			else
+			{
+				// NOTE: Going for registering into waiting_writes with the acquired_reads unlocked
+				// may result in a few extra reads passing into the object. But it is perfectly OK 
+				// as those can be considered as if they would had gained the access even before the 
+				// acquired_reads lock was acquired at all.
+				MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__rwlock->basic_lock.acquired_reads)) == EOK); // Should succeed normally
+			}
+		}
+
+		if (!access_acquired)
+		{
+			_mutexgear_completion_item_prestart(wait_completion_to_use, __worker);
+			wait_initialized = true;
+
+			if ((ret = _mutexgear_completion_queue_enqueue(&__rwlock->basic_lock.waiting_writes, wait_completion_to_use, NULL)) != EOK)
+			{
+				break;
+			}
+			wait_inserted = true;
+
+			// NOTE: The overhead in rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels() is actually
+			// so minor that it is unclear if it is worth making the two separate implementations. Let it be though.
+			if ((__rwlock->basic_lock.mode_flags & _MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_MASK) == 0
+				? !rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(&__rwlock->basic_lock, __waiter, &ret)
+				: !rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels(&__rwlock->basic_lock, __waiter, &ret))
+			{
+				break;
+			}
+
+			MG_CHECK(item_completion_status, (item_completion_status = _mutexgear_completion_queueditem_finish(&__rwlock->basic_lock.waiting_writes, wait_completion_to_use, __worker, NULL)) == EOK); // Well, the item must be removed at any cost!
+			// wait_inserted = false;
+		}
+
+		if (__item == NULL)
+		{
+			_mutexgear_completion_item_destroy(&wait_completion_item);
+		}
+
+		MG_ASSERT(__item == NULL || _mutexgear_completion_item_isasinit(__item));
+
+		success = true;
+	}
+	while (false);
+
+	if (!success)
+	{
+		if (wrwaits_incremented)
+		{
+			if (wait_initialized)
+			{
+				if (wait_inserted)
+				{
+					MG_CHECK(item_completion_status, (item_completion_status = _mutexgear_completion_queueditem_finish(&__rwlock->basic_lock.waiting_writes, wait_completion_to_use, __worker, NULL)) == EOK); // No way to handle -- must succeed
+				}
+
+				_mutexgear_completion_item_reinit(wait_completion_to_use);
+			}
+
+			ptrdiff_t wrlock_waits;
+			MG_CHECK(wrlock_waits, (wrlock_waits = _mg_atomic_fetch_sub_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->wrlock_waits), 1)) > 0); // A memory value corruption or an invalid memory modification
+		}
+
+		if (item_initialized)
+		{
+			_mutexgear_completion_item_destroy(&wait_completion_item);
+		}
+
+		MG_ASSERT(__item == NULL || _mutexgear_completion_item_isasinit(__item));
+	}
+
+	return success ? EOK : ret;
+}
 
 /*extern */
 int mutexgear_rwlock_wrlock(mutexgear_rwlock_t *__rwlock,
@@ -763,6 +993,184 @@ bool rwlock_wrlock_find_notmarked_reader_item(mutexgear_completion_item_t **__ou
 	return success && (*__out_reader_item = reader_item, true);
 }
 
+
+/*extern */
+int mutexgear_trdl_rwlock_trywrlock(mutexgear_trdl_rwlock_t *__rwlock)
+{
+	bool success = false;
+	int ret, mutex_unlock_status;
+
+	bool wrwaits_incremented = false;
+
+	do
+	{
+		bool access_acquired = false;
+
+		if (_mutexgear_completion_queue_lodisempty(&__rwlock->basic_lock.acquired_reads))
+		{
+			ptrdiff_t wrlock_waits;
+			MG_CHECK(wrlock_waits, (wrlock_waits = _mg_atomic_fetch_add_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->wrlock_waits), 1)) >= 0); // A memory value corruption or an invalid memory modification
+			wrwaits_incremented = true;
+
+			// NOTE: Try-locking here would create a possibility for both of concurrent 
+			// tryrdlock and tryrwlock to return EBUSY on a free object. The tryrdlock 
+			// would abort seeing wrlock_waits being not zero after it had acquired tryread_wrapper_lock.
+			// The trywrlock would abort on the try-lock operation for the tryread_wrapper_lock would be here.
+			if ((ret = _mutexgear_lock_acquire(&__rwlock->tryread_wrapper_lock)) != EOK)
+			{
+				break;
+			}
+
+			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__rwlock->tryread_wrapper_lock)) == EOK); // Should succeed normally
+
+			bool post_increment_lodempty_check_status = false;
+			
+			if (_mutexgear_completion_queue_lodisempty(&__rwlock->basic_lock.acquired_reads))
+			{
+				// NOTE: All other cases when the acquired_reads mutex can be busy 
+				// (namely, in mutexgear_rwlock_wrlock(), 
+				// rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(), 
+				// rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels(), 
+				// rwlock_wrlock_wait_all_reads_and_acquire_access(), mutexgear_rwlock_rdlock(),
+				// rwlock_rdlock_wait_all_writes_and_acquire_access()) either indicate that there 
+				// already are other read locks or the thread owning the acquired_reads 
+				// is itself free to acquire the rwlock for read or write. The busy state while unlocking 
+				// in mutexgear_rwlock_rdunlock() may be considered as if the rwlock is still read-locked.
+				// So, EBUSY result here may be directly returned as the rwlock's try-lock status.
+				if ((ret = _mutexgear_completion_queue_trylock(NULL, &__rwlock->basic_lock.acquired_reads)) != EOK)
+				{
+					break;
+				}
+
+				if (_mutexgear_completion_queue_lodisempty(&__rwlock->basic_lock.acquired_reads))
+				{
+					post_increment_lodempty_check_status = true;
+				}
+				else
+				{
+					MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__rwlock->basic_lock.acquired_reads)) == EOK); // Should succeed normally
+				}
+			}
+
+			if (!post_increment_lodempty_check_status)
+			{
+				ptrdiff_t wrlock_waits;
+				MG_CHECK(wrlock_waits, (wrlock_waits = _mg_atomic_fetch_sub_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->wrlock_waits), 1)) > 0); // A memory value corruption or an invalid memory modification
+				wrwaits_incremented = false;
+
+				ret = EBUSY;
+				break;
+			}
+
+			access_acquired = true;
+		}
+
+		if (!access_acquired)
+		{
+			ret = EBUSY;
+			break;
+		}
+
+		success = true;
+	}
+	while (false);
+
+	if (!success)
+	{
+		if (wrwaits_incremented)
+		{
+			ptrdiff_t wrlock_waits;
+			MG_CHECK(wrlock_waits, (wrlock_waits = _mg_atomic_fetch_sub_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->wrlock_waits), 1)) > 0); // A memory value corruption or an invalid memory modification
+		}
+	}
+
+	return success ? EOK : ret;
+}
+
+/*extern */
+int mutexgear_rwlock_trywrlock(mutexgear_rwlock_t *__rwlock)
+{
+	bool success = false;
+	int ret, mutex_unlock_status;
+
+	do
+	{
+		bool access_acquired = false;
+
+		if (_mutexgear_completion_queue_lodisempty(&__rwlock->acquired_reads))
+		{
+			// NOTE: All other cases when the acquired_reads mutex can be busy 
+			// (namely, in mutexgear_rwlock_wrlock(), 
+			// rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(), 
+			// rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels(), 
+			// rwlock_wrlock_wait_all_reads_and_acquire_access(), mutexgear_rwlock_rdlock(),
+			// rwlock_rdlock_wait_all_writes_and_acquire_access()) either indicate that there 
+			// already are other read locks or the thread owning the acquired_reads 
+			// is itself free to acquire the rwlock for read or write. The busy state while unlocking 
+			// in mutexgear_rwlock_rdunlock() may be considered as if the rwlock is still read-locked.
+			// So, EBUSY result here may be directly returned as the rwlock's try-lock status.
+			if ((ret = _mutexgear_completion_queue_trylock(NULL, &__rwlock->acquired_reads)) != EOK)
+			{
+				break;
+			}
+
+			if (_mutexgear_completion_queue_lodisempty(&__rwlock->acquired_reads))
+			{
+				access_acquired = true;
+			}
+			else
+			{
+				MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__rwlock->acquired_reads)) == EOK); // Should succeed normally
+			}
+		}
+
+		if (!access_acquired)
+		{
+			ret = EBUSY;
+			break;
+		}
+
+		success = true;
+	}
+	while (false);
+
+	return success ? EOK : ret;
+}
+
+
+/*extern */
+int mutexgear_trdl_rwlock_wrunlock(mutexgear_trdl_rwlock_t *__rwlock)
+{
+	bool success = false;
+	int ret;
+
+	do
+	{
+		// NOTE: This counter decrement before the unlock may corrupt unrelated memory 
+		// if ___rwlock object is invalid. However, mutex unlock behavior if undefined for 
+		// an invalid argument anyway.
+		//
+		// Checking for the counter to be positive before the decrement is no salvation.
+		//
+		// Moving the decrement after the mutex unlock would allow an unwanted behavior
+		// when another thread at a higher priority would be unblocked due to the mutex 
+		// becoming free, then it would acquire/release the rwlock and might call it again 
+		// for tryrdlock while the object would have the wrlock_waits not decremented yet.
+		ptrdiff_t wrlock_waits;
+		MG_CHECK(wrlock_waits, (wrlock_waits = _mg_atomic_fetch_sub_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->wrlock_waits), 1)) > 0); // A memory value corruption or an invalid memory modification
+
+		if ((ret = _mutexgear_completion_queue_plainunlock(&__rwlock->basic_lock.acquired_reads)) != EOK)
+		{
+			break;
+		}
+
+		success = true;
+	}
+	while (false);
+
+	return success ? EOK : ret;
+}
+
 /*extern */
 int mutexgear_rwlock_wrunlock(mutexgear_rwlock_t *__rwlock)
 {
@@ -772,15 +1180,22 @@ int mutexgear_rwlock_wrunlock(mutexgear_rwlock_t *__rwlock)
 
 
 static bool rwlock_rdlock_wait_all_writes_and_acquire_access(mutexgear_rwlock_t *__rwlock,
-	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_drainableitem_t *__item,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item,
 	mutexgear_completion_locktoken_t *__out_readers_lock, int *__out_status);
 static bool rwlock_rdlock_wait_write_wait_emptiness(mutexgear_rwlock_t *__rwlock, 
 	mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *last_write_wait,
 	/*bool *__out_waiting_writes_remain_locked, */int *__out_status);
 
 /*extern */
+int mutexgear_trdl_rwlock_rdlock(mutexgear_trdl_rwlock_t *__rwlock,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item)
+{
+	return mutexgear_rwlock_rdlock(&__rwlock->basic_lock, __worker, __waiter, __item);
+}
+
+/*extern */
 int mutexgear_rwlock_rdlock(mutexgear_rwlock_t *__rwlock,
-	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_drainableitem_t *__item)
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item)
 {
 	bool success = false;
 	int ret, mutex_unlock_status;
@@ -789,7 +1204,7 @@ int mutexgear_rwlock_rdlock(mutexgear_rwlock_t *__rwlock,
 
 	do 
 	{
-		if (_mutexgear_completion_item_gettag(&__item->basic_item, rdlock_itemtag_beingwaited))
+		if (_mutexgear_completion_item_gettag(__item, rdlock_itemtag_beingwaited))
 		{
 			ret = EINVAL;
 			break;
@@ -823,17 +1238,18 @@ int mutexgear_rwlock_rdlock(mutexgear_rwlock_t *__rwlock,
 			{
 				break;
 			}
+
 			access_locked = true;
 		}
 
-		_mutexgear_completion_item_prestart(&__item->basic_item, __worker);
+		_mutexgear_completion_item_prestart(__item, __worker);
 		read_work_started = true;
 
 		// Use a replacement variable to help the optimizer
 		const mutexgear_completion_locktoken_t _readers_lock = MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN;
 		MG_ASSERT(readers_lock == _readers_lock);
 
-		if ((ret = _mutexgear_completion_queue_enqueue(&__rwlock->acquired_reads, &__item->basic_item, _readers_lock)) != EOK)
+		if ((ret = _mutexgear_completion_queue_enqueue(&__rwlock->acquired_reads, __item, _readers_lock)) != EOK)
 		{
 			break;
 		}
@@ -851,7 +1267,7 @@ int mutexgear_rwlock_rdlock(mutexgear_rwlock_t *__rwlock,
 		{
 			if (read_work_started)
 			{
-				_mutexgear_completion_item_reinit(&__item->basic_item);
+				_mutexgear_completion_item_reinit(__item);
 			}
 
 			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__rwlock->acquired_reads)) == EOK); // Should succeed normally
@@ -864,7 +1280,7 @@ int mutexgear_rwlock_rdlock(mutexgear_rwlock_t *__rwlock,
 
 static 
 bool rwlock_rdlock_wait_all_writes_and_acquire_access(mutexgear_rwlock_t *__rwlock,
-	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_drainableitem_t *__item,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item,
 	mutexgear_completion_locktoken_t *__out_readers_lock, int *__out_status)
 {
 	bool fault = false;
@@ -899,7 +1315,7 @@ bool rwlock_rdlock_wait_all_writes_and_acquire_access(mutexgear_rwlock_t *__rwlo
 		// (the conditional block is entered by assumption) the current thread was the first to acquire the waiting_reads lock above 
 		// and there was no contest for it. So the lock above was quick and the waiting_writes list can be assumed to remain not empty.
 		// The speculative insertion looks to be reasonable and is very likely to be confirmed to be necessary.
-		_mutexgear_completion_drainableitem_prestart(__item, __worker);
+		_mutexgear_completion_item_prestart(__item, __worker);
 
 		const mutexgear_completion_locktoken_t _waiting_reads_lock = MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN;
 		MG_ASSERT(waiting_reads_lock == _waiting_reads_lock);
@@ -951,7 +1367,7 @@ bool rwlock_rdlock_wait_all_writes_and_acquire_access(mutexgear_rwlock_t *__rwlo
 		}
 		else
 		{
-			mutexgear_completion_drainableitem_t *previous_wait = _mutexgear_completion_drainablequeue_unsafegetpreceding(__item);
+			mutexgear_completion_item_t *previous_wait = _mutexgear_completion_drainablequeue_unsafegetpreceding(__item);
 			MG_ASSERT(previous_wait != NULL);
 
 			ret = _mutexgear_completion_drainablequeue_unlockandwait(&__rwlock->waiting_reads, previous_wait, __waiter);
@@ -1042,20 +1458,133 @@ bool rwlock_rdlock_wait_write_wait_emptiness(mutexgear_rwlock_t *__rwlock,
 
 
 /*extern */
+int mutexgear_trdl_rwlock_tryrdlock(mutexgear_trdl_rwlock_t *__rwlock,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_item_t *__item)
+{
+	bool success = false;
+	int ret, mutex_unlock_status;
+
+	bool access_locked = false, wrapper_locked = false, read_work_started = false;
+
+	do
+	{
+		if (_mutexgear_completion_item_gettag(__item, rdlock_itemtag_beingwaited))
+		{
+			ret = EINVAL;
+			break;
+		}
+
+		mutexgear_completion_locktoken_t readers_lock;
+
+		ptrdiff_t wrlock_waits_glance = _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->wrlock_waits));
+		MG_ASSERT(wrlock_waits_glance >= 0);
+
+		if (wrlock_waits_glance == 0)
+		{
+			if ((ret = _mutexgear_lock_acquire(&__rwlock->tryread_wrapper_lock)) != EOK)
+			{
+				break;
+			}
+			wrapper_locked = true;
+
+			ptrdiff_t wrlock_waits = _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->wrlock_waits));
+			MG_ASSERT(wrlock_waits >= 0);
+
+			if (wrlock_waits == 0)
+			{
+				if ((ret = _mutexgear_completion_queue_lock(&readers_lock, &__rwlock->basic_lock.acquired_reads)) != EOK)
+				{
+					break;
+				}
+
+				MG_ASSERT(_mutexgear_completion_queue_lodisempty(&__rwlock->basic_lock.waiting_writes));
+
+				MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__rwlock->tryread_wrapper_lock)) == EOK); // Should succeed normally
+				wrapper_locked = false;
+
+				access_locked = true;
+			}
+			else
+			{
+				MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__rwlock->tryread_wrapper_lock)) == EOK); // Should succeed normally
+				wrapper_locked = false;
+			}
+		}
+
+		if (!access_locked)
+		{
+			ret = EBUSY;
+			break;
+		}
+
+		_mutexgear_completion_item_prestart(__item, __worker);
+		read_work_started = true;
+
+		// Use a replacement variable to help the optimizer
+		const mutexgear_completion_locktoken_t _readers_lock = MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN;
+		MG_ASSERT(readers_lock == _readers_lock);
+
+		if ((ret = _mutexgear_completion_queue_enqueue(&__rwlock->basic_lock.acquired_reads, __item, _readers_lock)) != EOK)
+		{
+			break;
+		}
+
+		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__rwlock->basic_lock.acquired_reads)) == EOK); // Should succeed normally
+		// access_locked = false;
+
+		success = true;
+	}
+	while (false);
+
+	if (!success)
+	{
+		if (wrapper_locked)
+		{
+			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__rwlock->tryread_wrapper_lock)) == EOK); // Should succeed normally
+
+			MG_ASSERT(!access_locked);
+			MG_ASSERT(!read_work_started);
+		}
+		else if (read_work_started)
+		{
+			MG_ASSERT(access_locked);
+
+			_mutexgear_completion_item_reinit(__item);
+
+			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__rwlock->basic_lock.acquired_reads)) == EOK); // Should succeed normally
+		}
+		else
+		{
+			MG_ASSERT(!access_locked);
+		}
+	}
+
+	return success ? EOK : ret;
+}
+
+
+/*extern */
+int mutexgear_trdl_rwlock_rdunlock(mutexgear_trdl_rwlock_t *__rwlock,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_item_t *__item)
+{
+	return mutexgear_rwlock_rdunlock(&__rwlock->basic_lock, __worker, __item);
+}
+
+/*extern */
 int mutexgear_rwlock_rdunlock(mutexgear_rwlock_t *__rwlock,
-	mutexgear_completion_worker_t *__worker, mutexgear_completion_drainableitem_t *__item)
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_item_t *__item)
 {
 	int ret;
 
 	do 
 	{
-		if ((ret = _mutexgear_completion_queueditem_finish(&__rwlock->acquired_reads, &__item->basic_item, __worker, NULL)) != EOK)
+		if ((ret = _mutexgear_completion_queueditem_finish(&__rwlock->acquired_reads, __item, __worker, NULL)) != EOK)
 		{
 			break;
 		}
 
 		// Clear the tag that might have been set by waiting writes
-		_mutexgear_completion_item_settag(&__item->basic_item, rdlock_itemtag_beingwaited, false);
+		_mutexgear_completion_item_settag(__item, rdlock_itemtag_beingwaited, false);
 
 		MG_ASSERT(ret == EOK);
 	}
