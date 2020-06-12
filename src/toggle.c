@@ -6,7 +6,7 @@
 /* This library contains a synchronization technique protected by       */
 /* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
-/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
+/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
 /* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
@@ -18,7 +18,7 @@
 
 /**
  *	\file
- *	\brief MutexGear Toggle API Implementation
+ *	\brief MutexGear Toggle API implementation
  *
  *	NOTE:
  *
@@ -223,7 +223,7 @@ int mutexgear_toggle_destroy(mutexgear_toggle_t *__toggle)
 
 
 /*extern */
-int mutexgear_toggle_attach(mutexgear_toggle_t *__toggle)
+int mutexgear_toggle_lockslave(mutexgear_toggle_t *__toggle)
 {
 	int ret;
 
@@ -263,7 +263,7 @@ int mutexgear_toggle_attach(mutexgear_toggle_t *__toggle)
 }
 
 /*extern */
-int mutexgear_toggle_switch(mutexgear_toggle_t *__toggle)
+int mutexgear_toggle_slaveswitch(mutexgear_toggle_t *__toggle)
 {
 	int ret;
 
@@ -312,7 +312,7 @@ int mutexgear_toggle_switch(mutexgear_toggle_t *__toggle)
 }
 
 /*extern */
-int mutexgear_toggle_detach(mutexgear_toggle_t *__toggle)
+int mutexgear_toggle_unlockslave(mutexgear_toggle_t *__toggle)
 {
 	int ret;
 

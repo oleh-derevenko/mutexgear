@@ -6,7 +6,7 @@
 /* This library contains a synchronization technique protected by       */
 /* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
-/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
+/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
 /* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
@@ -18,7 +18,7 @@
 
 /**
  *	\file
- *	\brief MutexGear Wheel API Implementation
+ *	\brief MutexGear Wheel API implementation
  *
  *	NOTE:
  *
@@ -375,49 +375,6 @@ int mutexgear_wheel_unlockslave(mutexgear_wheel_t *__wheel)
 
 
 /*extern */
-int mutexgear_wheel_pushon(mutexgear_wheel_t *__wheel)
-{
-	// NOTE: Pushons start with the same index as the mutexgear_wheel_lockslave() does, to come in agreement with it
-	int ret;
-
-	bool fault = false;
-	int mutex_unlock_status;
-
-	if ((unsigned int)DECODE_WHEEL_PUSHON_INDEX(__wheel->master_index) < (unsigned int)MUTEXGEAR_WHEEL_NUMELEMENTS)
-	{
-		// OK to proceed
-		int pushon_index = DECODE_WHEEL_PUSHON_INDEX(__wheel->master_index);
-
-		if ((ret = _mutexgear_lock_acquire(__wheel->muteces + pushon_index)) == EOK)
-		{
-			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(__wheel->muteces + pushon_index)) == EOK); // Should succeed normally
-
-			__wheel->master_index = pushon_index != MUTEXGEAR_WHEEL_NUMELEMENTS - 1
-				? ENCODE_WHEEL_PUSHON_INDEX(pushon_index + 1) : ENCODE_WHEEL_PUSHON_INDEX(0);
-		}
-		else
-		{
-			fault = true;
-		}
-	}
-	else if ((unsigned int)__wheel->master_index >= (unsigned int)MUTEXGEAR_WHEEL_NUMELEMENTS)
-	{
-		// The object is in an invalid state
-		ret = EINVAL;
-		fault = true;
-	}
-	else
-	{
-		// The object had been gripped on and is not available for pushing unless is released
-		ret = EBUSY;
-		fault = true;
-	}
-
-	return !fault ? EOK : ret;
-}
-
-
-/*extern */
 int mutexgear_wheel_gripon(mutexgear_wheel_t *__wheel)
 {
 	int ret;
@@ -554,6 +511,49 @@ int mutexgear_wheel_release(mutexgear_wheel_t *__wheel)
 		{
 			fault = true;
 		}
+	}
+
+	return !fault ? EOK : ret;
+}
+
+
+/*extern */
+int mutexgear_wheel_pushon(mutexgear_wheel_t *__wheel)
+{
+	// NOTE: Pushons start with the same index as the mutexgear_wheel_lockslave() does, to come in agreement with it
+	int ret;
+
+	bool fault = false;
+	int mutex_unlock_status;
+
+	if ((unsigned int)DECODE_WHEEL_PUSHON_INDEX(__wheel->master_index) < (unsigned int)MUTEXGEAR_WHEEL_NUMELEMENTS)
+	{
+		// OK to proceed
+		int pushon_index = DECODE_WHEEL_PUSHON_INDEX(__wheel->master_index);
+
+		if ((ret = _mutexgear_lock_acquire(__wheel->muteces + pushon_index)) == EOK)
+		{
+			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(__wheel->muteces + pushon_index)) == EOK); // Should succeed normally
+
+			__wheel->master_index = pushon_index != MUTEXGEAR_WHEEL_NUMELEMENTS - 1
+				? ENCODE_WHEEL_PUSHON_INDEX(pushon_index + 1) : ENCODE_WHEEL_PUSHON_INDEX(0);
+		}
+		else
+		{
+			fault = true;
+		}
+	}
+	else if ((unsigned int)__wheel->master_index >= (unsigned int)MUTEXGEAR_WHEEL_NUMELEMENTS)
+	{
+		// The object is in an invalid state
+		ret = EINVAL;
+		fault = true;
+	}
+	else
+	{
+		// The object had been gripped on and is not available for pushing unless is released
+		ret = EBUSY;
+		fault = true;
 	}
 
 	return !fault ? EOK : ret;

@@ -10,7 +10,7 @@
 /* This library contains a synchronization technique protected by       */
 /* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
-/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
+/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
 /* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
@@ -73,6 +73,35 @@
 #define _MUTEXGEAR_BEGIN_EXTERN_C()
 #define _MUTEXGEAR_END_EXTERN_C()
 
+
+#endif // #if !defined(__cplusplus)
+
+
+#if defined(__cplusplus)
+
+#ifndef _MUTEXGEAR_NAMESPACE
+
+#define _MUTEXGEAR_NAMESPACE mg
+
+
+#endif // #ifndef _MUTEXGEAR_NAMESPACE
+
+
+#define _MUTEXGEAR_BEGIN_NAMESPACE() namespace _MUTEXGEAR_NAMESPACE {
+#define _MUTEXGEAR_END_NAMESPACE() }
+
+
+#define _MUTEXGEAR_COMPLETION_NAMESPACE completion
+#define _MUTEXGEAR_BEGIN_COMPLETION_NAMESPACE() namespace _MUTEXGEAR_COMPLETION_NAMESPACE {
+#define _MUTEXGEAR_END_COMPLETION_NAMESPACE() }
+
+#define _MUTEXGEAR_TRDL_NAMESPACE trdl
+#define _MUTEXGEAR_BEGIN_TRDL_NAMESPACE() namespace _MUTEXGEAR_TRDL_NAMESPACE {
+#define _MUTEXGEAR_END_TRDL_NAMESPACE() }
+
+#define _MUTEXGEAR_SHMTX_HELPERS_NAMESPACE shmtx_helpers
+#define _MUTEXGEAR_BEGIN_SHMTX_HELPERS_NAMESPACE() namespace _MUTEXGEAR_SHMTX_HELPERS_NAMESPACE {
+#define _MUTEXGEAR_END_SHMTX_HELPERS_NAMESPACE() }
 
 #endif // #if !defined(__cplusplus)
 

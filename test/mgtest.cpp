@@ -1,5 +1,16 @@
 #include "pch.h"
+
+#define _MGTEST_TEST_TRWL		0
+#define _MGTEST_TEST_TRDL		0
+#define _MGTEST_TEST_CPP		1
+
+#if _MGTEST_TEST_CPP
+#include <mutexgear/shared_mutex.hpp>
+#include <shared_mutex>
+#else
 #include <mutexgear/rwlock.h>
+#endif
+
 #include <mutexgear/utility.h>
 
 #ifdef _WIN32
@@ -9,15 +20,26 @@
 #include <stdio.h>
 
 
-#define _MGTEST_TEST_TRDL		1
 
-
+#if _MGTEST_TEST_CPP
+#if HAVE_STD__SHARED_MUTEX
+#define SYSTEM_RWLOCK_VARIANT_T std::shared_mutex
+#else 
+#define SYSTEM_RWLOCK_VARIANT_T std::shared_timed_mutex // Ubuntu requires std::shared_timed_mutex rather than std::shared_mutex
+#endif
+#if _MGTEST_TEST_TRDL
+#define MUTEXGEAR_RWLOCK_VARIANT_T mg::trdl::shared_mutex
+#else 
+#define MUTEXGEAR_RWLOCK_VARIANT_T mg::shared_mutex
+#endif
+#else // !_MGTEST_TEST_CPP
+#define SYSTEM_RWLOCK_VARIANT_T _MG_RWLOCK_T
 #if _MGTEST_TEST_TRDL
 #define MUTEXGEAR_RWLOCK_VARIANT_T mutexgear_trdl_rwlock_t
 #else 
 #define MUTEXGEAR_RWLOCK_VARIANT_T mutexgear_rwlock_t
 #endif
-
+#endif // !_MGTEST_TEST_CPP
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -142,57 +164,104 @@ public:
 
 	void InitializeRWLockInstance()
 	{
+#if _MGTEST_TEST_CPP
+#else // !_MGTEST_TEST_CPP
 		int iInitResult;
 		MG_CHECK(iInitResult, (iInitResult = _mutexgear_rwlock_init(&m_wlRWLock)) == EOK);
+#endif
 	}
 
 	void FinalizeRWLockInstance()
 	{
+#if _MGTEST_TEST_CPP
+#else // !_MGTEST_TEST_CPP
 		int iDestroyResult;
 		MG_CHECK(iDestroyResult, (iDestroyResult = _mutexgear_rwlock_destroy(&m_wlRWLock)) == EOK);
+#endif // !_MGTEST_TEST_CPP
 	}
 
 	bool LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
 	{
-		bool bLockedWithTryVariant = false;
+		bool bLockedWithTryVariant;
 
+#if _MGTEST_TEST_TRWL
+#if _MGTEST_TEST_CPP
+		bLockedWithTryVariant = m_wlRWLock.try_lock();
+#else
 		int iLockResult = _mutexgear_rwlock_trywrlock(&m_wlRWLock);
-		MG_CHECK(iLockResult, (iLockResult == EOK && (bLockedWithTryVariant = true, true))
-			|| (iLockResult == EBUSY && (iLockResult = _mutexgear_rwlock_wrlock(&m_wlRWLock)) == EOK));
+		bLockedWithTryVariant = iLockResult == EOK;
+#endif
+#else // !_MGTEST_TEST_TRWL
+#if !_MGTEST_TEST_CPP
+		int iLockResult = EBUSY;
+#endif
+		bLockedWithTryVariant = false;
+#endif // !_MGTEST_TEST_TRWL
+
+		if (!bLockedWithTryVariant)
+		{
+#if _MGTEST_TEST_CPP
+			m_wlRWLock.lock();
+#else // !_MGTEST_TEST_CPP
+			MG_CHECK(iLockResult, iLockResult == EBUSY && (iLockResult = _mutexgear_rwlock_wrlock(&m_wlRWLock)) == EOK);
+#endif // !_MGTEST_TEST_CPP
+		}
 
 		return bLockedWithTryVariant;
 	}
 
 	void UnlockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
 	{
+#if _MGTEST_TEST_CPP
+		m_wlRWLock.unlock();
+#else // !_MGTEST_TEST_CPP
 		int iUnlockResult;
 		MG_CHECK(iUnlockResult, (iUnlockResult = _mutexgear_rwlock_wrunlock(&m_wlRWLock)) == EOK);
+#endif // !_MGTEST_TEST_CPP
 	}
 
 	bool LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
 	{
-		bool bLockedWithTryVariant = false;
+		bool bLockedWithTryVariant;
 
-		int iLockResult;
 #if _MGTEST_TEST_TRDL
-		iLockResult = _mutexgear_rwlock_tryrdlock(&m_wlRWLock);
+#if _MGTEST_TEST_CPP
+		bLockedWithTryVariant = m_wlRWLock.try_lock_shared();
 #else
-		iLockResult = EBUSY;
+		int iLockResult = _mutexgear_rwlock_tryrdlock(&m_wlRWLock);
+		bLockedWithTryVariant = iLockResult == EOK;
 #endif
-		MG_CHECK(iLockResult, (iLockResult == EOK && (bLockedWithTryVariant = true, true))
-			|| (iLockResult == EBUSY && (iLockResult = _mutexgear_rwlock_rdlock(&m_wlRWLock)) == EOK));
+#else // !_MGTEST_TEST_TRDL
+#if !_MGTEST_TEST_CPP
+		int iLockResult = EBUSY;
+#endif
+		bLockedWithTryVariant = false;
+#endif // !_MGTEST_TEST_TRDL
+
+		if (!bLockedWithTryVariant)
+		{
+#if _MGTEST_TEST_CPP
+			m_wlRWLock.lock_shared();
+#else // !_MGTEST_TEST_CPP
+			MG_CHECK(iLockResult, iLockResult == EBUSY && (iLockResult = _mutexgear_rwlock_rdlock(&m_wlRWLock)) == EOK);
+#endif // !_MGTEST_TEST_CPP
+		}
 
 		return bLockedWithTryVariant;
 	}
 
 	void UnlockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
 	{
+#if _MGTEST_TEST_CPP
+		m_wlRWLock.unlock_shared();
+#else // !_MGTEST_TEST_CPP
 		int iUnlockResult;
 		MG_CHECK(iUnlockResult, (iUnlockResult = _mutexgear_rwlock_rdunlock(&m_wlRWLock)) == EOK);
+#endif // !_MGTEST_TEST_CPP
 	}
 
 private:
-	_MG_RWLOCK_T		m_wlRWLock;
+	SYSTEM_RWLOCK_VARIANT_T	m_wlRWLock;
 };
 
 template<>
@@ -208,6 +277,9 @@ public:
 	public:
 		CLockWriteExtraObjects()
 		{
+#if _MGTEST_TEST_CPP
+			m_cwLockWorker.lock();
+#else // !_MGTEST_TEST_CPP
 			int iWorkerInitResult;
 			MG_CHECK(iWorkerInitResult, (iWorkerInitResult = mutexgear_completion_worker_init(&m_cwLockWorker, NULL)) == EOK);
 
@@ -216,10 +288,14 @@ public:
 
 			int iWaiterInitResult;
 			MG_CHECK(iWaiterInitResult, (iWaiterInitResult = mutexgear_completion_waiter_init(&m_cwLockWaiter, NULL)) == EOK);
+#endif // !_MGTEST_TEST_CPP
 		}
 
 		~CLockWriteExtraObjects()
 		{
+#if _MGTEST_TEST_CPP
+			m_cwLockWorker.unlock();
+#else // !_MGTEST_TEST_CPP
 			int iWaiterDestroyResult;
 			MG_CHECK(iWaiterDestroyResult, (iWaiterDestroyResult = mutexgear_completion_waiter_destroy(&m_cwLockWaiter)) == EOK);
 
@@ -228,10 +304,16 @@ public:
 
 			int iWorkerDestroyResult;
 			MG_CHECK(iWorkerDestroyResult, (iWorkerDestroyResult = mutexgear_completion_worker_destroy(&m_cwLockWorker)) == EOK);
+#endif // !_MGTEST_TEST_CPP
 		}
 
+#if _MGTEST_TEST_CPP
+		mg::shmtx_helpers::worker			m_cwLockWorker;
+		mg::shmtx_helpers::waiter			m_cwLockWaiter;
+#else // !_MGTEST_TEST_CPP
 		mutexgear_completion_worker_t		m_cwLockWorker;
 		mutexgear_completion_waiter_t		m_cwLockWaiter;
+#endif // !_MGTEST_TEST_CPP
 	};
 
 	class CLockReadExtraObjects
@@ -239,63 +321,115 @@ public:
 	public:
 		CLockReadExtraObjects()
 		{
+#if _MGTEST_TEST_CPP
+#else // !_MGTEST_TEST_CPP
 			mutexgear_completion_item_init(&m_ciLockCompletionItem);
+#endif // !_MGTEST_TEST_CPP
 		}
 
 		~CLockReadExtraObjects()
 		{
+#if _MGTEST_TEST_CPP
+#else // !_MGTEST_TEST_CPP
 			mutexgear_completion_item_destroy(&m_ciLockCompletionItem);
+#endif // !_MGTEST_TEST_CPP
 		}
 
 		operator CLockWriteExtraObjects &() { return m_eoWriteObjects; }
 
 		CLockWriteExtraObjects				m_eoWriteObjects;
+#if _MGTEST_TEST_CPP
+		mg::shmtx_helpers::item				m_ciLockCompletionItem;
+#else // !_MGTEST_TEST_CPP
 		mutexgear_completion_item_t			m_ciLockCompletionItem;
+#endif // !_MGTEST_TEST_CPP
 	};
 
 public:
 	bool LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
 	{
-		bool bLockedWithTryVariant = false;
-
+		bool bLockedWithTryVariant;
+#if _MGTEST_TEST_TRWL
+#if _MGTEST_TEST_CPP
+		bLockedWithTryVariant = m_wlRWLock.try_lock();
+#else
 		int iLockResult = mutexgear_rwlock_trywrlock(&m_wlRWLock);
-		MG_CHECK(iLockResult, (iLockResult == EOK && (bLockedWithTryVariant = true, true))
-			|| (iLockResult == EBUSY && (iLockResult = mutexgear_rwlock_wrlock(&m_wlRWLock, &eoRefExtraObjects.m_cwLockWorker, &eoRefExtraObjects.m_cwLockWaiter, NULL)) == EOK));
+		bLockedWithTryVariant = iLockResult == EOK;
+#endif
+#else // !_MGTEST_TEST_TRWL
+#if !_MGTEST_TEST_CPP
+		int iLockResult = EBUSY;
+#endif
+		bLockedWithTryVariant = false;
+#endif // !_MGTEST_TEST_TRWL
+
+		if (!bLockedWithTryVariant)
+		{
+#if _MGTEST_TEST_CPP
+			m_wlRWLock.lock(eoRefExtraObjects.m_cwLockWorker, eoRefExtraObjects.m_cwLockWaiter);
+#else
+			MG_CHECK(iLockResult, iLockResult == EBUSY && (iLockResult = mutexgear_rwlock_wrlock(&m_wlRWLock, &eoRefExtraObjects.m_cwLockWorker, &eoRefExtraObjects.m_cwLockWaiter, NULL)) == EOK);
+#endif
+		}
 
 		return bLockedWithTryVariant;
 	}
 
 	void UnlockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
 	{
+#if _MGTEST_TEST_CPP
+		m_wlRWLock.unlock();
+#else // !_MGTEST_TEST_CPP
 		int iUnlockResult;
 		MG_CHECK(iUnlockResult, (iUnlockResult = mutexgear_rwlock_wrunlock(&m_wlRWLock)) == EOK);
+#endif // !_MGTEST_TEST_CPP
 	}
 
 	bool LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
 	{
-		bool bLockedWithTryVariant = false;
+		bool bLockedWithTryVariant;
 
-		int iLockResult;
 #if _MGTEST_TEST_TRDL
-		iLockResult = mutexgear_rwlock_tryrdlock(&m_wlRWLock, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, &eoRefExtraObjects.m_ciLockCompletionItem);
+#if _MGTEST_TEST_CPP
+		bLockedWithTryVariant = m_wlRWLock.try_lock_shared(eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, eoRefExtraObjects.m_ciLockCompletionItem);
 #else
-		iLockResult = EBUSY;
+		int iLockResult = mutexgear_rwlock_tryrdlock(&m_wlRWLock, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, &eoRefExtraObjects.m_ciLockCompletionItem);
+		bLockedWithTryVariant = iLockResult == EOK;
 #endif
-		MG_CHECK(iLockResult, (iLockResult == EOK && (bLockedWithTryVariant = true, true))
-			|| (iLockResult == EBUSY && (iLockResult = mutexgear_rwlock_rdlock(&m_wlRWLock, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWaiter, &eoRefExtraObjects.m_ciLockCompletionItem)) == EOK));
+#else /// !_MGTEST_TEST_TRDL
+#if !_MGTEST_TEST_CPP
+		int iLockResult = EBUSY;
+#endif
+		bLockedWithTryVariant = false;
+#endif // !_MGTEST_TEST_TRDL
+
+		if (!bLockedWithTryVariant)
+		{
+#if _MGTEST_TEST_CPP
+			m_wlRWLock.lock_shared(eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, eoRefExtraObjects.m_eoWriteObjects.m_cwLockWaiter, eoRefExtraObjects.m_ciLockCompletionItem);
+#else
+			MG_CHECK(iLockResult, iLockResult == EBUSY && (iLockResult = mutexgear_rwlock_rdlock(&m_wlRWLock, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWaiter, &eoRefExtraObjects.m_ciLockCompletionItem)) == EOK);
+#endif
+		}
 
 		return bLockedWithTryVariant;
 	}
 
 	void UnlockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
 	{
+#if _MGTEST_TEST_CPP
+		m_wlRWLock.unlock_shared(eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, eoRefExtraObjects.m_ciLockCompletionItem);
+#else // !_MGTEST_TEST_CPP
 		int iUnlockResult;
 		MG_CHECK(iUnlockResult, (iUnlockResult = mutexgear_rwlock_rdunlock(&m_wlRWLock, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, &eoRefExtraObjects.m_ciLockCompletionItem)) == EOK);
+#endif // !_MGTEST_TEST_CPP
 	}
 
 private:
 	void InitializeRWLockInstance()
 	{
+#if _MGTEST_TEST_CPP
+#else // !_MGTEST_TEST_CPP
 		int iInitResult;
 		mutexgear_rwlockattr_t attr;
 
@@ -303,12 +437,16 @@ private:
 		// MG_CHECK(iInitResult, (iInitResult = mutexgear_rwlockattr_setwritechannels(&attr, 2)) == EOK);
 		MG_CHECK(iInitResult, (iInitResult = mutexgear_rwlock_init(&m_wlRWLock, &attr)) == EOK);
 		MG_CHECK(iInitResult, (iInitResult = mutexgear_rwlockattr_destroy(&attr)) == EOK);
+#endif // !_MGTEST_TEST_CPP
 	}
 
 	void FinalizeRWLockInstance()
 	{
+#if _MGTEST_TEST_CPP
+#else // !_MGTEST_TEST_CPP
 		int iDestroyResult;
 		MG_CHECK(iDestroyResult, (iDestroyResult = mutexgear_rwlock_destroy(&m_wlRWLock)) == EOK);
+#endif // !_MGTEST_TEST_CPP
 	}
 
 private:
@@ -495,6 +633,7 @@ private:
 private:
 	typedef typename TOperationExecutor::COperationExtraObjects CExecutorExtraObjects;
 
+	void AdjustThreadPriority();
 	void ExecuteThread();
 	void DoTheDirtyJob(CExecutorExtraObjects &eoRefExecutorExtraObjects, CRWLockLockTestProgress *ptpProgressInstance);
 
@@ -1113,9 +1252,30 @@ void *CRWLockLockTestThread<TOperationExecutor>::StaticExecuteThread(void *psvTh
 #endif  // #ifndef _WIN32
 {
 	CRWLockLockTestThread *pttThreadInstance = (CRWLockLockTestThread *)psvThreadParameter;
+	pttThreadInstance->AdjustThreadPriority();
 	pttThreadInstance->ExecuteThread();
 
 	return 0;
+}
+
+template<class TOperationExecutor>
+void CRWLockLockTestThread<TOperationExecutor>::AdjustThreadPriority()
+{
+#ifdef _WIN32
+	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
+
+#elif defined(_MGTEST_POSIX_ADJUST_SCHED)
+	
+	int iSchedPolicy = SCHED_RR;
+
+	sched_param spSchedParam;
+	spSchedParam.sched_priority = 22;
+
+	int iSchedSetResult = sched_setscheduler(0, iSchedPolicy, &spSchedParam);
+	MG_ASSERT(iSchedSetResult == 0);
+
+
+#endif // #ifdef _MGTEST_POSIX_ADJUST_SCHED
 }
 
 template<class TOperationExecutor>

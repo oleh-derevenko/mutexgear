@@ -10,7 +10,7 @@
 /* This library contains a synchronization technique protected by       */
 /* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
-/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
+/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
 /* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
@@ -21,7 +21,7 @@
 
 /**
  *	\file
- *	\brief MutexGear Toggle API Definitions
+ *	\brief MutexGear Toggle API definitions
  *
  *	The header defines a "toggle" object.
  *	The toggle implements the coordinated operation mode as described
@@ -157,24 +157,24 @@ _MUTEXGEAR_API int mutexgear_toggle_destroy(mutexgear_toggle_t *__toggle);
 
 
 /**
- *	\fn int mutexgear_toggle_attach(mutexgear_toggle_t *__toggle)
+ *	\fn int mutexgear_toggle_lockslave(mutexgear_toggle_t *__toggle)
  *	\brief A function to attach to the \c toggle to be called
  *	by the signaler (the S) thread to accomplish the Precondition 1.
  */
-_MUTEXGEAR_API int mutexgear_toggle_attach(mutexgear_toggle_t *__toggle);
+_MUTEXGEAR_API int mutexgear_toggle_lockslave(mutexgear_toggle_t *__toggle);
 /**
- *	\fn int mutexgear_toggle_switch(mutexgear_toggle_t *__toggle)
+ *	\fn int mutexgear_toggle_slaveswitch(mutexgear_toggle_t *__toggle)
  *	\brief A function to be called by the signaler (the S) thread
  *	to notify a potential waiter of an event. This corresponds
  *	to the steps 1-3 of the "Event Signaling" section.
  */
-_MUTEXGEAR_API int mutexgear_toggle_switch(mutexgear_toggle_t *__toggle);
+_MUTEXGEAR_API int mutexgear_toggle_slaveswitch(mutexgear_toggle_t *__toggle);
 /**
- *	\fn int mutexgear_toggle_detach(mutexgear_toggle_t *__toggle)
+ *	\fn int mutexgear_toggle_unlockslave(mutexgear_toggle_t *__toggle)
  *	\brief A function to be called by the signaler (the S) thread
  *	to release the \c toggle object whenever it is not going to be used any more.
  */
-_MUTEXGEAR_API int mutexgear_toggle_detach(mutexgear_toggle_t *__toggle);
+_MUTEXGEAR_API int mutexgear_toggle_unlockslave(mutexgear_toggle_t *__toggle);
 
 /**
  *	\fn int mutexgear_toggle_pushon(mutexgear_toggle_t *__toggle)

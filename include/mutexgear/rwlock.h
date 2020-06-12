@@ -10,7 +10,7 @@
 /* This library contains a synchronization technique protected by       */
 /* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
-/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
+/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
 /* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
@@ -21,7 +21,7 @@
 
 /**
  *	\file
- *	\brief MutexGear RWLock API Definitions
+ *	\brief MutexGear RWLock API definitions
  *
  *	The header defines a "read-write lock" (RWLock) object.
  *	A read-write lock is an object that can be locked by single thread at a time 
@@ -39,7 +39,7 @@
  *	current read locks any additional read lock attempts will be blocked and 
  *	will wait until all the write locks (the ones that were there before the read lock 
  *	attempts and any that might have been added after) complete and release the object.
- *  That is the read locks are allowed on the object only when there are no write locks 
+ *	That is the read locks are allowed on the object only when there are no write locks 
  *	waiting. This helps to resolve issue with multiple readers constantly sharing object
  *	locked for read and not allowing a write lock that needs the object exclusively.
  *
@@ -57,6 +57,12 @@
  *	consider aggregating or packeting the writes at earlier stages separately 
  *	to decrease their number and have the object write locks being requested less frequently.
  *
+ *	NOTE:
+ *
+ *	The \c mutexgear_rwlock_t and \c mutexgear_trdl_rwlock_t objects depend on a synchronization
+ *	mechanism being a subject of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and
+ *	Image Database search (currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm)
+ *	to view the patent text.
  */
 
 
@@ -179,7 +185,7 @@ _MUTEXGEAR_API int mutexgear_rwlockattr_setmutexattr(mutexgear_rwlockattr_t *__a
  *	\fn int mutexgear_rwlockattr_setwritechannels(mutexgear_rwlockattr_t *__attr_instance, unsigned int __channel_count)
  *	\brief A function to assign number of parallel locks write requests are to be split into while waiting for reads.
  *
- *	If many write requests are waiting for readers to release the lock, by default, they use a single lock. 
+ *	If several write requests are waiting for readers to release the lock, by default, they use a single lock. 
  *	This way priority inheritance from all the write waiters is combined together and applied onto a singe reader thread
  *	at a time acting on a single execution core. The function allows specifying bigger number for parallel locks that 
  *	could potentially act with priority inheritance on more execution cores at a cost of more code executed by the write waiter.
@@ -187,10 +193,11 @@ _MUTEXGEAR_API int mutexgear_rwlockattr_setmutexattr(mutexgear_rwlockattr_t *__a
  *	instance with a proper alignment (see _MUTEXGEAR_RWLOCK_READERPUSHSELECTOR_FACTOR use).
  *
  *	The parameter is automatically adjusted to the nearest acceptable value. Pass 0 for the system default (currently, a single channel).
- *	To determine the default value in runtime, assign 0 and read the value back with \c mutexgear_rwlockattr_getwritechannels.
+ *	To determine the default value at runtime assign 0 and read the value back with \c mutexgear_rwlockattr_getwritechannels.
  *
-	Normally, you should not use this function unless you really understand what it does and why you need it.
+ *	Normally, you should not use this function unless you really understand what it does and why you need it.
  *	\return EOK on success or a system error code on failure.
+ *	\see mutexgear_rwlockattr_getwritechannels
  */
 _MUTEXGEAR_API int mutexgear_rwlockattr_setwritechannels(mutexgear_rwlockattr_t *__attr_instance, unsigned int __channel_count);
 

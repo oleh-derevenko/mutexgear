@@ -10,7 +10,7 @@
 /* This library contains a synchronization technique protected by       */
 /* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
-/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
+/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
 /* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
@@ -21,7 +21,7 @@
 
 /**
  *	\file
- *	\brief MutexGear Completion API Internal Definitions
+ *	\brief MutexGear Completion API internal definitions
  *
  *	The header defines a "completion" object.
  *	The completion is an object used to wait for an threaded operation end.

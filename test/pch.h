@@ -521,6 +521,27 @@ int _mutexgear_monotonic_clock_time(uint64_t *__out_timepoint)
 }
 
 
+#endif // #ifndef _WIN32
+
+
+#ifndef _WIN32
+
+#include <unistd.h>
+#ifdef _POSIX_PRIORITY_SCHEDULING
+
+#include <sched.h>
+#define _MGTEST_POSIX_ADJUST_SCHED
+
+
+#endif // #ifdef _POSIX_PRIORITY_SCHEDULING
+
+#endif // #ifndef _WIN32
+
+
+#ifndef __linux__
+#ifndef HAVE_STD__SHARED_MUTEX
+#define HAVE_STD__SHARED_MUTEX 1
+#endif
 #endif
 
 

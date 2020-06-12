@@ -10,7 +10,7 @@
 /* This library contains a synchronization technique protected by       */
 /* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
-/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
+/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
 /* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
@@ -21,7 +21,7 @@
 
 /**
  *	\file
- *	\brief MutexGear Wheel API Definitions
+ *	\brief MutexGear Wheel API definitions
  *
  *	The header defines a "wheel" object.
  *	The wheel implements independent operation mode as described
@@ -182,15 +182,6 @@ _MUTEXGEAR_API int mutexgear_wheel_slaveroll(mutexgear_wheel_t *__wheel);
 _MUTEXGEAR_API int mutexgear_wheel_unlockslave(mutexgear_wheel_t *__wheel);
 
 /**
- *	\fn int mutexgear_wheel_pushon(mutexgear_wheel_t *__wheel)
- *	\brief A compatibility function to use a \c wheel object in coordinated mode
- *	replicating a \c toggle object’s functionality. The synchronization effects
- *	this function achieves with the \c wheel object are the same as
- *	the \c mutexgear_toggle_pushon function with a \c toggle object would do.
- */
-_MUTEXGEAR_API int mutexgear_wheel_pushon(mutexgear_wheel_t *__wheel);
-
-/**
  *	\fn int mutexgear_wheel_gripon(mutexgear_wheel_t *__wheel)
  *	\brief A function to be called by a waiter (the W) thread
  *	to initiate a waiting operation. This corresponds to the step 1 of the "Event Waiting" section.
@@ -214,6 +205,15 @@ _MUTEXGEAR_API int mutexgear_wheel_turn(mutexgear_wheel_t *__wheel);
  *	of the "Event Waiting" section.
  */
 _MUTEXGEAR_API int mutexgear_wheel_release(mutexgear_wheel_t *__wheel);
+
+/**
+ *	\fn int mutexgear_wheel_pushon(mutexgear_wheel_t *__wheel)
+ *	\brief A compatibility function to use a \c wheel object in coordinated mode
+ *	replicating a \c toggle object’s functionality. The synchronization effects
+ *	this function achieves with the \c wheel object are the same as
+ *	the \c mutexgear_toggle_pushon function with a \c toggle object would do.
+ */
+_MUTEXGEAR_API int mutexgear_wheel_pushon(mutexgear_wheel_t *__wheel);
 
 
 //////////////////////////////////////////////////////////////////////////

@@ -10,7 +10,7 @@
 /* This library contains a synchronization technique protected by       */
 /* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
-/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
+/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
 /* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
@@ -21,7 +21,7 @@
 
 /**
  *	\file
- *	\brief MutexGear API Definitions
+ *	\brief MutexGear API definitions
  * 
  *	The header includes all the library exported APIs.
  */
@@ -85,7 +85,7 @@
  *	void WorkerThread_ThreadRoutine(worker_context_t *context)
  *	{
  *		// Initially attach the toggle
- *		mutexgear_toggle_attach(&context->m_completion_toggle);
+ *		mutexgear_toggle_lockslave(&context->m_completion_toggle);
  *
  *		// Let the upper level know the worked has been started
  *		// and is ready to serve requests (the toggle has been attached)
@@ -100,11 +100,11 @@
  *			HandleWorkItem(item, &exit_requested); // This is to mark the work item completed
  *
  *			// Switch the toggle each time after an item has been handled
- *			mutexgear_toggle_switch(&context->m_completion_toggle);
+ *			mutexgear_toggle_slaveswitch(&context->m_completion_toggle);
  *		}
  *
  *		// Finally detach the toggle on exit
- *		mutexgear_toggle_detach(&context->m_completion_toggle);
+ *		mutexgear_toggle_unlockslave(&context->m_completion_toggle);
  *	}
  *
  *	static

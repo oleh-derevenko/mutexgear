@@ -1,0 +1,94 @@
+MutexGear Library License, version 1.0                                          
+Copyright (c) 2020, Oleh Derevenko <oluh.derevenko@gmail.com>(change 'u' to 'e')
+================================================================================
+                                                                                
+1. Terms and Definitions                                                        
+                                                                                
+1.1. The MutexGear is the MutexGear Library being covered by this License.      
+                                                                                
+1.2. A Program is a program binary that is either                               
+  a. executable on its own and, when executed, causes creation of an operating  
+    system process; or                                                          
+  b. executable via loading into a container operating system process, provided 
+    the purpose of said container operating system process is to serve as a host
+    for execution of said program binary and, possibly, other program binaries  
+    of the kind for providing features of the operating system by implementing  
+    either applets, or services, or drivers, or other operating system          
+    components.                                                                 
+                                                                                
+1.3. A Shared Library is a program binary that contains executable code intended
+  for loading into address space of one or more executing Programs, provided    
+  some of the executing Programs are not the Shared Library itself.             
+                                                                                
+1.4. An Exported Function is a part of executable code of a Shared Library,     
+  provided said part of executable code is intended for being made directly or  
+  indirectly available for invocation from outside of the executable code of    
+  the Shared Library as a feature of said Shared Library.                       
+                                                                                
+2. Grants and Restrictions                                                      
+                                                                                
+2.1. The MutexGear is permitted to be used, with or without modifications,      
+  statically linked within a Program that meets all of the following            
+  requirements:                                                                 
+  a. the Program is either                                                      
+    i. not a Shared Library; or                                                 
+    ii. when a purpose of the Program within an operating system requires       
+      the Program to also be a Shared Library, the Program as the Shared Library
+      must not have other Exported Functions except for those explicitly        
+      required by the operating system for fulfilling the purpose;              
+  b. use of the Program, and use of the entire software product the Program may 
+    be a part of, must be governed by one of the following OSI-approved open    
+    source software licenses:                                                   
+    i. The 3-Clause BSD License                                                 
+      (https://opensource.org/licenses/BSD-3-Clause);                           
+    ii. The 2-Clause BSD License                                                
+      (https://opensource.org/licenses/BSD-2-Clause);                           
+    iii. Apache License, version 2.0                                            
+      (https://opensource.org/licenses/Apache-2.0);                             
+    iv. The MIT License                                                         
+      (https://opensource.org/licenses/MIT);                                    
+    v. Mozilla Public License 2.0                                               
+      (https://opensource.org/licenses/MPL-2.0);                                
+    vi. Common Development and Distribution License 1.0                         
+      (https://opensource.org/licenses/CDDL-1.0);                               
+    vii. Eclipse Public License, version 2.0                                    
+      (https://opensource.org/licenses/EPL-2.0);                                
+  c. if redistributed in source form, the Program must retain the text of this  
+     License;                                                                   
+  d. if redistributed in binary form, the Program must reproduce the text of    
+    this License in the documentation and/or other materials provided with the  
+    distribution.                                                               
+                                                                                
+2.2. Alternatively, the MutexGear is permitted to be used, with or without       
+  modifications, statically linked within, or in the form of a standalone Shared
+  Library dynamically linked with, a Program or a Shared Library that meets all 
+  of the following requirements:                                                
+  a. use of the Program or the Shared Library must be governed by one of        
+    the following OSI-approved open source software licenses:                   
+    i. GNU General Public License, version 2                                    
+      (https://opensource.org/licenses/GPL-2.0);                                
+    ii. GNU General Public License, version 3                                   
+      (https://opensource.org/licenses/GPL-3.0);                                
+  b. if redistributed in source form, the Program or the Shared Library         
+    must retain the text of this License;                                       
+  c. if redistributed in binary form, the Program or the Shared Library         
+    must reproduce the text of this License in the documentation and/or other   
+    materials provided with the distribution.                                   
+                                                                                
+2.3. All other use cases not falling under the clauses 2.1-2.2 above are        
+  prohibited.                                                                   
+                                                                                
+3. Limitation of Liability                                                      
+                                                                                
+3.1. THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDER "AS IS" AND              
+  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED 
+  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE        
+  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER BE LIABLE FOR ANY          
+  DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES    
+  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;  
+  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND   
+  ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT    
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS 
+  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.                  
+                                                                                
+================================================================================

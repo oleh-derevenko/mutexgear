@@ -6,7 +6,7 @@
 /* This library contains a synchronization technique protected by       */
 /* the U.S. Patent 9,983,913.                                           */
 /*                                                                      */
-/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT FOR EVALUATION PURPOSES ONLY. */
+/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
 /* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
@@ -18,7 +18,7 @@
 
 /**
  *	\file
- *	\brief MutexGear RWLock API Implementation
+ *	\brief MutexGear RWLock API implementation
  *
  */
 
@@ -554,7 +554,7 @@ int mutexgear_rwlock_destroy(mutexgear_rwlock_t *__rwlock)
 
 static bool rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(mutexgear_rwlock_t *__rwlock, mutexgear_completion_waiter_t *__waiter,
 	int *__out_status);
-static bool rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels(mutexgear_rwlock_t *__rwlock, mutexgear_completion_waiter_t *__waiter,
+static bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mutexgear_rwlock_t *__rwlock, mutexgear_completion_waiter_t *__waiter,
 	int *__out_status);
 static bool rwlock_wrlock_wait_all_reads_and_acquire_access(mutexgear_rwlock_t *__rwlock, mutexgear_completion_waiter_t *__waiter,
 	mutexgear_completion_item_t	*__last_reader_item, int *__out_status);
@@ -635,11 +635,11 @@ int mutexgear_trdl_rwlock_wrlock(mutexgear_trdl_rwlock_t *__rwlock,
 			}
 			wait_inserted = true;
 
-			// NOTE: The overhead in rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels() is actually
+			// NOTE: The overhead in rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels() is actually
 			// so minor that it is unclear if it is worth making the two separate implementations. Let it be though.
 			if ((__rwlock->basic_lock.mode_flags & _MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_MASK) == 0
 				? !rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(&__rwlock->basic_lock, __waiter, &ret)
-				: !rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels(&__rwlock->basic_lock, __waiter, &ret))
+				: !rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(&__rwlock->basic_lock, __waiter, &ret))
 			{
 				break;
 			}
@@ -751,11 +751,11 @@ int mutexgear_rwlock_wrlock(mutexgear_rwlock_t *__rwlock,
 			}
 			wait_inserted = true;
 
-			// NOTE: The overhead in rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels() is actually
+			// NOTE: The overhead in rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels() is actually
 			// so minor that it is unclear if it is worth making the two separate implementations. Let it be though.
 			if ((__rwlock->mode_flags & _MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_MASK) == 0
 				? !rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(__rwlock, __waiter, &ret)
-				: !rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels(__rwlock, __waiter, &ret))
+				: !rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(__rwlock, __waiter, &ret))
 			{
 				break;
 			}
@@ -856,7 +856,7 @@ bool rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(mutexg
 }
 
 static 
-bool rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels(mutexgear_rwlock_t *__rwlock, mutexgear_completion_waiter_t *__waiter,
+bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mutexgear_rwlock_t *__rwlock, mutexgear_completion_waiter_t *__waiter,
 	int *__out_status)
 {
 	bool fault = false;
@@ -1030,7 +1030,7 @@ int mutexgear_trdl_rwlock_trywrlock(mutexgear_trdl_rwlock_t *__rwlock)
 				// NOTE: All other cases when the acquired_reads mutex can be busy 
 				// (namely, in mutexgear_rwlock_wrlock(), 
 				// rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(), 
-				// rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels(), 
+				// rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(), 
 				// rwlock_wrlock_wait_all_reads_and_acquire_access(), mutexgear_rwlock_rdlock(),
 				// rwlock_rdlock_wait_all_writes_and_acquire_access()) either indicate that there 
 				// already are other read locks or the thread owning the acquired_reads 
@@ -1102,7 +1102,7 @@ int mutexgear_rwlock_trywrlock(mutexgear_rwlock_t *__rwlock)
 			// NOTE: All other cases when the acquired_reads mutex can be busy 
 			// (namely, in mutexgear_rwlock_wrlock(), 
 			// rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(), 
-			// rwlock_wrlock_push_readers_waiting_to_acquire_access__many_channels(), 
+			// rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(), 
 			// rwlock_wrlock_wait_all_reads_and_acquire_access(), mutexgear_rwlock_rdlock(),
 			// rwlock_rdlock_wait_all_writes_and_acquire_access()) either indicate that there 
 			// already are other read locks or the thread owning the acquired_reads 
