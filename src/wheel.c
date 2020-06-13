@@ -449,7 +449,7 @@ int mutexgear_wheel_turn(mutexgear_wheel_t *__wheel)
 	{
 		// OK to proceed
 		int master_index = __wheel->master_index;
-		int next_index = master_index != MUTEXGEAR_WHEEL_NUMELEMENTS - 1 ? master_index + 1 : EOK;
+		int next_index = master_index != MUTEXGEAR_WHEEL_NUMELEMENTS - 1 ? master_index + 1 : 0;
 
 		if ((ret = _mutexgear_lock_acquire(__wheel->muteces + next_index)) == EOK)
 		{
