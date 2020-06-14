@@ -36,6 +36,13 @@
  *	or for allocation on stack for execution control logic.
  *
  *	Some of the queue methods are implemented as "static inline" functions.
+ *
+ *	NOTE:
+ *
+ *	The \c mutexgear_completion_worker_t object depends on a synchronization mechanism 
+ *	being a subject of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and
+ *	Image Database search (currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm)
+ *	to view the patent text.
  */
 
 
@@ -265,7 +272,7 @@ _MUTEXGEAR_PURE_INLINE void mutexgear_completion_item_settag(mutexgear_completio
  */
 _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_item_unsafemodifytag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value);
 /**
- *	\fn bool mutexgear_completion_item_gettag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index)
+ *	\fn bool mutexgear_completion_item_gettag(const mutexgear_completion_item_t *__item_instance, unsigned int __tag_index)
  *	\brief Returns value of an item's tag
  *
  *	Tags are handled in thread safe manned with respect to other tags of the same Item, however the modifications of each single tag
@@ -273,7 +280,7 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_item_unsafemodifytag(mutexgear_
  *	If more strict atomicity is needed, derive a child structure from \c mutexgear_completion_item_t and implement the necessary
  *	storage as an extension there.
  */
-_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_item_gettag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/);
+_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_item_gettag(const mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/);
 
 
 
@@ -375,11 +382,20 @@ typedef struct _mutexgear_completion_cancelablequeue
  */
 typedef enum _mutexgear_completion_ownership
 {
-	mg_completion_not_owner,	//!< The caller is not the Item owner and must not access or delete it
+	mg_completion_ownership__min,
+
+	mg_completion_not_owner = mg_completion_ownership__min,	//!< The caller is not the Item owner and must not access or delete it
 	mg_completion_owner,		//!< The caller is the Item owner and is responsible for deleting it if that is necessary
+
+	mg_completion_ownership__max,
 
 } mutexgear_completion_ownership_t;
 
+/**
+ *	\typedef typedef void (*mutexgear_completion_cancel_fn_t)(void *__cancel_context, mutexgear_completion_cancelablequeue_t *__queue, mutexgear_completion_worker_t *__worker, mutexgear_completion_item_t *__item)
+ *	\brief A type definition for completion item operation canceling callback.
+ */
+typedef void (*mutexgear_completion_cancel_fn_t)(void *__cancel_context, mutexgear_completion_cancelablequeue_t *__queue, mutexgear_completion_worker_t *__worker, mutexgear_completion_item_t *__item);
 
 //////////////////////////////////////////////////////////////////////////
 // Completion Object APIs
@@ -530,20 +546,20 @@ _MUTEXGEAR_API int mutexgear_completion_queue_destroy(mutexgear_completion_queue
 
 
 /**
- *	\fn int mutexgear_completion_queue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired, mutexgear_completion_queue_t *__queue_instance)
+ *	\fn int mutexgear_completion_queue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock, mutexgear_completion_queue_t *__queue_instance)
  *	\brief Lock a Completion Queue access mutex
  *
  *	The call can be used to widen a critical section used for queue operations.
  *
- *	\c __out_lock_acquired can be NULL or can point to a variable to receive a lock token that can later be passed
+ *	\c __out_acquired_lock can be NULL or can point to a variable to receive a lock token that can later be passed
  *	to other queue functions to indicate that the queue is already locked and needs not to be locked in the function 
  *	implementations internally.
  *
- *	\param __out_lock_acquired NULLL or a pointer to a variable to receive lock token
+ *	\param __out_acquired_lock NULLL or a pointer to a variable to receive lock token
  *	\return EOK on success or a system error code on failure.
  *	\see mutexgear_completion_queue_plainunlock
  */
-_MUTEXGEAR_API int mutexgear_completion_queue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired/*=NULL*/, mutexgear_completion_queue_t *__queue_instance);
+_MUTEXGEAR_API int mutexgear_completion_queue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock/*=NULL*/, mutexgear_completion_queue_t *__queue_instance);
 
 /**
  *	\fn int mutexgear_completion_queue_plainunlock(mutexgear_completion_queue_t *__queue_instance)
@@ -779,13 +795,13 @@ _MUTEXGEAR_API int mutexgear_completion_drainablequeue_destroy(mutexgear_complet
 
 
 /**
- *	\fn int mutexgear_completion_drainablequeue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired, mutexgear_completion_drainablequeue_t *__queue_instance)
+ *	\fn int mutexgear_completion_drainablequeue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock, mutexgear_completion_drainablequeue_t *__queue_instance)
  *	\brief An inherited method for \c mutexgear_completion_queue_lock
  *
  *	\return EOK on success or a system error code on failure.
  *	\see mutexgear_completion_queue_lock
  */
-_MUTEXGEAR_API int mutexgear_completion_drainablequeue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired/*=NULL*/,
+_MUTEXGEAR_API int mutexgear_completion_drainablequeue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock/*=NULL*/,
 	mutexgear_completion_drainablequeue_t *__queue_instance);
 
 /**
@@ -995,13 +1011,13 @@ _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_destroy(mutexgear_comple
 
 
 /**
- *	\fn int mutexgear_completion_cancelablequeue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired, mutexgear_completion_cancelablequeue_t *__queue_instance)
+ *	\fn int mutexgear_completion_cancelablequeue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock, mutexgear_completion_cancelablequeue_t *__queue_instance)
  *	\brief An inherited method for \c mutexgear_completion_queue_lock
  *
  *	\return EOK on success or a system error code on failure.
  *	\see mutexgear_completion_queue_lock
  */
-_MUTEXGEAR_API int mutexgear_completion_cancelablequeue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired/*=NULL*/, mutexgear_completion_cancelablequeue_t *__queue_instance);
+_MUTEXGEAR_API int mutexgear_completion_cancelablequeue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock/*=NULL*/, mutexgear_completion_cancelablequeue_t *__queue_instance);
 
 /**
  *	\fn int mutexgear_completion_cancelablequeue_plainunlock(mutexgear_completion_cancelablequeue_t *__queue_instance)
@@ -1024,7 +1040,7 @@ _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_unlockandwait(mutexgear_
 
 
 /**
- *	\fn int mutexgear_completion_cancelablequeue_unlockandcancel(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_to_be_canceled, mutexgear_completion_waiter_t *__waiter_instance, void(*__item_cancel_fn)(void *__cancel_context, mutexgear_completion_cancelablequeue_t *__queue, mutexgear_completion_worker_t *__worker, mutexgear_completion_cancelableitem_t *__item), void *__cancel_context, mutexgear_completion_ownership_t *__out_item_resulting_ownership)
+ *	\fn int mutexgear_completion_cancelablequeue_unlockandcancel(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_to_be_canceled, mutexgear_completion_waiter_t *__waiter_instance, mutexgear_completion_cancel_fn_t __item_cancel_fn, void *__cancel_context, mutexgear_completion_ownership_t *__out_item_resulting_ownership)
  *	\brief Mark Item to be canceled and either remove it from Queue if work on the Item was not started yet, or unlock the Queue and wait for the Item to be finished and removed by its Worker
  *
  *	The call requests its Item to be canceled. If work was not started on the Item yet 
@@ -1033,7 +1049,7 @@ _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_unlockandwait(mutexgear_
  *	and waited for being finished and removed by its Worker. Workers are supposed to check their item statuses 
  *	with \c mutexgear_completion_cancelablequeueditem_iscanceled and abort any operations requiring significant effort if necessary.
  *	Additionally, a function \c __item_cancel_fn can be provided to be called after the cancel request has been set on the Item
- *	to unblock the Worker from any possible blocking states. If there was a Worker assigned to the Item the caller will not be come 
+ *	to unblock the Worker from any possible blocking states. If there was a Worker assigned to the Item the caller will not become 
  *	the Item's owner and must not access the Item after the function returns.
  *
  *	The function must be called with the queue locked.
@@ -1044,7 +1060,7 @@ _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_unlockandwait(mutexgear_
  */
 _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_unlockandcancel(mutexgear_completion_cancelablequeue_t *__queue_instance,
 	mutexgear_completion_item_t *__item_to_be_canceled, mutexgear_completion_waiter_t *__waiter_instance,
-	void(*__item_cancel_fn/*=NULL*/)(void *__cancel_context, mutexgear_completion_cancelablequeue_t *__queue, mutexgear_completion_worker_t *__worker, mutexgear_completion_item_t *__item), void *__cancel_context/*=NULL*/,
+	mutexgear_completion_cancel_fn_t __item_cancel_fn/*=NULL*/, void *__cancel_context/*=NULL*/,
 	mutexgear_completion_ownership_t *__out_item_resulting_ownership);
 
 
@@ -1158,7 +1174,7 @@ _MUTEXGEAR_API int mutexgear_completion_cancelablequeueditem_start(mutexgear_com
 	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/);
 
 /**
- *	\fn bool mutexgear_completion_cancelablequeueditem_iscanceled(mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+ *	\fn bool mutexgear_completion_cancelablequeueditem_iscanceled(const mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
  *	\brief Check if Item was requested to be canceled
  *
  *	The function is to be called periodically by Workers after they start their work on items with \c mutexgear_completion_cancelablequeueditem_start
@@ -1172,7 +1188,7 @@ _MUTEXGEAR_API int mutexgear_completion_cancelablequeueditem_start(mutexgear_com
  *	\see mutexgear_completion_cancelablequeueditem_start
  *	\see mutexgear_completion_cancelablequeueditem_finish
  */
-_MUTEXGEAR_API bool mutexgear_completion_cancelablequeueditem_iscanceled(mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
+_MUTEXGEAR_API bool mutexgear_completion_cancelablequeueditem_iscanceled(const mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
 
 /**
  *	\fn int mutexgear_completion_cancelablequeueditem_finish(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_locktoken_t __lock_hint)
@@ -1274,7 +1290,7 @@ bool _mutexgear_completion_item_unsafemodifyextrabit(mutexgear_completion_item_t
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool _mutexgear_completion_item_testextrabit(mutexgear_completion_item_t *__item_instance, unsigned int __bit_index)
+bool _mutexgear_completion_item_testextrabit(const mutexgear_completion_item_t *__item_instance, unsigned int __bit_index)
 {
 	bool ret = (_mg_atomic_load_relaxed_completion_item_extradata(_MG_PCVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data)) & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) != 0;
 	return ret;
@@ -1328,7 +1344,7 @@ bool mutexgear_completion_item_unsafemodifytag(mutexgear_completion_item_t *__it
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool mutexgear_completion_item_gettag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/)
+bool mutexgear_completion_item_gettag(const mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/)
 {
 	return _mutexgear_completion_item_testextrabit(__item_instance, __tag_index);
 }

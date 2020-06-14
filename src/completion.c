@@ -692,10 +692,10 @@ int _mutexgear_completion_cancelablequeue_destroy(mutexgear_completion_cancelabl
 
 
 _MUTEXGEAR_PURE_INLINE 
-int _mutexgear_completion_cancelablequeue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired/*=NULL*/,
+int _mutexgear_completion_cancelablequeue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock/*=NULL*/,
 	mutexgear_completion_cancelablequeue_t *__queue_instance)
 {
-	int ret = _mutexgear_completion_queue_lock(__out_lock_acquired, &__queue_instance->basic_queue);
+	int ret = _mutexgear_completion_queue_lock(__out_acquired_lock, &__queue_instance->basic_queue);
 	return ret;
 }
 
@@ -781,19 +781,7 @@ _MUTEXGEAR_PURE_INLINE
 int _mutexgear_completion_cancelablequeue_enqueue(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance,
 	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
 {
-	int ret;
-
-	do
-	{
-		if ((ret = _mutexgear_completion_queue_enqueue(&__queue_instance->basic_queue, __item_instance, __lock_hint)) != EOK)
-		{
-			break;
-		}
-
-		MG_ASSERT(ret == EOK);
-	}
-	while (false);
-
+	int ret = _mutexgear_completion_queue_enqueue(&__queue_instance->basic_queue, __item_instance, __lock_hint);
 	return ret;
 }
 
@@ -863,7 +851,7 @@ int _mutexgear_completion_cancelablequeueditem_start(mutexgear_completion_item_t
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool _mutexgear_completion_cancelablequeueditem_iscanceled(mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+bool _mutexgear_completion_cancelablequeueditem_iscanceled(const mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
 {
 	MG_ASSERT(__worker_instance != NULL);
 
@@ -1028,9 +1016,9 @@ int mutexgear_completion_queue_destroy(mutexgear_completion_queue_t *__queue_ins
 
 
 /*extern */
-int mutexgear_completion_queue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired/*=NULL*/, mutexgear_completion_queue_t *__queue_instance)
+int mutexgear_completion_queue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock/*=NULL*/, mutexgear_completion_queue_t *__queue_instance)
 {
-	return _mutexgear_completion_queue_lock(__out_lock_acquired, __queue_instance);
+	return _mutexgear_completion_queue_lock(__out_acquired_lock, __queue_instance);
 }
 
 /*extern */
@@ -1099,10 +1087,10 @@ int mutexgear_completion_drainablequeue_destroy(mutexgear_completion_drainablequ
 
 
 /*extern */
-int mutexgear_completion_drainablequeue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired/*=NULL*/,
+int mutexgear_completion_drainablequeue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock/*=NULL*/,
 	mutexgear_completion_drainablequeue_t *__queue_instance)
 {
-	return _mutexgear_completion_drainablequeue_lock(__out_lock_acquired, __queue_instance);
+	return _mutexgear_completion_drainablequeue_lock(__out_acquired_lock, __queue_instance);
 }
 
 /*extern */
@@ -1175,9 +1163,9 @@ int mutexgear_completion_cancelablequeue_destroy(mutexgear_completion_cancelable
 
 
 /*extern */
-int mutexgear_completion_cancelablequeue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired/*=NULL*/, mutexgear_completion_cancelablequeue_t *__queue_instance)
+int mutexgear_completion_cancelablequeue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock/*=NULL*/, mutexgear_completion_cancelablequeue_t *__queue_instance)
 {
-	return _mutexgear_completion_cancelablequeue_lock(__out_lock_acquired, __queue_instance);
+	return _mutexgear_completion_cancelablequeue_lock(__out_acquired_lock, __queue_instance);
 }
 
 /*extern */
@@ -1225,7 +1213,7 @@ int mutexgear_completion_cancelablequeueditem_start(mutexgear_completion_item_t 
 	return _mutexgear_completion_cancelablequeueditem_start(__out_acquired_item, __queue_instance, __worker_instance, __lock_hint);
 }
 
-bool mutexgear_completion_cancelablequeueditem_iscanceled(mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+bool mutexgear_completion_cancelablequeueditem_iscanceled(const mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
 {
 	return _mutexgear_completion_cancelablequeueditem_iscanceled(__item_instance, __worker_instance);
 }

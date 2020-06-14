@@ -154,7 +154,7 @@ bool _mutexgear_completion_item_unsafemodifytag(mutexgear_completion_item_t *__i
 }
 
 _MUTEXGEAR_PURE_INLINE 
-bool _mutexgear_completion_item_gettag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/)
+bool _mutexgear_completion_item_gettag(const mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/)
 {
 	return mutexgear_completion_item_gettag(__item_instance, __tag_index);
 }
@@ -169,17 +169,17 @@ void _mutexgear_completion_queue_unpreparedestroy(mutexgear_completion_queue_t *
 
 
 _MUTEXGEAR_PURE_INLINE
-int _mutexgear_completion_queue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired/*=NULL*/, mutexgear_completion_queue_t *__queue_instance)
+int _mutexgear_completion_queue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock/*=NULL*/, mutexgear_completion_queue_t *__queue_instance)
 {
 	int ret = _mutexgear_lock_acquire(&__queue_instance->access_lock);
-	return ret == EOK && (__out_lock_acquired == NULL || (*__out_lock_acquired = _mutexgear_completion_queue_derivetoken(__queue_instance), true)) ? EOK : ret;
+	return ret == EOK && (__out_acquired_lock == NULL || (*__out_acquired_lock = _mutexgear_completion_queue_derivetoken(__queue_instance), true)) ? EOK : ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
-int _mutexgear_completion_queue_trylock(mutexgear_completion_locktoken_t *__out_lock_acquired/*=NULL*/, mutexgear_completion_queue_t *__queue_instance)
+int _mutexgear_completion_queue_trylock(mutexgear_completion_locktoken_t *__out_acquired_lock/*=NULL*/, mutexgear_completion_queue_t *__queue_instance)
 {
 	int ret = _mutexgear_lock_tryacquire(&__queue_instance->access_lock);
-	return ret == EOK && (__out_lock_acquired == NULL || (*__out_lock_acquired = _mutexgear_completion_queue_derivetoken(__queue_instance), true)) ? EOK : ret;
+	return ret == EOK && (__out_acquired_lock == NULL || (*__out_acquired_lock = _mutexgear_completion_queue_derivetoken(__queue_instance), true)) ? EOK : ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
@@ -371,10 +371,10 @@ void _mutexgear_completion_drainablequeue_unpreparedestroy(mutexgear_completion_
 
 
 _MUTEXGEAR_PURE_INLINE
-int _mutexgear_completion_drainablequeue_lock(mutexgear_completion_locktoken_t *__out_lock_acquired/*=NULL*/,
+int _mutexgear_completion_drainablequeue_lock(mutexgear_completion_locktoken_t *__out_acquired_lock/*=NULL*/,
 	mutexgear_completion_drainablequeue_t *__queue_instance)
 {
-	int ret = _mutexgear_completion_queue_lock(__out_lock_acquired, &__queue_instance->basic_queue);
+	int ret = _mutexgear_completion_queue_lock(__out_acquired_lock, &__queue_instance->basic_queue);
 	return ret;
 }
 

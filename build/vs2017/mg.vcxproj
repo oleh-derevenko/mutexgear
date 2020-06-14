@@ -164,15 +164,19 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\include\mutexgear\completion.h" />
+    <ClInclude Include="..\..\include\mutexgear\completion.hpp" />
     <ClInclude Include="..\..\include\mutexgear\config.h" />
     <ClInclude Include="..\..\include\mutexgear\constants.h" />
     <ClInclude Include="..\..\include\mutexgear\dlpslist.h" />
     <ClInclude Include="..\..\include\mutexgear\dlralist.h" />
     <ClInclude Include="..\..\include\mutexgear\mutexgear.h" />
     <ClInclude Include="..\..\include\mutexgear\rwlock.h" />
+    <ClInclude Include="..\..\include\mutexgear\shared_mutex.hpp" />
     <ClInclude Include="..\..\include\mutexgear\toggle.h" />
+    <ClInclude Include="..\..\include\mutexgear\toggle.hpp" />
     <ClInclude Include="..\..\include\mutexgear\utility.h" />
     <ClInclude Include="..\..\include\mutexgear\wheel.h" />
+    <ClInclude Include="..\..\include\mutexgear\wheel.hpp" />
     <ClInclude Include="..\..\include\mutexgear\_llisttmpl.h" />
     <ClInclude Include="..\..\src\completion.h" />
     <ClInclude Include="..\..\src\utility.h" />

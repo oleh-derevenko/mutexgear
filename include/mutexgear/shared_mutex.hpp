@@ -85,7 +85,7 @@ public:
 public:
 	void lock(helper_worker_type &wRefWorkerInstance, helper_waiter_type &wRefWaiterInstance)
 	{
-		int iLockResult = mutexgear_rwlock_wrlock(&m_wlRWLockInstance, &static_cast<helper_worker_type::reference>(wRefWorkerInstance), &static_cast<helper_waiter_type::reference>(wRefWaiterInstance), NULL);
+		int iLockResult = mutexgear_rwlock_wrlock(&m_wlRWLockInstance, static_cast<helper_worker_type::pointer>(wRefWorkerInstance), static_cast<helper_waiter_type::pointer>(wRefWaiterInstance), NULL);
 
 		if (iLockResult != EOK)
 		{
@@ -107,7 +107,7 @@ public:
 
 	void lock_shared(helper_worker_type &wRefWorkerInstance, helper_waiter_type &wRefWaiterInstance, helper_item_type &iRefItemInstance)
 	{
-		int iLockResult = mutexgear_rwlock_rdlock(&m_wlRWLockInstance, &static_cast<helper_worker_type::reference>(wRefWorkerInstance), &static_cast<helper_waiter_type::reference>(wRefWaiterInstance), &static_cast<helper_item_type::reference>(iRefItemInstance));
+		int iLockResult = mutexgear_rwlock_rdlock(&m_wlRWLockInstance, static_cast<helper_worker_type::pointer>(wRefWorkerInstance), static_cast<helper_waiter_type::pointer>(wRefWaiterInstance), static_cast<helper_item_type::pointer>(iRefItemInstance));
 
 		if (iLockResult != EOK)
 		{
@@ -118,7 +118,7 @@ public:
 	void unlock_shared(helper_worker_type &wRefWorkerInstance, helper_item_type &iRefItemInstance)
 	{
 		int iRWLockRdUnlockResult;
-		MG_CHECK(iRWLockRdUnlockResult, (iRWLockRdUnlockResult = mutexgear_rwlock_rdunlock(&m_wlRWLockInstance, &static_cast<helper_worker_type::reference>(wRefWorkerInstance), &static_cast<helper_item_type::reference>(iRefItemInstance))) == EOK);
+		MG_CHECK(iRWLockRdUnlockResult, (iRWLockRdUnlockResult = mutexgear_rwlock_rdunlock(&m_wlRWLockInstance, static_cast<helper_worker_type::pointer>(wRefWorkerInstance), static_cast<helper_item_type::pointer>(iRefItemInstance))) == EOK);
 	}
 
 public:
@@ -163,7 +163,7 @@ public:
 public:
 	void lock(helper_worker_type &wRefWorkerInstance, helper_waiter_type &wRefWaiterInstance)
 	{
-		int iLockResult = mutexgear_trdl_rwlock_wrlock(&m_wlRWLockInstance, &static_cast<helper_worker_type::reference>(wRefWorkerInstance), &static_cast<helper_waiter_type::reference>(wRefWaiterInstance), NULL);
+		int iLockResult = mutexgear_trdl_rwlock_wrlock(&m_wlRWLockInstance, static_cast<helper_worker_type::pointer>(wRefWorkerInstance), static_cast<helper_waiter_type::pointer>(wRefWaiterInstance), NULL);
 
 		if (iLockResult != EOK)
 		{
@@ -185,7 +185,7 @@ public:
 
 	void lock_shared(helper_worker_type &wRefWorkerInstance, helper_waiter_type &wRefWaiterInstance, helper_item_type &iRefItemInstance)
 	{
-		int iLockResult = mutexgear_trdl_rwlock_rdlock(&m_wlRWLockInstance, &static_cast<helper_worker_type::reference>(wRefWorkerInstance), &static_cast<helper_waiter_type::reference>(wRefWaiterInstance), &static_cast<helper_item_type::reference>(iRefItemInstance));
+		int iLockResult = mutexgear_trdl_rwlock_rdlock(&m_wlRWLockInstance, static_cast<helper_worker_type::pointer>(wRefWorkerInstance), static_cast<helper_waiter_type::pointer>(wRefWaiterInstance), static_cast<helper_item_type::pointer>(iRefItemInstance));
 
 		if (iLockResult != EOK)
 		{
@@ -195,14 +195,14 @@ public:
 
 	bool try_lock_shared(helper_worker_type &wRefWorkerInstance, helper_item_type &iRefItemInstance)
 	{
-		int iTryLockResult = mutexgear_trdl_rwlock_tryrdlock(&m_wlRWLockInstance, &static_cast<helper_worker_type::reference>(wRefWorkerInstance), &static_cast<helper_item_type::reference>(iRefItemInstance));
+		int iTryLockResult = mutexgear_trdl_rwlock_tryrdlock(&m_wlRWLockInstance, static_cast<helper_worker_type::pointer>(wRefWorkerInstance), static_cast<helper_item_type::pointer>(iRefItemInstance));
 		return iTryLockResult == EOK || (iTryLockResult != EBUSY && (throw std::system_error(std::error_code(iTryLockResult, std::system_category())), false));
 	}
 
 	void unlock_shared(helper_worker_type &wRefWorkerInstance, helper_item_type &iRefItemInstance)
 	{
 		int iRWLockRdUnlockResult;
-		MG_CHECK(iRWLockRdUnlockResult, (iRWLockRdUnlockResult = mutexgear_trdl_rwlock_rdunlock(&m_wlRWLockInstance, &static_cast<helper_worker_type::reference>(wRefWorkerInstance), &static_cast<helper_item_type::reference>(iRefItemInstance))) == EOK);
+		MG_CHECK(iRWLockRdUnlockResult, (iRWLockRdUnlockResult = mutexgear_trdl_rwlock_rdunlock(&m_wlRWLockInstance, static_cast<helper_worker_type::pointer>(wRefWorkerInstance), static_cast<helper_item_type::pointer>(iRefItemInstance))) == EOK);
 	}
 
 public:
