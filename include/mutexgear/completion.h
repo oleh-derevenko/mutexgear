@@ -1446,18 +1446,16 @@ _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_drainablequeue_gettail(mutexgear_completion_item_t **__out_tail_item,
 	mutexgear_completion_drainablequeue_t *__queue_instance)
 {
-	mutexgear_completion_item_t *tail_basic_item;
-	bool ret = mutexgear_completion_queue_gettail(&tail_basic_item, &__queue_instance->basic_queue);
-	return ret == EOK ? (*__out_tail_item = tail_basic_item, EOK) : ret;
+	bool ret = mutexgear_completion_queue_gettail(__out_tail_item, &__queue_instance->basic_queue);
+	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_drainablequeue_getpreceding(mutexgear_completion_item_t **__out_preceding_item,
 	mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_completion_item_t *preceding_basic_item;
-	bool ret = mutexgear_completion_queue_getpreceding(&preceding_basic_item, &__queue_instance->basic_queue, __item_instance);
-	return ret == EOK ? (*__out_preceding_item = preceding_basic_item, EOK) : ret;
+	bool ret = mutexgear_completion_queue_getpreceding(__out_preceding_item, &__queue_instance->basic_queue, __item_instance);
+	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
@@ -1471,18 +1469,16 @@ _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_drainablequeue_unsafegethead(mutexgear_completion_item_t **__out_head_item,
 	mutexgear_completion_drainablequeue_t *__queue_instance)
 {
-	mutexgear_completion_item_t *head_basic_item;
-	bool ret = mutexgear_completion_queue_unsafegethead(&head_basic_item, &__queue_instance->basic_queue);
-	return ret == EOK ? (*__out_head_item = head_basic_item, EOK) : ret;
+	bool ret = mutexgear_completion_queue_unsafegethead(__out_head_item, &__queue_instance->basic_queue);
+	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE 
 bool mutexgear_completion_drainablequeue_unsafegetnext(mutexgear_completion_item_t **__out_next_item,
 	mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_completion_item_t *next_basic_item;
-	bool ret = mutexgear_completion_queue_unsafegetnext(&next_basic_item, &__queue_instance->basic_queue, __item_instance);
-	return ret == EOK ? (*__out_next_item = next_basic_item, EOK) : ret;
+	bool ret = mutexgear_completion_queue_unsafegetnext(__out_next_item, &__queue_instance->basic_queue, __item_instance);
+	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_drainablequeue_unsafegetunsafenext(mutexgear_completion_item_t *__item_instance)
@@ -1506,18 +1502,16 @@ _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_cancelablequeue_gettail(mutexgear_completion_item_t **__out_tail_item,
 	mutexgear_completion_cancelablequeue_t *__queue_instance)
 {
-	mutexgear_completion_item_t *tail_basic_item;
-	bool ret = mutexgear_completion_queue_gettail(&tail_basic_item, &__queue_instance->basic_queue);
-	return ret == EOK ? (*__out_tail_item = tail_basic_item, EOK) : ret;
+	bool ret = mutexgear_completion_queue_gettail(__out_tail_item, &__queue_instance->basic_queue);
+	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_cancelablequeue_getpreceding(mutexgear_completion_item_t **__out_preceding_item,
 	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_completion_item_t *preceding_basic_item;
-	bool ret = mutexgear_completion_queue_getpreceding(&preceding_basic_item, &__queue_instance->basic_queue, __item_instance);
-	return ret == EOK ? (*__out_preceding_item = preceding_basic_item, EOK) : ret;
+	bool ret = mutexgear_completion_queue_getpreceding(__out_preceding_item, &__queue_instance->basic_queue, __item_instance);
+	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
@@ -1531,18 +1525,16 @@ _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_cancelablequeue_unsafegethead(mutexgear_completion_item_t **__out_head_item,
 	mutexgear_completion_cancelablequeue_t *__queue_instance)
 {
-	mutexgear_completion_item_t *head_basic_item;
-	bool ret = mutexgear_completion_queue_unsafegethead(&head_basic_item, &__queue_instance->basic_queue);
-	return ret == EOK ? (*__out_head_item = head_basic_item, EOK) : ret;
+	bool ret = mutexgear_completion_queue_unsafegethead(__out_head_item, &__queue_instance->basic_queue);
+	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_cancelablequeue_unsafegetnext(mutexgear_completion_item_t **__out_next_item,
 	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_completion_item_t *next_basic_item;
-	bool ret = mutexgear_completion_queue_unsafegetnext(&next_basic_item, &__queue_instance->basic_queue, __item_instance);
-	return ret == EOK ? (*__out_next_item = next_basic_item, EOK) : ret;
+	bool ret = mutexgear_completion_queue_unsafegetnext(__out_next_item, &__queue_instance->basic_queue, __item_instance);
+	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_cancelablequeue_unsafegetunsafenext(mutexgear_completion_item_t *__item_instance)
