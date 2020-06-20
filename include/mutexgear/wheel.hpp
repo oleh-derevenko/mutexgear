@@ -58,7 +58,7 @@ public:
 
 	mutex_wheel(const mutex_wheel &mwAnotherInstance) = delete;
 
-	~mutex_wheel()
+	~mutex_wheel() noexcept
 	{
 		int iMutexWheelDestructionResult;
 		MG_CHECK(iMutexWheelDestructionResult, (iMutexWheelDestructionResult = mutexgear_wheel_destroy(&m_wWheelInstance)) == EOK);
@@ -90,7 +90,7 @@ public:
 		}
 	}
 
-	void unlock_slave()
+	void unlock_slave() noexcept
 	{
 		int iMutexWheelUnlockSlaveResult;
 		MG_CHECK(iMutexWheelUnlockSlaveResult, (iMutexWheelUnlockSlaveResult = mutexgear_wheel_unlockslave(&m_wWheelInstance)) == EOK);
@@ -120,7 +120,7 @@ public:
 		}
 	}
 
-	void release()
+	void release() noexcept
 	{
 		int iMutexWheelReleaseResult;
 		MG_CHECK(iMutexWheelReleaseResult, (iMutexWheelReleaseResult = mutexgear_wheel_release(&m_wWheelInstance)) == EOK);
@@ -141,7 +141,7 @@ public:
 	}
 
 public:
-	native_handle_type native_handle() const { return static_cast<native_handle_type>(const_cast<mutexgear_wheel_t *>(&m_wWheelInstance)); }
+	native_handle_type native_handle() const noexcept { return static_cast<native_handle_type>(const_cast<mutexgear_wheel_t *>(&m_wWheelInstance)); }
 
 private:
 	mutexgear_wheel_t		m_wWheelInstance;

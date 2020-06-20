@@ -58,7 +58,7 @@ public:
 
 	mutex_toggle(const mutex_toggle &mtAnotherInstance) = delete;
 
-	~mutex_toggle()
+	~mutex_toggle() noexcept
 	{
 		int iMutexToggleDestructionResult;
 		MG_CHECK(iMutexToggleDestructionResult, (iMutexToggleDestructionResult = mutexgear_toggle_destroy(&m_tToggleInstance)) == EOK);
@@ -90,7 +90,7 @@ public:
 		}
 	}
 
-	void unlock_slave()
+	void unlock_slave() noexcept
 	{
 		int iMutexToggleUnlockSlaveResult;
 		MG_CHECK(iMutexToggleUnlockSlaveResult, (iMutexToggleUnlockSlaveResult = mutexgear_toggle_unlockslave(&m_tToggleInstance)) == EOK);
@@ -111,7 +111,7 @@ public:
 	}
 
 public:
-	native_handle_type native_handle() const { return static_cast<native_handle_type>(const_cast<mutexgear_toggle_t *>(&m_tToggleInstance)); }
+	native_handle_type native_handle() const noexcept { return static_cast<native_handle_type>(const_cast<mutexgear_toggle_t *>(&m_tToggleInstance)); }
 
 private:
 	mutexgear_toggle_t		m_tToggleInstance;

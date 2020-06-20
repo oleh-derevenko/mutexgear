@@ -168,8 +168,10 @@
     <ClInclude Include="..\..\include\mutexgear\config.h" />
     <ClInclude Include="..\..\include\mutexgear\constants.h" />
     <ClInclude Include="..\..\include\mutexgear\dlpslist.h" />
+    <ClInclude Include="..\..\include\mutexgear\dlps_list.hpp" />
     <ClInclude Include="..\..\include\mutexgear\dlralist.h" />
     <ClInclude Include="..\..\include\mutexgear\mutexgear.h" />
+    <ClInclude Include="..\..\include\mutexgear\parent_wrapper.hpp" />
     <ClInclude Include="..\..\include\mutexgear\rwlock.h" />
     <ClInclude Include="..\..\include\mutexgear\shared_mutex.hpp" />
     <ClInclude Include="..\..\include\mutexgear\toggle.h" />

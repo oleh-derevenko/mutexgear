@@ -791,64 +791,64 @@ void _mutexgear_completion_cancelablequeue_unsafedequeue(mutexgear_completion_it
 	_mutexgear_completion_queue_unsafedequeue(__item_instance);
 }
 
-_MUTEXGEAR_PURE_INLINE
-int _mutexgear_completion_cancelablequeueditem_start(mutexgear_completion_item_t **__out_acquired_item,
-	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_worker_t *__worker_instance,
-	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
-{
-	MG_ASSERT(__worker_instance != NULL);
-
-	bool success = false;
-	mutexgear_completion_item_t *acquired_item = NULL;
-	int ret, mutex_unlock_status;
-
-	// bool mutex_locked = false;
-
-	do
-	{
-		if (__lock_hint == NULL && (ret = _mutexgear_completion_queue_lock(NULL, &__queue_instance->basic_queue)) != EOK)
-		{
-			break;
-		}
-		// mutex_locked = true; -- no breaks after this point at this time
-
-		mutexgear_completion_item_t *current_item;
-		bool continue_loop = _mutexgear_completion_queue_unsafegethead(&current_item, &__queue_instance->basic_queue);
-		for (; continue_loop; continue_loop = _mutexgear_completion_queue_unsafegetnext(&current_item, &__queue_instance->basic_queue, current_item))
-		{
-			if (_mutexgear_completion_item_getwow(current_item) == (void *)current_item)
-			{
-				_mutexgear_completion_item_setwow(current_item, __worker_instance);
-				acquired_item = current_item;
-				break;
-			}
-		}
-
-		if (__lock_hint == NULL)
-		{
-			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
-		}
-		// mutex_locked = false;
-
-		*__out_acquired_item = acquired_item != NULL ? acquired_item : NULL;
-		ret = EOK;
-		success = true;
-	}
-	while (false);
-
-	if (!success)
-	{
-		// if (mutex_locked)
-		// {
-		// 	if (__lock_hint == NULL)
-		// 	{
-		// 		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__queue_instance->basic_queue.access_lock)) == EOK); // Should succeed normally
-		// 	}
-		// }
-	}
-
-	return ret;
-}
+// _MUTEXGEAR_PURE_INLINE
+// int _mutexgear_completion_cancelablequeue_locateandstart(mutexgear_completion_item_t **__out_acquired_item,
+// 	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_worker_t *__worker_instance,
+// 	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
+// {
+// 	MG_ASSERT(__worker_instance != NULL);
+// 
+// 	bool success = false;
+// 	mutexgear_completion_item_t *acquired_item = NULL;
+// 	int ret, mutex_unlock_status;
+// 
+// 	// bool mutex_locked = false;
+// 
+// 	do
+// 	{
+// 		if (__lock_hint == NULL && (ret = _mutexgear_completion_queue_lock(NULL, &__queue_instance->basic_queue)) != EOK)
+// 		{
+// 			break;
+// 		}
+// 		// mutex_locked = true; -- no breaks after this point at this time
+// 
+// 		mutexgear_completion_item_t *current_item;
+// 		bool continue_loop = _mutexgear_completion_queue_unsafegethead(&current_item, &__queue_instance->basic_queue);
+// 		for (; continue_loop; continue_loop = _mutexgear_completion_queue_unsafegetnext(&current_item, &__queue_instance->basic_queue, current_item))
+// 		{
+// 			if (!_mutexgear_completion_item_isstarted(current_item))
+// 			{
+// 				_mutexgear_completion_cancelablequeueditem_start(current_item, __worker_instance);
+// 				acquired_item = current_item;
+// 				break;
+// 			}
+// 		}
+// 
+// 		if (__lock_hint == NULL)
+// 		{
+// 			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
+// 		}
+// 		// mutex_locked = false;
+// 
+// 		*__out_acquired_item = acquired_item != NULL ? acquired_item : NULL;
+// 		ret = EOK;
+// 		success = true;
+// 	}
+// 	while (false);
+// 
+// 	if (!success)
+// 	{
+// 		// if (mutex_locked)
+// 		// {
+// 		// 	if (__lock_hint == NULL)
+// 		// 	{
+// 		// 		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__queue_instance->basic_queue.access_lock)) == EOK); // Should succeed normally
+// 		// 	}
+// 		// }
+// 	}
+// 
+// 	return ret;
+// }
 
 _MUTEXGEAR_PURE_INLINE
 bool _mutexgear_completion_cancelablequeueditem_iscanceled(const mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
@@ -867,7 +867,7 @@ bool _mutexgear_completion_cancelablequeueditem_iscanceled(const mutexgear_compl
 		// The same value should be returned again...
 		MG_VERIFY(current_worker_recheck == current_worker);
 		// ...and it is not to be NULL
-		MG_ASSERT(current_worker != NULL);
+		MG_ASSERT(current_worker != (void *)__item_instance);
 
 		// Finally, check if the cancel flag is set
 		ret = _mutexgear_completion_item_gettag(__item_instance, mutexgear_completion_cancelablequeue_itemtag_cancelrequested);
@@ -1204,15 +1204,16 @@ void mutexgear_completion_cancelablequeue_unsafedequeue(mutexgear_completion_ite
 	_mutexgear_completion_cancelablequeue_unsafedequeue(__item_instance);
 }
 
+// /*extern */
+// int mutexgear_completion_cancelablequeue_locateandstart(mutexgear_completion_item_t **__out_acquired_item,
+// 	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_worker_t *__worker_instance,
+// 	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
+// {
+// 	return _mutexgear_completion_cancelablequeue_locateandstart(__out_acquired_item, __queue_instance, __worker_instance, __lock_hint);
+// }
+
 
 /*extern */
-int mutexgear_completion_cancelablequeueditem_start(mutexgear_completion_item_t **__out_acquired_item,
-	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_worker_t *__worker_instance,
-	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
-{
-	return _mutexgear_completion_cancelablequeueditem_start(__out_acquired_item, __queue_instance, __worker_instance, __lock_hint);
-}
-
 bool mutexgear_completion_cancelablequeueditem_iscanceled(const mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
 {
 	return _mutexgear_completion_cancelablequeueditem_iscanceled(__item_instance, __worker_instance);

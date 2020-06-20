@@ -141,7 +141,13 @@ void _mutexgear_completion_item_prestart(mutexgear_completion_item_t *__item_ins
 	mutexgear_completion_item_prestart(__item_instance, __worker_instance);
 }
 
-_MUTEXGEAR_PURE_INLINE 
+_MUTEXGEAR_PURE_INLINE
+bool _mutexgear_completion_item_isstarted(const mutexgear_completion_item_t *__item_instance)
+{
+	return mutexgear_completion_item_isstarted(__item_instance);
+}
+
+_MUTEXGEAR_PURE_INLINE
 void _mutexgear_completion_item_settag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
 {
 	mutexgear_completion_item_settag(__item_instance, __tag_index, __tag_value);
@@ -286,6 +292,13 @@ void _mutexgear_completion_queue_unsafedequeue(mutexgear_completion_item_t *__it
 
 void _mutexgear_completion_queueditem_commcompletiontowaiter(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, 
 	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_waiter_t *__item_waiter);
+
+
+_MUTEXGEAR_PURE_INLINE 
+void _mutexgear_completion_queueditem_start(mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+{
+	mutexgear_completion_queueditem_start(__item_instance, __worker_instance);
+}
 
 _MUTEXGEAR_PURE_INLINE 
 int _mutexgear_completion_queueditem_finish(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
@@ -675,6 +688,11 @@ int _mutexgear_completion_drainablequeueditem_finish(mutexgear_completion_draina
 //////////////////////////////////////////////////////////////////////////
 // Completion CancelableQueue APIs
 
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_cancelablequeueditem_start(mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+{
+	mutexgear_completion_cancelablequeueditem_start(__item_instance, __worker_instance);
+}
 
 
 #endif // #ifndef __MUTEXGEAR_MG_COMPLETION_H_INCLUDED

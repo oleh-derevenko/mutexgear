@@ -74,7 +74,7 @@ public:
 
 	shared_mutex(const shared_mutex &mtAnotherInstance) = delete;
 
-	~shared_mutex()
+	~shared_mutex() noexcept
 	{
 		int iSharedMutexDestructionResult;
 		MG_CHECK(iSharedMutexDestructionResult, (iSharedMutexDestructionResult = mutexgear_rwlock_destroy(&m_wlRWLockInstance)) == EOK);
@@ -99,7 +99,7 @@ public:
 		return iTryLockResult == EOK || (iTryLockResult != EBUSY && (throw std::system_error(std::error_code(iTryLockResult, std::system_category())), false));
 	}
 
-	void unlock()
+	void unlock() noexcept
 	{
 		int iRWLockWrUnlockResult;
 		MG_CHECK(iRWLockWrUnlockResult, (iRWLockWrUnlockResult = mutexgear_rwlock_wrunlock(&m_wlRWLockInstance)) == EOK);
@@ -115,14 +115,14 @@ public:
 		}
 	}
 
-	void unlock_shared(helper_worker_type &wRefWorkerInstance, helper_item_type &iRefItemInstance)
+	void unlock_shared(helper_worker_type &wRefWorkerInstance, helper_item_type &iRefItemInstance) noexcept
 	{
 		int iRWLockRdUnlockResult;
 		MG_CHECK(iRWLockRdUnlockResult, (iRWLockRdUnlockResult = mutexgear_rwlock_rdunlock(&m_wlRWLockInstance, static_cast<helper_worker_type::pointer>(wRefWorkerInstance), static_cast<helper_item_type::pointer>(iRefItemInstance))) == EOK);
 	}
 
 public:
-	native_handle_type native_handle() const { return static_cast<native_handle_type>(const_cast<mutexgear_rwlock_t *>(&m_wlRWLockInstance)); }
+	native_handle_type native_handle() const noexcept { return static_cast<native_handle_type>(const_cast<mutexgear_rwlock_t *>(&m_wlRWLockInstance)); }
 
 private:
 	mutexgear_rwlock_t		m_wlRWLockInstance;
@@ -152,7 +152,7 @@ public:
 
 	shared_mutex(const shared_mutex &mtAnotherInstance) = delete;
 
-	~shared_mutex()
+	~shared_mutex() noexcept
 	{
 		int iSharedMutexDestructionResult;
 		MG_CHECK(iSharedMutexDestructionResult, (iSharedMutexDestructionResult = mutexgear_trdl_rwlock_destroy(&m_wlRWLockInstance)) == EOK);
@@ -177,7 +177,7 @@ public:
 		return iTryLockResult == EOK || (iTryLockResult != EBUSY && (throw std::system_error(std::error_code(iTryLockResult, std::system_category())), false));
 	}
 
-	void unlock()
+	void unlock() noexcept
 	{
 		int iRWLockWrUnlockResult;
 		MG_CHECK(iRWLockWrUnlockResult, (iRWLockWrUnlockResult = mutexgear_trdl_rwlock_wrunlock(&m_wlRWLockInstance)) == EOK);
@@ -199,14 +199,14 @@ public:
 		return iTryLockResult == EOK || (iTryLockResult != EBUSY && (throw std::system_error(std::error_code(iTryLockResult, std::system_category())), false));
 	}
 
-	void unlock_shared(helper_worker_type &wRefWorkerInstance, helper_item_type &iRefItemInstance)
+	void unlock_shared(helper_worker_type &wRefWorkerInstance, helper_item_type &iRefItemInstance) noexcept
 	{
 		int iRWLockRdUnlockResult;
 		MG_CHECK(iRWLockRdUnlockResult, (iRWLockRdUnlockResult = mutexgear_trdl_rwlock_rdunlock(&m_wlRWLockInstance, static_cast<helper_worker_type::pointer>(wRefWorkerInstance), static_cast<helper_item_type::pointer>(iRefItemInstance))) == EOK);
 	}
 
 public:
-	native_handle_type native_handle() const { return static_cast<native_handle_type>(const_cast<mutexgear_trdl_rwlock_t *>(&m_wlRWLockInstance)); }
+	native_handle_type native_handle() const noexcept { return static_cast<native_handle_type>(const_cast<mutexgear_trdl_rwlock_t *>(&m_wlRWLockInstance)); }
 
 private:
 	mutexgear_trdl_rwlock_t	m_wlRWLockInstance;

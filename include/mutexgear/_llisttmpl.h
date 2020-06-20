@@ -284,7 +284,8 @@ bool _t_mutexgear_##t_prefix##list_trygetprevious(_t_mutexgear_##t_prefix##item_
 	const _t_mutexgear_##t_prefix##list_t *p_list_instance, const _t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	_t_mutexgear_##t_prefix##item_t *previous_item = _t_mutexgear_##t_prefix##item_getprevious(p_item_instance); \
-	return previous_item != &p_list_instance->end_item && (*p_out_previous_item = previous_item, true); \
+	*p_out_previous_item = previous_item; \
+	return previous_item != &p_list_instance->end_item; \
 } \
 \
 _MUTEXGEAR_PURE_INLINE \

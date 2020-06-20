@@ -11,14 +11,28 @@
 #include <mutexgear/rwlock.h>
 #endif
 
+#include <mutexgear/shared_mutex.hpp>
+#include <mutexgear/wheel.hpp>
+#include <mutexgear/toggle.hpp>
+#include <mutexgear/completion.hpp>
+
+#include <mutexgear/dlps_list.hpp>
+#include <mutexgear/parent_wrapper.hpp>
+
 #include <mutexgear/utility.h>
 
 #ifdef _WIN32
 #include <process.h>
 #endif
 
+#include <atomic>
+#include <utility>
 #include <stdio.h>
 
+
+using mg::dlps_info;
+using mg::dlps_list;
+using mg::parent_wrapper;
 
 
 #if _MGTEST_TEST_CPP
@@ -674,6 +688,24 @@ static const char g_ascLockOperationKindThreadNameFirstCharModifiers[LOK__MAX] =
 	'a' - 'A', // LOK_RELEASE_LOCK,
 };
 
+class CRWLockValidator
+{
+public:
+	typedef unsigned int storage_type;
+	
+	static void IncrementReads() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_add(2); MG_CHECK(uiPrevLockStatus, (uiPrevLockStatus & 1) == 0 && uiPrevLockStatus != (storage_type)0 - 2); }
+	static void DecrementReads() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_sub(2); MG_CHECK(uiPrevLockStatus, (uiPrevLockStatus & 1) == 0 && uiPrevLockStatus != (storage_type)0); }
+
+	static void IncrementWrites() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_or(1); MG_CHECK(uiPrevLockStatus, uiPrevLockStatus == 0); }
+	static void DecrementWrites() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_xor(1); MG_CHECK(uiPrevLockStatus, uiPrevLockStatus == 1); }
+
+private:
+	static std::atomic<storage_type>			m_uiLockStatus;
+};
+
+/*static */std::atomic<CRWLockValidator::storage_type>		CRWLockValidator::m_uiLockStatus(0);
+
+
 class CRWLockLockExecutorLogic
 {
 public:
@@ -704,11 +736,15 @@ public:
 
 	bool ApplyLock(COperationExtraObjects &eoRefExtraObjects)
 	{
-		return m_liRWLockInstance.LockRWLockWrite(eoRefExtraObjects);
+		bool bLockedWithTryVariant = m_liRWLockInstance.LockRWLockWrite(eoRefExtraObjects);
+		CRWLockValidator::IncrementWrites();
+
+		return bLockedWithTryVariant;
 	}
 
 	void ReleaseLock(COperationExtraObjects &eoRefExtraObjects)
 	{
+		CRWLockValidator::DecrementWrites();
 		m_liRWLockInstance.UnlockRWLockWrite(eoRefExtraObjects);
 	}
 
@@ -742,10 +778,12 @@ public:
 		if (tuiReaderWriteDivisor == 0 || ++m_ciLockIndex % tuiReaderWriteDivisor != 0)
 		{
 			bLockedWithTryVariant = m_liRWLockInstance.LockRWLockRead(eoRefExtraObjects);
+			CRWLockValidator::IncrementReads();
 		}
 		else
 		{
 			bLockedWithTryVariant = m_liRWLockInstance.LockRWLockWrite(eoRefExtraObjects);
+			CRWLockValidator::IncrementWrites();
 		}
 
 		return bLockedWithTryVariant;
@@ -755,10 +793,12 @@ public:
 	{
 		if (tuiReaderWriteDivisor == 0 || m_ciLockIndex % tuiReaderWriteDivisor != 0)
 		{
+			CRWLockValidator::DecrementReads();
 			m_liRWLockInstance.UnlockRWLockRead(eoRefExtraObjects);
 		}
 		else
 		{
+			CRWLockValidator::DecrementWrites();
 			m_liRWLockInstance.UnlockRWLockWrite(eoRefExtraObjects);
 		}
 	}
@@ -1338,6 +1378,193 @@ void CRWLockLockTestThread<TOperationExecutor>::ReleaseInstance()
 
 //////////////////////////////////////////////////////////////////////////
 // The Tests
+//////////////////////////////////////////////////////////////////////////
+
+//////////////////////////////////////////////////////////////////////////
+// ParentWrapper
+
+enum EMGPARENTWRAPPERFEATURE
+{
+	MGPWF__MIN,
+
+	MGPWF_GENERAL = MGPWF__MIN,
+	
+	MGPWF__MAX,
+
+	MGPWF__TESTBEGIN = MGPWF__MIN,
+	MGPWF__TESTEND = MGPWF__MAX,
+	MGPWF__TESTCOUNT = MGPWF__TESTEND - MGPWF__TESTBEGIN,
+};
+MG_STATIC_ASSERT(MGPWF__TESTBEGIN <= MGPWF__TESTEND);
+
+
+static bool PerformParentWrapperGeneralTest();
+
+static const CFeatureTestProcedure g_afnParentWrapperFeatureTestProcedures[MGPWF__MAX] =
+{
+	&PerformParentWrapperGeneralTest, // MGPWF_GENERAL,
+};
+
+static const char *const g_aszParentWrapperFeatureTestNames[MGPWF__MAX] =
+{
+	"Class features", // MGPWF_GENERAL,
+};
+
+
+static
+bool TestParentWrapper(unsigned int &nOutSuccessCount, unsigned int &nOutTestCount)
+{
+	unsigned int nSuccessCount = 0;
+
+	for (EMGPARENTWRAPPERFEATURE wfParentWrapperFeature = MGPWF__TESTBEGIN; wfParentWrapperFeature != MGPWF__TESTEND; ++wfParentWrapperFeature)
+	{
+		const char *szFeatureName = g_aszParentWrapperFeatureTestNames[wfParentWrapperFeature];
+		printf("Testing %29s: ", szFeatureName);
+
+		CFeatureTestProcedure fnTestProcedure = g_afnParentWrapperFeatureTestProcedures[wfParentWrapperFeature];
+		bool bTestResult = fnTestProcedure();
+		printf("%s\n", bTestResult ? "success" : "failure");
+
+		if (bTestResult)
+		{
+			nSuccessCount += 1;
+		}
+	}
+
+	nOutSuccessCount = nSuccessCount;
+	nOutTestCount = MGPWF__TESTCOUNT;
+	return nSuccessCount == MGPWF__TESTCOUNT;
+}
+
+class CLogicallyNegableIntWrapper
+{
+public:
+	CLogicallyNegableIntWrapper() = default; // For g++
+	CLogicallyNegableIntWrapper(int iValue): m_iValue(iValue) {}
+
+	bool operator !() const { return !m_iValue; }
+	CLogicallyNegableIntWrapper &operator ++() { ++m_iValue; return *this; }
+	CLogicallyNegableIntWrapper &operator --() { --m_iValue; return *this; }
+
+private: 
+	int			m_iValue;
+};
+
+
+static 
+bool PerformParentWrapperGeneralTest()
+{
+	bool bResult = false;
+	
+	do
+	{
+		dlps_list slEmptyLists[2];
+		dlps_list &slEmptyList = slEmptyLists[0], &slAnotherEmptyList = slEmptyLists[1];
+		
+		parent_wrapper<dlps_list::const_iterator, 0> witUninitializedIterator;
+		const parent_wrapper<dlps_list::const_iterator, 1> witBeginIterator(slEmptyList.begin());
+		parent_wrapper<dlps_list::const_iterator, 2> witCopiedIterator(witBeginIterator);
+		parent_wrapper<dlps_list::const_iterator, 3> witMovedIterator(std::move(witCopiedIterator));
+		parent_wrapper<dlps_list::const_iterator, 4> witMoveSourceIterator(slAnotherEmptyList.begin());
+		parent_wrapper<dlps_list::const_iterator, 5> witMoveTargetIterator;
+
+		witUninitializedIterator = witMoveSourceIterator;
+		witMoveTargetIterator = std::move(witUninitializedIterator);
+
+		witMovedIterator.swap(witMoveTargetIterator);
+
+		if (witMovedIterator == witBeginIterator 
+			|| !(witBeginIterator == witMoveTargetIterator) 
+			|| witMovedIterator == witMoveTargetIterator)
+		{
+			break;
+		}
+
+		if (witMovedIterator != witMoveSourceIterator 
+			|| !(witMoveSourceIterator != witMoveTargetIterator) 
+			|| !(witMovedIterator != witMoveTargetIterator))
+		{
+			break;
+		}
+
+		if (!(witMoveTargetIterator < witMovedIterator) 
+			|| (witMovedIterator < witMoveTargetIterator) 
+			|| (witMoveTargetIterator < witMoveTargetIterator) 
+			|| (witMovedIterator < witMovedIterator))
+		{
+			break;
+		}
+
+		if ((witMoveTargetIterator > witMovedIterator) 
+			|| !(witMovedIterator > witMoveTargetIterator) 
+			|| (witMoveTargetIterator > witMoveTargetIterator) 
+			|| (witMovedIterator > witMovedIterator))
+		{
+			break;
+		}
+
+		if (!(witMoveTargetIterator <= witMovedIterator) 
+			|| (witMovedIterator <= witMoveTargetIterator) 
+			|| !(witMoveTargetIterator <= witMoveTargetIterator) 
+			|| !(witMovedIterator <= witMovedIterator))
+		{
+			break;
+		}
+
+		if ((witMoveTargetIterator >= witMovedIterator) 
+			|| !(witMovedIterator >= witMoveTargetIterator) 
+			|| !(witMoveTargetIterator >= witMoveTargetIterator) 
+			|| !(witMovedIterator >= witMovedIterator))
+		{
+			break;
+		}
+
+		parent_wrapper<CLogicallyNegableIntWrapper, 0> wtsiZero(0), wtsiOne(1);
+		parent_wrapper<CLogicallyNegableIntWrapper, 1> wtsiTwo(2);
+
+ 		if (!!wtsiZero 
+			|| !wtsiOne 
+			|| !wtsiTwo)
+ 		{
+ 			break;
+ 		}
+
+		if (!++wtsiZero 
+			|| !wtsiZero)
+		{
+			break;
+		}
+
+		if (!!--wtsiOne 
+			|| !!wtsiOne)
+		{
+			break;
+		}
+
+		std::swap(wtsiOne, wtsiZero);
+		if (!!wtsiZero 
+			|| !wtsiOne)
+		{
+			break;
+		}
+
+		std::swap(wtsiZero, wtsiTwo);
+		if (!wtsiZero 
+			|| !!wtsiTwo)
+		{
+			break;
+		}
+
+		bResult = true;
+	}
+	while (false);
+	
+	return bResult;
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+// RWLock
 
 template<unsigned int tuiWriterCount, unsigned int tuiReaderCount>
 bool TestRWLockLocks()
@@ -1539,7 +1766,8 @@ enum EMUTEXGEARSUBSYSTEMTEST
 {
 	MGST__MIN,
 
-	MGST_RWLOCK = MGST__MIN,
+	MGST_PARENT_WRAPPER = MGST__MIN,
+	MGST_RWLOCK,
 
 	MGST__MAX,
 };
@@ -1549,11 +1777,13 @@ typedef bool (*CMGSubsystemTestProcedure)(unsigned int &nOutSuccessCount, unsign
 
 static const CMGSubsystemTestProcedure g_afnMGSubsystemTestProcedures[MGST__MAX] =
 {
+	&TestParentWrapper, // MGST_PARENT_WRAPPER,
 	&TestRWLock, // MGST_RWLOCK,
 };
 
 static const char *const g_aszMGSubsystemNames[MGST__MAX] =
 {
+	"parent_wrapper", // MGST_PARENT_WRAPPER,
 	"RWLock", // MGST_RWLOCK,
 };
 
