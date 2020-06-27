@@ -615,9 +615,9 @@ _MUTEXGEAR_API int mutexgear_completion_queue_unlockandwait(mutexgear_completion
  *	\brief Checks whether a Completion Queue is empty
  *
  *	The function is safe to be called on an unlocked queue. The "lod" abbreviation in the name stands for 
- *	"Locked or Declining". That is function positive result is meaningful only when the queue is locked or it is known
- *	to be not growing. Similarly, negative result is meaningful to be used when the queue is locked or is known to 
- *	be not declining.
+ *	"Locked or Declining". That is, positive result of the function is meaningful only when the queue is locked 
+ *	or it is known to be not growing. Similarly, negative result is meaningful to be used when the queue is locked 
+ *	or is known to be not declining.
  *
  *	The function is implemented as an inline call.
  *	\return true if the queue was empty
@@ -679,7 +679,8 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_queue_getpreceding(mutexgear_co
  *	\see mutexgear_completion_queue_getpreceding
  *	\see mutexgear_completion_queue_getrend
  */
-_MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_queue_getunsafepreceding(const mutexgear_completion_item_t *__item_instance);
+_MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_queue_getunsafepreceding(
+	const mutexgear_completion_item_t *__item_instance);
 
 /**
  *	\fn mutexgear_completion_item_t *mutexgear_completion_queue_getrend(mutexgear_completion_queue_t *__queue_instance)
@@ -699,7 +700,7 @@ _MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_queue_g
 
 /**
  *	\fn bool mutexgear_completion_queue_unsafegethead(mutexgear_completion_item_t **__out_head_item, mutexgear_completion_queue_t *__queue_instance)
- *	\brief Returns the first Item in the Queue
+ *	\brief Returns the first Item in a Queue
  *
  *	The function can be called only while the queue is locked.
  *
@@ -707,13 +708,33 @@ _MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_queue_g
  *	by \c mutexgear_completion_queue_getend.
  *
  *	The function is implemented as an inline call.
- *	\param __out_head_item Pointer to a variable to receive Queue's tail item pointer
+ *	\param __out_head_item Pointer to a variable to receive Queue's head item pointer
  *	\return true if the queue was not empty
+ *	\see mutexgear_completion_queue_unsafegetunsafehead
  *	\see mutexgear_completion_queue_unsafegetnext
  *	\see mutexgear_completion_queue_unsafegetunsafenext
  *	\see mutexgear_completion_queue_getend
  */
 _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_queue_unsafegethead(mutexgear_completion_item_t **__out_head_item,
+	mutexgear_completion_queue_t *__queue_instance);
+
+/**
+ *	\fn _MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_queue_unsafegetunsafehead(mutexgear_completion_queue_t *__queue_instance)
+ *	\brief Returns the first Item in a Queue without checking for the queue to be not empty
+ *
+ *	The function can be called only while the queue is locked.
+ *
+ *	If \c __queue_instance is an empty queue the the function returns the value that would be returned
+  *	by \c mutexgear_completion_queue_getend.
+ *
+ *	The function is implemented as an inline call.
+ *	\return The head item of the the parameter queue
+ *	\see mutexgear_completion_queue_unsafegethead
+ *	\see mutexgear_completion_queue_unsafegetnext
+ *	\see mutexgear_completion_queue_unsafegetunsafenext
+ *	\see mutexgear_completion_queue_getend
+ */
+_MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_queue_unsafegetunsafehead(
 	mutexgear_completion_queue_t *__queue_instance);
 
 /**
@@ -726,7 +747,7 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_queue_unsafegethead(mutexgear_c
  *	contains the value that would be returned by \c mutexgear_completion_queue_getend.
  *
  *	The function is implemented as an inline call.
- *	\param __out_preceding_item Pointer to a variable to receive the next item pointer
+ *	\param __out_next_item Pointer to a variable to receive the next item pointer
  *	\return true if the next item existed
  *	\see mutexgear_completion_queue_unsafegethead
  *	\see mutexgear_completion_queue_unsafegetunsafenext
@@ -746,12 +767,13 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_queue_unsafegetnext(mutexgear_c
   *	by \c mutexgear_completion_queue_getend.
  *
  *	The function is implemented as an inline call.
- *	\return The preceding item for the parameter
+ *	\return The next item for the parameter
  *	\see mutexgear_completion_queue_unsafegethead
  *	\see mutexgear_completion_queue_unsafegetnext
  *	\see mutexgear_completion_queue_getend
  */
-_MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_queue_unsafegetunsafenext(const mutexgear_completion_item_t *__item_instance);
+_MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_queue_unsafegetunsafenext(
+	const mutexgear_completion_item_t *__item_instance);
 
 /**
  *	\fn mutexgear_completion_item_t *mutexgear_completion_queue_getend(mutexgear_completion_queue_t *__queue_instance)
@@ -773,14 +795,15 @@ _MUTEXGEAR_PURE_INLINE mutexgear_completion_item_t *mutexgear_completion_queue_g
  *	\fn int mutexgear_completion_queue_enqueue(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_locktoken_t __lock_hint)
  *	\brief Adds Item to Queue's tail
  *
- *	In the base queue implementation the item should be inserted pre-started with \c mutexgear_completion_item_prestart 
- *	as it is the only available mean to indicate the work started state on it.
+ *	Items can be enqueued pre-started with \c mutexgear_completion_item_prestart. They may also be started later 
+ *	with \c mutexgear_completion_queueditem_start call, however waiting for an item that has not been stared yet fails with an error.
  *
  *	If the queue is locked, the \c __lock_hint must the corresponding lock token. Otherwise, NULL is to be passed.
  *
  *	\return EOK on success or a system error code on failure.
  *	\see mutexgear_completion_queue_unsafedequeue
  *	\see mutexgear_completion_item_prestart
+ *	\see mutexgear_completion_queueditem_start
  */
 _MUTEXGEAR_API int mutexgear_completion_queue_enqueue(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance,
 	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/);
@@ -806,6 +829,7 @@ _MUTEXGEAR_API void mutexgear_completion_queue_unsafedequeue(mutexgear_completio
  *	The function is implemented as an inline call.
  *	\see mutexgear_completion_item_isstarted
  *	\see mutexgear_completion_queueditem_finish
+ *	\see mutexgear_completion_item_prestart
  */
 _MUTEXGEAR_PURE_INLINE void mutexgear_completion_queueditem_start(mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
 
@@ -1559,6 +1583,16 @@ bool mutexgear_completion_queue_unsafegethead(mutexgear_completion_item_t **__ou
 
 	*__out_head_item = _mutexgear_completion_item_getfromworkitem(first_work_item);
 	return first_work_item != work_items_end;
+}
+
+_MUTEXGEAR_PURE_INLINE 
+mutexgear_completion_item_t *mutexgear_completion_queue_unsafegetunsafehead(
+	mutexgear_completion_queue_t *__queue_instance)
+{
+	MG_ASSERT(__queue_instance != NULL);
+
+	mutexgear_dlraitem_t *first_work_item = mutexgear_dlralist_getbegin(&__queue_instance->work_list);
+	return _mutexgear_completion_item_getfromworkitem(first_work_item);
 }
 
 _MUTEXGEAR_PURE_INLINE

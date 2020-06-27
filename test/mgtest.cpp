@@ -1,17 +1,11 @@
 #include "pch.h"
 
-#define _MGTEST_TEST_TRWL		0
-#define _MGTEST_TEST_TRDL		0
-#define _MGTEST_TEST_CPP		1
+#define _MGTEST_TEST_TRWL		1
+#define _MGTEST_TEST_TRDL		1
 
-#if _MGTEST_TEST_CPP
 #include <mutexgear/shared_mutex.hpp>
 #include <shared_mutex>
-#else
-#include <mutexgear/rwlock.h>
-#endif
 
-#include <mutexgear/shared_mutex.hpp>
 #include <mutexgear/wheel.hpp>
 #include <mutexgear/toggle.hpp>
 #include <mutexgear/completion.hpp>
@@ -35,25 +29,24 @@ using mg::dlps_list;
 using mg::parent_wrapper;
 
 
-#if _MGTEST_TEST_CPP
 #if HAVE_STD__SHARED_MUTEX
-#define SYSTEM_RWLOCK_VARIANT_T std::shared_mutex
+#define SYSTEM_CPP_RWLOCK_VARIANT_T std::shared_mutex
 #else 
-#define SYSTEM_RWLOCK_VARIANT_T std::shared_timed_mutex // Ubuntu requires std::shared_timed_mutex rather than std::shared_mutex
+#define SYSTEM_CPP_RWLOCK_VARIANT_T std::shared_timed_mutex // Ubuntu requires std::shared_timed_mutex rather than std::shared_mutex
 #endif
 #if _MGTEST_TEST_TRDL
-#define MUTEXGEAR_RWLOCK_VARIANT_T mg::trdl::shared_mutex
+#define MUTEXGEAR_CPP_RWLOCK_VARIANT_T mg::trdl::shared_mutex
 #else 
-#define MUTEXGEAR_RWLOCK_VARIANT_T mg::shared_mutex
+#define MUTEXGEAR_CPP_RWLOCK_VARIANT_T mg::shared_mutex
 #endif
-#else // !_MGTEST_TEST_CPP
-#define SYSTEM_RWLOCK_VARIANT_T _MG_RWLOCK_T
+
+#define SYSTEM_C_RWLOCK_VARIANT_T _MG_RWLOCK_T
 #if _MGTEST_TEST_TRDL
-#define MUTEXGEAR_RWLOCK_VARIANT_T mutexgear_trdl_rwlock_t
+#define MUTEXGEAR_C_RWLOCK_VARIANT_T mutexgear_trdl_rwlock_t
 #else 
-#define MUTEXGEAR_RWLOCK_VARIANT_T mutexgear_rwlock_t
+#define MUTEXGEAR_C_RWLOCK_VARIANT_T mutexgear_rwlock_t
 #endif
-#endif // !_MGTEST_TEST_CPP
+
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -72,11 +65,23 @@ enum ERWLOCKLOCKTESTOBJECT
 	LTO__MAX,
 };
 
-static const unsigned g_uiLockIterationCount = 1000 * 1000;
+enum ERWLOCKLOCKTESTLANGUAGE
+{
+	LTL__MIN,
+
+	LTL_C = LTL__MIN,
+	LTL_CPP,
+
+	LTL__MAX,
+};
+
+#define MGTEST_LOCK_ITERATION_COUNT		1000000
+
+static const unsigned g_uiLockIterationCount = MGTEST_LOCK_ITERATION_COUNT;
 static const unsigned g_uiLockOperationsPerLine = 100;
 const unsigned int g_uiSettleDownSleepDelay = 5000;
 
-static const char g_ascLockTestDetailsFileNameFormat[] = "LockTestDet_%zu%s_%zu_%s.txt";
+static const char g_ascLockTestDetailsFileNameFormat[] = "LockTestDet_%zu%s_%zu_%s_%s.txt";
 
 enum
 {
@@ -97,6 +102,14 @@ static const char *const g_aszTestedObjectKindFileNameSuffixes[LTO__MAX] =
 	"Sys", // LTO_SYSTEM,
 	"MG", // LTO_MUTEXGEAR,
 };
+MG_STATIC_ASSERT(ARRAY_SIZE(g_aszTestedObjectKindFileNameSuffixes) == LTO__MAX);
+
+static const char *const g_aszTestedObjectLanguageNames[LTL__MAX] = 
+{
+	"C", // LTL_C,
+	"C++", // LTL_CPP,
+};
+MG_STATIC_ASSERT(ARRAY_SIZE(g_aszTestedObjectLanguageNames) == LTL__MAX);
 
 
 class CThreadExecutionBarrier
@@ -154,11 +167,11 @@ private:
 };
 
 
-template<ERWLOCKLOCKTESTOBJECT ttoTestedObjectKind>
+template<ERWLOCKLOCKTESTOBJECT ttoTestedObjectKind, ERWLOCKLOCKTESTLANGUAGE ttlTestObjectLanguage>
 class CRWLockImplementation;
 
 template<>
-class CRWLockImplementation<LTO_SYSTEM>
+class CRWLockImplementation<LTO_SYSTEM, LTL_C>
 {
 public:
 	CRWLockImplementation() { InitializeRWLockInstance(); }
@@ -178,20 +191,14 @@ public:
 
 	void InitializeRWLockInstance()
 	{
-#if _MGTEST_TEST_CPP
-#else // !_MGTEST_TEST_CPP
 		int iInitResult;
 		MG_CHECK(iInitResult, (iInitResult = _mutexgear_rwlock_init(&m_wlRWLock)) == EOK);
-#endif
 	}
 
 	void FinalizeRWLockInstance()
 	{
-#if _MGTEST_TEST_CPP
-#else // !_MGTEST_TEST_CPP
 		int iDestroyResult;
 		MG_CHECK(iDestroyResult, (iDestroyResult = _mutexgear_rwlock_destroy(&m_wlRWLock)) == EOK);
-#endif // !_MGTEST_TEST_CPP
 	}
 
 	bool LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
@@ -199,26 +206,16 @@ public:
 		bool bLockedWithTryVariant;
 
 #if _MGTEST_TEST_TRWL
-#if _MGTEST_TEST_CPP
-		bLockedWithTryVariant = m_wlRWLock.try_lock();
-#else
 		int iLockResult = _mutexgear_rwlock_trywrlock(&m_wlRWLock);
 		bLockedWithTryVariant = iLockResult == EOK;
-#endif
 #else // !_MGTEST_TEST_TRWL
-#if !_MGTEST_TEST_CPP
 		int iLockResult = EBUSY;
-#endif
 		bLockedWithTryVariant = false;
 #endif // !_MGTEST_TEST_TRWL
 
 		if (!bLockedWithTryVariant)
 		{
-#if _MGTEST_TEST_CPP
-			m_wlRWLock.lock();
-#else // !_MGTEST_TEST_CPP
 			MG_CHECK(iLockResult, iLockResult == EBUSY && (iLockResult = _mutexgear_rwlock_wrlock(&m_wlRWLock)) == EOK);
-#endif // !_MGTEST_TEST_CPP
 		}
 
 		return bLockedWithTryVariant;
@@ -226,12 +223,8 @@ public:
 
 	void UnlockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
 	{
-#if _MGTEST_TEST_CPP
-		m_wlRWLock.unlock();
-#else // !_MGTEST_TEST_CPP
 		int iUnlockResult;
 		MG_CHECK(iUnlockResult, (iUnlockResult = _mutexgear_rwlock_wrunlock(&m_wlRWLock)) == EOK);
-#endif // !_MGTEST_TEST_CPP
 	}
 
 	bool LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
@@ -239,26 +232,16 @@ public:
 		bool bLockedWithTryVariant;
 
 #if _MGTEST_TEST_TRDL
-#if _MGTEST_TEST_CPP
-		bLockedWithTryVariant = m_wlRWLock.try_lock_shared();
-#else
 		int iLockResult = _mutexgear_rwlock_tryrdlock(&m_wlRWLock);
 		bLockedWithTryVariant = iLockResult == EOK;
-#endif
 #else // !_MGTEST_TEST_TRDL
-#if !_MGTEST_TEST_CPP
 		int iLockResult = EBUSY;
-#endif
 		bLockedWithTryVariant = false;
 #endif // !_MGTEST_TEST_TRDL
 
 		if (!bLockedWithTryVariant)
 		{
-#if _MGTEST_TEST_CPP
-			m_wlRWLock.lock_shared();
-#else // !_MGTEST_TEST_CPP
 			MG_CHECK(iLockResult, iLockResult == EBUSY && (iLockResult = _mutexgear_rwlock_rdlock(&m_wlRWLock)) == EOK);
-#endif // !_MGTEST_TEST_CPP
 		}
 
 		return bLockedWithTryVariant;
@@ -266,20 +249,93 @@ public:
 
 	void UnlockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
 	{
-#if _MGTEST_TEST_CPP
-		m_wlRWLock.unlock_shared();
-#else // !_MGTEST_TEST_CPP
 		int iUnlockResult;
 		MG_CHECK(iUnlockResult, (iUnlockResult = _mutexgear_rwlock_rdunlock(&m_wlRWLock)) == EOK);
-#endif // !_MGTEST_TEST_CPP
 	}
 
 private:
-	SYSTEM_RWLOCK_VARIANT_T	m_wlRWLock;
+	SYSTEM_C_RWLOCK_VARIANT_T	m_wlRWLock;
 };
 
 template<>
-class CRWLockImplementation<LTO_MUTEXGEAR>
+class CRWLockImplementation<LTO_SYSTEM, LTL_CPP>
+{
+public:
+	CRWLockImplementation() { InitializeRWLockInstance(); }
+	~CRWLockImplementation() { FinalizeRWLockInstance(); }
+
+public:
+	class CLockWriteExtraObjects
+	{
+	public:
+	};
+
+	class CLockReadExtraObjects:
+		public CLockWriteExtraObjects
+	{
+	public:
+	};
+
+	void InitializeRWLockInstance()
+	{
+	}
+
+	void FinalizeRWLockInstance()
+	{
+	}
+
+	bool LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
+	{
+		bool bLockedWithTryVariant;
+
+#if _MGTEST_TEST_TRWL
+		bLockedWithTryVariant = m_wlRWLock.try_lock();
+#else // !_MGTEST_TEST_TRWL
+		bLockedWithTryVariant = false;
+#endif // !_MGTEST_TEST_TRWL
+
+		if (!bLockedWithTryVariant)
+		{
+			m_wlRWLock.lock();
+		}
+
+		return bLockedWithTryVariant;
+	}
+
+	void UnlockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
+	{
+		m_wlRWLock.unlock();
+	}
+
+	bool LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
+	{
+		bool bLockedWithTryVariant;
+
+#if _MGTEST_TEST_TRDL
+		bLockedWithTryVariant = m_wlRWLock.try_lock_shared();
+#else // !_MGTEST_TEST_TRDL
+		bLockedWithTryVariant = false;
+#endif // !_MGTEST_TEST_TRDL
+
+		if (!bLockedWithTryVariant)
+		{
+			m_wlRWLock.lock_shared();
+		}
+
+		return bLockedWithTryVariant;
+	}
+
+	void UnlockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
+	{
+		m_wlRWLock.unlock_shared();
+	}
+
+private:
+	SYSTEM_CPP_RWLOCK_VARIANT_T	m_wlRWLock;
+};
+
+template<>
+class CRWLockImplementation<LTO_MUTEXGEAR, LTL_C>
 {
 public:
 	CRWLockImplementation() { InitializeRWLockInstance(); }
@@ -291,9 +347,6 @@ public:
 	public:
 		CLockWriteExtraObjects()
 		{
-#if _MGTEST_TEST_CPP
-			m_cwLockWorker.lock();
-#else // !_MGTEST_TEST_CPP
 			int iWorkerInitResult;
 			MG_CHECK(iWorkerInitResult, (iWorkerInitResult = mutexgear_completion_worker_init(&m_cwLockWorker, NULL)) == EOK);
 
@@ -302,14 +355,10 @@ public:
 
 			int iWaiterInitResult;
 			MG_CHECK(iWaiterInitResult, (iWaiterInitResult = mutexgear_completion_waiter_init(&m_cwLockWaiter, NULL)) == EOK);
-#endif // !_MGTEST_TEST_CPP
 		}
 
 		~CLockWriteExtraObjects()
 		{
-#if _MGTEST_TEST_CPP
-			m_cwLockWorker.unlock();
-#else // !_MGTEST_TEST_CPP
 			int iWaiterDestroyResult;
 			MG_CHECK(iWaiterDestroyResult, (iWaiterDestroyResult = mutexgear_completion_waiter_destroy(&m_cwLockWaiter)) == EOK);
 
@@ -318,16 +367,10 @@ public:
 
 			int iWorkerDestroyResult;
 			MG_CHECK(iWorkerDestroyResult, (iWorkerDestroyResult = mutexgear_completion_worker_destroy(&m_cwLockWorker)) == EOK);
-#endif // !_MGTEST_TEST_CPP
 		}
 
-#if _MGTEST_TEST_CPP
-		mg::shmtx_helpers::worker			m_cwLockWorker;
-		mg::shmtx_helpers::waiter			m_cwLockWaiter;
-#else // !_MGTEST_TEST_CPP
 		mutexgear_completion_worker_t		m_cwLockWorker;
 		mutexgear_completion_waiter_t		m_cwLockWaiter;
-#endif // !_MGTEST_TEST_CPP
 	};
 
 	class CLockReadExtraObjects
@@ -335,28 +378,18 @@ public:
 	public:
 		CLockReadExtraObjects()
 		{
-#if _MGTEST_TEST_CPP
-#else // !_MGTEST_TEST_CPP
 			mutexgear_completion_item_init(&m_ciLockCompletionItem);
-#endif // !_MGTEST_TEST_CPP
 		}
 
 		~CLockReadExtraObjects()
 		{
-#if _MGTEST_TEST_CPP
-#else // !_MGTEST_TEST_CPP
 			mutexgear_completion_item_destroy(&m_ciLockCompletionItem);
-#endif // !_MGTEST_TEST_CPP
 		}
 
 		operator CLockWriteExtraObjects &() { return m_eoWriteObjects; }
 
 		CLockWriteExtraObjects				m_eoWriteObjects;
-#if _MGTEST_TEST_CPP
-		mg::shmtx_helpers::item				m_ciLockCompletionItem;
-#else // !_MGTEST_TEST_CPP
 		mutexgear_completion_item_t			m_ciLockCompletionItem;
-#endif // !_MGTEST_TEST_CPP
 	};
 
 public:
@@ -364,26 +397,16 @@ public:
 	{
 		bool bLockedWithTryVariant;
 #if _MGTEST_TEST_TRWL
-#if _MGTEST_TEST_CPP
-		bLockedWithTryVariant = m_wlRWLock.try_lock();
-#else
 		int iLockResult = mutexgear_rwlock_trywrlock(&m_wlRWLock);
 		bLockedWithTryVariant = iLockResult == EOK;
-#endif
 #else // !_MGTEST_TEST_TRWL
-#if !_MGTEST_TEST_CPP
 		int iLockResult = EBUSY;
-#endif
 		bLockedWithTryVariant = false;
 #endif // !_MGTEST_TEST_TRWL
 
 		if (!bLockedWithTryVariant)
 		{
-#if _MGTEST_TEST_CPP
-			m_wlRWLock.lock(eoRefExtraObjects.m_cwLockWorker, eoRefExtraObjects.m_cwLockWaiter);
-#else
 			MG_CHECK(iLockResult, iLockResult == EBUSY && (iLockResult = mutexgear_rwlock_wrlock(&m_wlRWLock, &eoRefExtraObjects.m_cwLockWorker, &eoRefExtraObjects.m_cwLockWaiter, NULL)) == EOK);
-#endif
 		}
 
 		return bLockedWithTryVariant;
@@ -391,12 +414,8 @@ public:
 
 	void UnlockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
 	{
-#if _MGTEST_TEST_CPP
-		m_wlRWLock.unlock();
-#else // !_MGTEST_TEST_CPP
 		int iUnlockResult;
 		MG_CHECK(iUnlockResult, (iUnlockResult = mutexgear_rwlock_wrunlock(&m_wlRWLock)) == EOK);
-#endif // !_MGTEST_TEST_CPP
 	}
 
 	bool LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
@@ -404,26 +423,16 @@ public:
 		bool bLockedWithTryVariant;
 
 #if _MGTEST_TEST_TRDL
-#if _MGTEST_TEST_CPP
-		bLockedWithTryVariant = m_wlRWLock.try_lock_shared(eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, eoRefExtraObjects.m_ciLockCompletionItem);
-#else
 		int iLockResult = mutexgear_rwlock_tryrdlock(&m_wlRWLock, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, &eoRefExtraObjects.m_ciLockCompletionItem);
 		bLockedWithTryVariant = iLockResult == EOK;
-#endif
 #else /// !_MGTEST_TEST_TRDL
-#if !_MGTEST_TEST_CPP
 		int iLockResult = EBUSY;
-#endif
 		bLockedWithTryVariant = false;
 #endif // !_MGTEST_TEST_TRDL
 
 		if (!bLockedWithTryVariant)
 		{
-#if _MGTEST_TEST_CPP
-			m_wlRWLock.lock_shared(eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, eoRefExtraObjects.m_eoWriteObjects.m_cwLockWaiter, eoRefExtraObjects.m_ciLockCompletionItem);
-#else
 			MG_CHECK(iLockResult, iLockResult == EBUSY && (iLockResult = mutexgear_rwlock_rdlock(&m_wlRWLock, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWaiter, &eoRefExtraObjects.m_ciLockCompletionItem)) == EOK);
-#endif
 		}
 
 		return bLockedWithTryVariant;
@@ -431,40 +440,131 @@ public:
 
 	void UnlockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
 	{
-#if _MGTEST_TEST_CPP
-		m_wlRWLock.unlock_shared(eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, eoRefExtraObjects.m_ciLockCompletionItem);
-#else // !_MGTEST_TEST_CPP
 		int iUnlockResult;
 		MG_CHECK(iUnlockResult, (iUnlockResult = mutexgear_rwlock_rdunlock(&m_wlRWLock, &eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, &eoRefExtraObjects.m_ciLockCompletionItem)) == EOK);
-#endif // !_MGTEST_TEST_CPP
 	}
 
 private:
 	void InitializeRWLockInstance()
 	{
-#if _MGTEST_TEST_CPP
-#else // !_MGTEST_TEST_CPP
 		int iInitResult;
 		mutexgear_rwlockattr_t attr;
 
 		MG_CHECK(iInitResult, (iInitResult = mutexgear_rwlockattr_init(&attr)) == EOK);
-		// MG_CHECK(iInitResult, (iInitResult = mutexgear_rwlockattr_setwritechannels(&attr, 2)) == EOK);
+		// MG_CHECK(iInitResult, (iInitResult = mutexgear_rwlockattr_setwritechannels(&attr, 4)) == EOK);
 		MG_CHECK(iInitResult, (iInitResult = mutexgear_rwlock_init(&m_wlRWLock, &attr)) == EOK);
 		MG_CHECK(iInitResult, (iInitResult = mutexgear_rwlockattr_destroy(&attr)) == EOK);
-#endif // !_MGTEST_TEST_CPP
 	}
 
 	void FinalizeRWLockInstance()
 	{
-#if _MGTEST_TEST_CPP
-#else // !_MGTEST_TEST_CPP
 		int iDestroyResult;
 		MG_CHECK(iDestroyResult, (iDestroyResult = mutexgear_rwlock_destroy(&m_wlRWLock)) == EOK);
-#endif // !_MGTEST_TEST_CPP
 	}
 
 private:
-	MUTEXGEAR_RWLOCK_VARIANT_T		m_wlRWLock;
+	MUTEXGEAR_C_RWLOCK_VARIANT_T		m_wlRWLock;
+};
+
+template<>
+class CRWLockImplementation<LTO_MUTEXGEAR, LTL_CPP>
+{
+public:
+	CRWLockImplementation() { InitializeRWLockInstance(); }
+	~CRWLockImplementation() { FinalizeRWLockInstance(); }
+
+public:
+	class CLockWriteExtraObjects
+	{
+	public:
+		CLockWriteExtraObjects()
+		{
+			m_cwLockWorker.lock();
+		}
+
+		~CLockWriteExtraObjects()
+		{
+			m_cwLockWorker.unlock();
+		}
+
+		mg::shmtx_helpers::worker			m_cwLockWorker;
+		mg::shmtx_helpers::waiter			m_cwLockWaiter;
+	};
+
+	class CLockReadExtraObjects
+	{
+	public:
+		CLockReadExtraObjects()
+		{
+		}
+
+		~CLockReadExtraObjects()
+		{
+		}
+
+		operator CLockWriteExtraObjects &() { return m_eoWriteObjects; }
+
+		CLockWriteExtraObjects				m_eoWriteObjects;
+		mg::shmtx_helpers::item				m_ciLockCompletionItem;
+	};
+
+public:
+	bool LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
+	{
+		bool bLockedWithTryVariant;
+#if _MGTEST_TEST_TRWL
+		bLockedWithTryVariant = m_wlRWLock.try_lock();
+#else // !_MGTEST_TEST_TRWL
+		bLockedWithTryVariant = false;
+#endif // !_MGTEST_TEST_TRWL
+
+		if (!bLockedWithTryVariant)
+		{
+			m_wlRWLock.lock(eoRefExtraObjects.m_cwLockWorker, eoRefExtraObjects.m_cwLockWaiter);
+		}
+
+		return bLockedWithTryVariant;
+	}
+
+	void UnlockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
+	{
+		m_wlRWLock.unlock();
+	}
+
+	bool LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
+	{
+		bool bLockedWithTryVariant;
+
+#if _MGTEST_TEST_TRDL
+		bLockedWithTryVariant = m_wlRWLock.try_lock_shared(eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, eoRefExtraObjects.m_ciLockCompletionItem);
+#else /// !_MGTEST_TEST_TRDL
+		bLockedWithTryVariant = false;
+#endif // !_MGTEST_TEST_TRDL
+
+		if (!bLockedWithTryVariant)
+		{
+			m_wlRWLock.lock_shared(eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, eoRefExtraObjects.m_eoWriteObjects.m_cwLockWaiter, eoRefExtraObjects.m_ciLockCompletionItem);
+		}
+
+		return bLockedWithTryVariant;
+	}
+
+	void UnlockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
+	{
+		m_wlRWLock.unlock_shared(eoRefExtraObjects.m_eoWriteObjects.m_cwLockWorker, eoRefExtraObjects.m_ciLockCompletionItem);
+	}
+
+private:
+	void InitializeRWLockInstance()
+	{
+	}
+
+	void FinalizeRWLockInstance()
+	{
+	}
+
+private:
+	MUTEXGEAR_CPP_RWLOCK_VARIANT_T		m_wlRWLock;
 };
 
 
@@ -495,7 +595,7 @@ public:
 	}
 };
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
 class CRWLockLockTestExecutor:
 	public CRWLockLockTestBase
 {
@@ -521,7 +621,7 @@ private:
 	operationidxint GetMaximalThreadOperationCount() const;
 
 	template<ERWLOCKLOCKTESTOBJECT ttoTestedObjectKind>
-	void AllocateTestThreads(CRWLockImplementation<ttoTestedObjectKind> &liRefRWLock, 
+	void AllocateTestThreads(CRWLockImplementation<ttoTestedObjectKind, ttlTestLanguage> &liRefRWLock, 
 		threadcntint ciWriterCount, threadcntint ciReraderCount, 
 		CThreadExecutionBarrier &sbRefStartBarrier, CThreadExecutionBarrier &sbRefFinishBarrier, CThreadExecutionBarrier &sbRefExitBarrier, 
 		CRWLockLockTestProgress &tpRefProgressInstance);
@@ -693,11 +793,11 @@ class CRWLockValidator
 public:
 	typedef unsigned int storage_type;
 	
-	static void IncrementReads() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_add(2); MG_CHECK(uiPrevLockStatus, (uiPrevLockStatus & 1) == 0 && uiPrevLockStatus != (storage_type)0 - 2); }
-	static void DecrementReads() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_sub(2); MG_CHECK(uiPrevLockStatus, (uiPrevLockStatus & 1) == 0 && uiPrevLockStatus != (storage_type)0); }
+	static void IncrementReads() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_add(2, std::memory_order_relaxed); MG_CHECK(uiPrevLockStatus, (uiPrevLockStatus & 1) == 0 && uiPrevLockStatus != (storage_type)0 - 2); }
+	static void DecrementReads() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_sub(2, std::memory_order_relaxed); MG_CHECK(uiPrevLockStatus, (uiPrevLockStatus & 1) == 0 && uiPrevLockStatus != (storage_type)0); }
 
-	static void IncrementWrites() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_or(1); MG_CHECK(uiPrevLockStatus, uiPrevLockStatus == 0); }
-	static void DecrementWrites() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_xor(1); MG_CHECK(uiPrevLockStatus, uiPrevLockStatus == 1); }
+	static void IncrementWrites() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_or(1, std::memory_order_relaxed); MG_CHECK(uiPrevLockStatus, uiPrevLockStatus == 0); }
+	static void DecrementWrites() { storage_type uiPrevLockStatus = m_uiLockStatus.fetch_xor(1, std::memory_order_relaxed); MG_CHECK(uiPrevLockStatus, uiPrevLockStatus == 1); }
 
 private:
 	static std::atomic<storage_type>			m_uiLockStatus;
@@ -715,20 +815,20 @@ public:
 	static EEXECUTORLOCKOPERATIONKIND GetOperationIndexOperationKind(operationidxint iiOperationIndex) { return (EEXECUTORLOCKOPERATIONKIND)(iiOperationIndex % LOK__MAX); }
 };
 
-template<ERWLOCKLOCKTESTOBJECT ttoTestedObjectKind>
+template<ERWLOCKLOCKTESTOBJECT ttoTestedObjectKind, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
 class CRWLockWriteLockExecutor
 {
 public:
 	struct CConstructionParameter
 	{
-		CConstructionParameter(CRWLockImplementation<ttoTestedObjectKind> &liRWLockInstance) : m_liRWLockInstance(liRWLockInstance) {}
+		CConstructionParameter(CRWLockImplementation<ttoTestedObjectKind, ttlTestLanguage> &liRWLockInstance) : m_liRWLockInstance(liRWLockInstance) {}
 
-		CRWLockImplementation<ttoTestedObjectKind>	&m_liRWLockInstance;
+		CRWLockImplementation<ttoTestedObjectKind, ttlTestLanguage>	&m_liRWLockInstance;
 	};
 
 	CRWLockWriteLockExecutor(const CConstructionParameter &cpConstructionParameter) : m_liRWLockInstance(cpConstructionParameter.m_liRWLockInstance) {}
 
-	typedef typename CRWLockImplementation<ttoTestedObjectKind>::CLockWriteExtraObjects COperationExtraObjects;
+	typedef typename CRWLockImplementation<ttoTestedObjectKind, ttlTestLanguage>::CLockWriteExtraObjects COperationExtraObjects;
 	typedef CRWLockLockTestBase::iterationcntint iterationcntint;
 	typedef CRWLockLockTestBase::operationidxint operationidxint;
 
@@ -749,23 +849,23 @@ public:
 	}
 
 private:
-	CRWLockImplementation<ttoTestedObjectKind>	&m_liRWLockInstance;
+	CRWLockImplementation<ttoTestedObjectKind, ttlTestLanguage>	&m_liRWLockInstance;
 };
 
-template<ERWLOCKLOCKTESTOBJECT ttoTestedObjectKind, unsigned int tuiReaderWriteDivisor>
+template<ERWLOCKLOCKTESTOBJECT ttoTestedObjectKind, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage, unsigned int tuiReaderWriteDivisor>
 class CRWLockReadLockExecutor
 {
 public:
 	struct CConstructionParameter
 	{
-		CConstructionParameter(CRWLockImplementation<ttoTestedObjectKind> &liRWLockInstance) : m_liRWLockInstance(liRWLockInstance) {}
+		CConstructionParameter(CRWLockImplementation<ttoTestedObjectKind, ttlTestLanguage> &liRWLockInstance) : m_liRWLockInstance(liRWLockInstance) {}
 
-		CRWLockImplementation<ttoTestedObjectKind>	&m_liRWLockInstance;
+		CRWLockImplementation<ttoTestedObjectKind, ttlTestLanguage>	&m_liRWLockInstance;
 	};
 
 	CRWLockReadLockExecutor(const CConstructionParameter &cpConstructionParameter) : m_liRWLockInstance(cpConstructionParameter.m_liRWLockInstance), m_ciLockIndex(0) {}
 
-	typedef typename CRWLockImplementation<ttoTestedObjectKind>::CLockReadExtraObjects COperationExtraObjects;
+	typedef typename CRWLockImplementation<ttoTestedObjectKind, ttlTestLanguage>::CLockReadExtraObjects COperationExtraObjects;
 	typedef CRWLockLockTestBase::iterationcntint iterationcntint;
 	typedef CRWLockLockTestBase::operationidxint operationidxint;
 
@@ -804,15 +904,15 @@ public:
 	}
 
 private:
-	CRWLockImplementation<ttoTestedObjectKind>	&m_liRWLockInstance;
+	CRWLockImplementation<ttoTestedObjectKind, ttlTestLanguage>	&m_liRWLockInstance;
 	iterationcntint				m_ciLockIndex;
 };
 
 
 //////////////////////////////////////////////////////////////////////////
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::~CRWLockLockTestExecutor()
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::~CRWLockLockTestExecutor()
 {
 	MG_ASSERT(std::find_if(m_aittTestThreads, m_aittTestThreads + ARRAY_SIZE(m_aittTestThreads), pred_not_zero<IRWLockLockTestThread *>) == m_aittTestThreads + ARRAY_SIZE(m_aittTestThreads));
 	MG_ASSERT(std::find_if(m_apiiThreadOperationIndices, m_apiiThreadOperationIndices + ARRAY_SIZE(m_apiiThreadOperationIndices), pred_not_zero<operationidxint *>) == m_apiiThreadOperationIndices + ARRAY_SIZE(m_apiiThreadOperationIndices));
@@ -820,8 +920,8 @@ CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::
 	MG_ASSERT(std::find_if(m_apsfOperationDetailFiles, m_apsfOperationDetailFiles + ARRAY_SIZE(m_apsfOperationDetailFiles), pred_not_zero<FILE *>) == m_apsfOperationDetailFiles + ARRAY_SIZE(m_apsfOperationDetailFiles));
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::RunTheTask()
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::RunTheTask()
 {
 	InitializeTestResults(LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT);
 	AllocateThreadOperationBuffers(LOCKTEST_THREAD_COUNT);
@@ -833,7 +933,7 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	{
 		const ERWLOCKLOCKTESTOBJECT toTestedObjectKind = LTO_SYSTEM;
 
-		CRWLockImplementation<toTestedObjectKind> liRWLock;
+		CRWLockImplementation<toTestedObjectKind, ttlTestLanguage> liRWLock;
 		AllocateTestThreads<toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
 
 		WaitTestThreadsReady(sbStartBarrier);
@@ -859,7 +959,7 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	{
 		const ERWLOCKLOCKTESTOBJECT toTestedObjectKind = LTO_MUTEXGEAR;
 
-		CRWLockImplementation<toTestedObjectKind> liRWLock;
+		CRWLockImplementation<toTestedObjectKind, ttlTestLanguage> liRWLock;
 		AllocateTestThreads<toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
 
 		WaitTestThreadsReady(sbStartBarrier);
@@ -896,8 +996,8 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 }
 
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::AllocateThreadOperationBuffers(threadcntint ciTotalThreadCount)
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::AllocateThreadOperationBuffers(threadcntint ciTotalThreadCount)
 {
 	const operationidxint nThreadOperationCount = GetMaximalThreadOperationCount();
 	SetThreadOperationCount(nThreadOperationCount);
@@ -918,8 +1018,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	}
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::FreeThreadOperationBuffers(threadcntint ciTotalThreadCount)
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::FreeThreadOperationBuffers(threadcntint ciTotalThreadCount)
 {
 	for (threadcntint uiThreadIndex = 0; uiThreadIndex != ciTotalThreadCount; ++uiThreadIndex)
 	{
@@ -942,13 +1042,13 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	}
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-typename CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::operationidxint CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::GetMaximalThreadOperationCount() const
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+typename CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::operationidxint CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::GetMaximalThreadOperationCount() const
 {
 	operationidxint nThreadOperationCount;
 
 	const iterationcntint uiIterationCount = m_uiIterationCount;
-	const operationidxint iiWriteOperationCount = CRWLockWriteLockExecutor<LTO__MIN>::GetThreadOperationCount(uiIterationCount), iiReadOperationCount = CRWLockReadLockExecutor<LTO__MIN, 0>::GetThreadOperationCount(uiIterationCount);
+	const operationidxint iiWriteOperationCount = CRWLockWriteLockExecutor<LTO__MIN, ttlTestLanguage>::GetThreadOperationCount(uiIterationCount), iiReadOperationCount = CRWLockReadLockExecutor<LTO__MIN, ttlTestLanguage, 0>::GetThreadOperationCount(uiIterationCount);
 	nThreadOperationCount = max(iiWriteOperationCount, iiReadOperationCount);
 
 	MG_STATIC_ASSERT(LOCKTEST_THREAD_COUNT == (threadcntint)(LOCKTEST_WRITER_COUNT + LOCKTEST_READER_COUNT));
@@ -957,9 +1057,9 @@ typename CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteD
 }
 
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
 template<ERWLOCKLOCKTESTOBJECT ttoTestedObjectKind>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::AllocateTestThreads(CRWLockImplementation<ttoTestedObjectKind> &liRefRWLock,
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::AllocateTestThreads(CRWLockImplementation<ttoTestedObjectKind, ttlTestLanguage> &liRefRWLock,
 	threadcntint ciWriterCount, threadcntint ciReraderCount,
 	CThreadExecutionBarrier &sbRefStartBarrier, CThreadExecutionBarrier &sbRefFinishBarrier, CThreadExecutionBarrier &sbRefExitBarrier, 
 	CRWLockLockTestProgress &tpRefProgressInstance)
@@ -968,7 +1068,7 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 
 	threadcntint uiThreadIndex = 0;
 
-	typename CRWLockWriteLockExecutor<ttoTestedObjectKind>::CConstructionParameter cpWriteExecutorParameter(liRefRWLock);
+	typename CRWLockWriteLockExecutor<ttoTestedObjectKind, ttlTestLanguage>::CConstructionParameter cpWriteExecutorParameter(liRefRWLock);
 	operationidxint nThreadOperationCount = (operationidxint)uiIterationCount * LOK__MAX;
 
 	const threadcntint ciWritersEndIndex = uiThreadIndex + ciWriterCount;
@@ -976,28 +1076,28 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	{
 		MG_ASSERT(m_aittTestThreads[uiThreadIndex] == NULL);
 
-		typedef CRWLockLockTestThread<CRWLockWriteLockExecutor<ttoTestedObjectKind> > CUsedRWLockLockTestThread;
+		typedef CRWLockLockTestThread<CRWLockWriteLockExecutor<ttoTestedObjectKind, ttlTestLanguage> > CUsedRWLockLockTestThread;
 		typedef typename CUsedRWLockLockTestThread::CThreadParameterInfo CUsedThreadParameterInfo;
 		CUsedRWLockLockTestThread *pttThreadInstance = new CUsedRWLockLockTestThread(CUsedThreadParameterInfo(sbRefStartBarrier, sbRefFinishBarrier, sbRefExitBarrier, tpRefProgressInstance), uiIterationCount, cpWriteExecutorParameter, m_apiiThreadOperationIndices[uiThreadIndex]);
 		m_aittTestThreads[uiThreadIndex] = pttThreadInstance;
 	}
 
-	typename CRWLockReadLockExecutor<ttoTestedObjectKind, tuiReaderWriteDivisor>::CConstructionParameter cpReadExecutorParameter(liRefRWLock);
+	typename CRWLockReadLockExecutor<ttoTestedObjectKind, ttlTestLanguage, tuiReaderWriteDivisor>::CConstructionParameter cpReadExecutorParameter(liRefRWLock);
 
 	const threadcntint ciReadersEndIndex = uiThreadIndex + ciReraderCount;
 	for (; uiThreadIndex != ciReadersEndIndex; ++uiThreadIndex)
 	{
 		MG_ASSERT(m_aittTestThreads[uiThreadIndex] == NULL);
 
-		typedef CRWLockLockTestThread<CRWLockReadLockExecutor<ttoTestedObjectKind, tuiReaderWriteDivisor> > CUsedRWLockLockTestThread;
+		typedef CRWLockLockTestThread<CRWLockReadLockExecutor<ttoTestedObjectKind, ttlTestLanguage, tuiReaderWriteDivisor> > CUsedRWLockLockTestThread;
 		typedef typename CUsedRWLockLockTestThread::CThreadParameterInfo CUsedThreadParameterInfo;
 		CUsedRWLockLockTestThread *pttThreadInstance = new CUsedRWLockLockTestThread(CUsedThreadParameterInfo(sbRefStartBarrier, sbRefFinishBarrier, sbRefExitBarrier, tpRefProgressInstance), uiIterationCount, cpReadExecutorParameter, m_apiiThreadOperationIndices[uiThreadIndex]);
 		m_aittTestThreads[uiThreadIndex] = pttThreadInstance;
 	}
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::FreeTestThreads(CThreadExecutionBarrier &sbRefExitBarrier, threadcntint ciTotalThreadCount)
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::FreeTestThreads(CThreadExecutionBarrier &sbRefExitBarrier, threadcntint ciTotalThreadCount)
 {
 	sbRefExitBarrier.SignalReleaseEvent();
 
@@ -1015,8 +1115,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 }
 
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::WaitTestThreadsReady(CThreadExecutionBarrier &sbStartBarrier)
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::WaitTestThreadsReady(CThreadExecutionBarrier &sbStartBarrier)
 {
 	while (sbStartBarrier.RetrieveCounterValue() != 0)
 	{
@@ -1028,21 +1128,21 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	CTimeUtils::Sleep(g_uiSettleDownSleepDelay);
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::LaunchTheTest(CThreadExecutionBarrier &sbStartBarrier)
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::LaunchTheTest(CThreadExecutionBarrier &sbStartBarrier)
 {
 	sbStartBarrier.SignalReleaseEvent();
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::WaitTheTestEnd(CThreadExecutionBarrier &sbFinishBarrier)
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::WaitTheTestEnd(CThreadExecutionBarrier &sbFinishBarrier)
 {
 	sbFinishBarrier.WaitReleaseEvent();
 }
 
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::InitializeTestResults(threadcntint ciWriterCount, threadcntint ciReraderCount)
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::InitializeTestResults(threadcntint ciWriterCount, threadcntint ciReraderCount)
 {
 	int iFileOpenStatus;
 	char ascFileNameFormatBuffer[256];
@@ -1055,8 +1155,9 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 		MG_ASSERT(m_apsfOperationDetailFiles[toTestedObjectKind] == NULL);
 
 		const char *szObjectKindFileNameSuffix = g_aszTestedObjectKindFileNameSuffixes[toTestedObjectKind];
-		int iPrintResult = snprintf(ascFileNameFormatBuffer, sizeof(ascFileNameFormatBuffer), g_ascLockTestDetailsFileNameFormat, 
-			tuiReaderWriteDivisor == 0 ? (size_t)ciWriterCount : (size_t)uiWritesPercent, tuiReaderWriteDivisor == 0 ? "" : "%", (size_t)ciReraderCount, szObjectKindFileNameSuffix);
+		int iPrintResult = snprintf(ascFileNameFormatBuffer, sizeof(ascFileNameFormatBuffer), g_ascLockTestDetailsFileNameFormat,
+			tuiReaderWriteDivisor == 0 ? (size_t)ciWriterCount : (size_t)uiWritesPercent, tuiReaderWriteDivisor == 0 ? "" : "%", (size_t)ciReraderCount, szObjectKindFileNameSuffix, 
+			g_aszTestedObjectLanguageNames[ttlTestLanguage]);
 		MG_CHECK(iPrintResult, IN_RANGE(iPrintResult - 1, 0, ARRAY_SIZE(ascFileNameFormatBuffer) - 1) || (iPrintResult < 0 && (iPrintResult = -errno, false)));
 
 		FILE *psfObjectKindDetailsFile = fopen(ascFileNameFormatBuffer, "w+");
@@ -1066,8 +1167,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	}
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::PublishTestResults(ERWLOCKLOCKTESTOBJECT toTestedObjectKind,
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::PublishTestResults(ERWLOCKLOCKTESTOBJECT toTestedObjectKind,
 	threadcntint ciWriterCount, threadcntint ciReaderCount, CTimeUtils::timeduration tdTestDuration)
 {
 	MG_ASSERT(IN_RANGE(toTestedObjectKind, LTO__MIN, LTO__MAX));
@@ -1076,7 +1177,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	const unsigned uiWritesPercent = uiReaderWriteDivisor != 0 ? 100 / uiReaderWriteDivisor : 0;
 
 	FILE *psfDetailsFile = m_apsfOperationDetailFiles[toTestedObjectKind];
-	int iPrintResult = fprintf(psfDetailsFile, "Lock-unlock test with %zu%s write%s%s, %zu %s%s\nTime taken: %lu sec %lu nsec\n\nOperation sequence map:\n",
+	int iPrintResult = fprintf(psfDetailsFile, "Lock-unlock test for %s with %zu%s write%s%s, %zu %s%s\nTime taken: %lu sec %lu nsec\n\nOperation sequence map:\n",
+		g_aszTestedObjectLanguageNames[ttlTestLanguage],
 		tuiReaderWriteDivisor == 0 ? (size_t)ciWriterCount : (size_t)uiWritesPercent, tuiReaderWriteDivisor == 0 ? "" : "%",
 		tuiReaderWriteDivisor == 0 ? "r" : "s", tuiReaderWriteDivisor == 0 && ciWriterCount != 1 ? "s" : "", (size_t)ciReaderCount, 
 		tuiReaderWriteDivisor == 0 ? "reader" : "thread", ciReaderCount != 1 ? "s" : "",
@@ -1100,8 +1202,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	delete[] piiThreadLastOperationIndices;
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::BuildMergedThreadOperationMap(char ascMergeBuffer[], operationidxint iiLastSavedOperationIndex, operationidxint iiThreadOperationCount,
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::BuildMergedThreadOperationMap(char ascMergeBuffer[], operationidxint iiLastSavedOperationIndex, operationidxint iiThreadOperationCount,
 	operationidxint aiiThreadLastOperationIndices[], threadcntint ciWriterCount, threadcntint ciReaderCount)
 {
 	char ascCurrentThreadMapChars[LOCK_THREAD_NAME_LENGTH + 1]; // +1 for terminal zero
@@ -1130,8 +1232,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	}
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-typename CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::operationidxint CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::FillThreadOperationMap(
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+typename CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::operationidxint CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::FillThreadOperationMap(
 	char ascMergeBuffer[], operationidxint iiLastSavedOperationIndex, const operationidxint iiThreadOperationCount,
 	const operationidxint *piiThreadOperationIndices, operationidxint iiThreadLastOperationIndex, const char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH])
 {
@@ -1179,16 +1281,16 @@ typename CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteD
 	return iiThreadCurrentOperationIndex;
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::InitializeThreadName(char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH + 1], char cMapFirstChar)
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::InitializeThreadName(char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH + 1], char cMapFirstChar)
 {
 	ascThreadMapChars[0] = cMapFirstChar;
 	int iPrintResult = sprintf(ascThreadMapChars + 1, "%0*zx", LOCK_THREAD_NAME_LENGTH - 1, (size_t)0);
 	MG_CHECK(iPrintResult, iPrintResult == LOCK_THREAD_NAME_LENGTH - 1 || (iPrintResult < 0 && (iPrintResult = -errno, false)));
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::IncrementThreadName(char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH + 1], threadcntint ciThreadIndex)
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::IncrementThreadName(char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH + 1], threadcntint ciThreadIndex)
 {
 	threadcntint ciThreadIndexNumericPart = ciThreadIndex % ((threadcntint)1 << (LOCK_THREAD_NAME_LENGTH - 1) * 4); // 4 bits per a hexadecimal digit
 	if (ciThreadIndexNumericPart == 0)
@@ -1200,8 +1302,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	MG_CHECK(iPrintResult, iPrintResult == LOCK_THREAD_NAME_LENGTH - 1 || (iPrintResult < 0 && (iPrintResult = -errno, false)));
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::SaveThreadOperationMapToDetails(ERWLOCKLOCKTESTOBJECT toTestedObjectKind,
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::SaveThreadOperationMapToDetails(ERWLOCKLOCKTESTOBJECT toTestedObjectKind,
 	const char ascMergeBuffer[], operationidxint iiThreadOperationCount)
 {
 	MG_ASSERT(iiThreadOperationCount % g_uiLockOperationsPerLine == 0);
@@ -1216,8 +1318,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	}
 }
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor>::FinalizeTestResults()
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::FinalizeTestResults()
 {
 	for (ERWLOCKLOCKTESTOBJECT toTestedObjectKind = LTO__MIN; toTestedObjectKind != LTO__MAX; ++toTestedObjectKind)
 	{
@@ -1566,17 +1668,17 @@ bool PerformParentWrapperGeneralTest()
 //////////////////////////////////////////////////////////////////////////
 // RWLock
 
-template<unsigned int tuiWriterCount, unsigned int tuiReaderCount>
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
 bool TestRWLockLocks()
 {
-	CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, 0> ltTestInstance(g_uiLockIterationCount);
+	CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, 0, ttlTestLanguage> ltTestInstance(g_uiLockIterationCount);
 	return ltTestInstance.RunTheTask();
 }
 
-template<unsigned int tuiThreadCount, unsigned int tuiWriteDivivisor>
+template<unsigned int tuiThreadCount, unsigned int tuiWriteDivivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
 bool TestRWLockMixed()
 {
-	CRWLockLockTestExecutor<0, tuiThreadCount, tuiWriteDivivisor> ltTestInstance(g_uiLockIterationCount);
+	CRWLockLockTestExecutor<0, tuiThreadCount, tuiWriteDivivisor, ttlTestLanguage> ltTestInstance(g_uiLockIterationCount);
 	return ltTestInstance.RunTheTask();
 }
 
@@ -1585,50 +1687,85 @@ enum EMGRWLOCKFEATURE
 {
 	MGWLF__MIN,
 
-	MGWLF_1TW_ND = MGWLF__MIN,
-	MGWLF_4TW_ND,
-	MGWLF_8TW_ND,
-	MGWLF_16TW_ND,
+	MGWLF_1TW_ND_C = MGWLF__MIN,
+	MGWLF_4TW_ND_C,
+	MGWLF_8TW_ND_C,
+	MGWLF_16TW_ND_C,
 
-	MGWLF_1TR_ND,
-	MGWLF_4TR_ND,
-	MGWLF_8TR_ND,
-	MGWLF_16TR_ND,
+	MGWLF_1TW_ND_CPP,
+	MGWLF_4TW_ND_CPP,
+	MGWLF_8TW_ND_CPP,
+	MGWLF_16TW_ND_CPP,
 
-	MGWLF_8T_12PW_ND,
-	MGWLF_16T_12PW_ND,
-	MGWLF_32T_12PW_ND,
-	MGWLF_64T_12PW_ND,
+	MGWLF_1TR_ND_C,
+	MGWLF_4TR_ND_C,
+	MGWLF_8TR_ND_C,
+	MGWLF_16TR_ND_C,
 
-	MGWLF_8T_25PW_ND,
-	MGWLF_16T_25PW_ND,
-	MGWLF_32T_25PW_ND,
-	MGWLF_64T_25PW_ND,
+	MGWLF_1TR_ND_CPP,
+	MGWLF_4TR_ND_CPP,
+	MGWLF_8TR_ND_CPP,
+	MGWLF_16TR_ND_CPP,
 
-	MGWLF_8T_50PW_ND,
-	MGWLF_16T_50PW_ND,
-	MGWLF_32T_50PW_ND,
-	MGWLF_64T_50PW_ND,
+	MGWLF_8T_12PW_ND_C,
+	MGWLF_16T_12PW_ND_C,
+	MGWLF_32T_12PW_ND_C,
+	MGWLF_64T_12PW_ND_C,
 
-	MGWLF_1TW_1TR_ND,
-	MGWLF_1TW_4TR_ND,
-	MGWLF_1TW_8TR_ND,
-	MGWLF_1TW_16TR_ND,
+	MGWLF_8T_12PW_ND_CPP,
+	MGWLF_16T_12PW_ND_CPP,
+	MGWLF_32T_12PW_ND_CPP,
+	MGWLF_64T_12PW_ND_CPP,
 
-	MGWLF_4TW_4TR_ND,
-	MGWLF_4TW_8TR_ND,
-	MGWLF_4TW_16TR_ND,
-	MGWLF_4TW_32TR_ND,
+	MGWLF_8T_25PW_ND_C,
+	MGWLF_16T_25PW_ND_C,
+	MGWLF_32T_25PW_ND_C,
+	MGWLF_64T_25PW_ND_C,
 
-	MGWLF_8TW_8TR_ND,
-	MGWLF_8TW_16TR_ND,
-	MGWLF_8TW_32TR_ND,
-	MGWLF_8TW_64TR_ND,
+	MGWLF_8T_25PW_ND_CPP,
+	MGWLF_16T_25PW_ND_CPP,
+	MGWLF_32T_25PW_ND_CPP,
+	MGWLF_64T_25PW_ND_CPP,
 
-	MGWLF_16TW_16TR_ND,
-	MGWLF_16TW_32TR_ND,
-	MGWLF_16TW_64TR_ND,
-	MGWLF_16TW_128TR_ND,
+	MGWLF_8T_50PW_ND_C,
+	MGWLF_16T_50PW_ND_C,
+	MGWLF_32T_50PW_ND_C,
+	MGWLF_64T_50PW_ND_C,
+
+	MGWLF_8T_50PW_ND_CPP,
+	MGWLF_16T_50PW_ND_CPP,
+	MGWLF_32T_50PW_ND_CPP,
+	MGWLF_64T_50PW_ND_CPP,
+
+	MGWLF_1TW_1TR_ND_C,
+	MGWLF_1TW_4TR_ND_C,
+	MGWLF_1TW_8TR_ND_C,
+	MGWLF_1TW_16TR_ND_C,
+
+	MGWLF_1TW_1TR_ND_CPP,
+	MGWLF_1TW_4TR_ND_CPP,
+	MGWLF_1TW_8TR_ND_CPP,
+	MGWLF_1TW_16TR_ND_CPP,
+
+	MGWLF_4TW_4TR_ND_C,
+	MGWLF_4TW_8TR_ND_C,
+	MGWLF_4TW_16TR_ND_C,
+	MGWLF_4TW_32TR_ND_C,
+
+	MGWLF_4TW_4TR_ND_CPP,
+	MGWLF_4TW_8TR_ND_CPP,
+	MGWLF_4TW_16TR_ND_CPP,
+	MGWLF_4TW_32TR_ND_CPP,
+
+	MGWLF_8TW_16TR_ND_C,
+	MGWLF_8TW_32TR_ND_C,
+	MGWLF_8TW_64TR_ND_C,
+	MGWLF_8TW_128TR_ND_C,
+
+	MGWLF_8TW_16TR_ND_CPP,
+	MGWLF_8TW_32TR_ND_CPP,
+	MGWLF_8TW_64TR_ND_CPP,
+	MGWLF_8TW_128TR_ND_CPP,
 
 	MGWLF__MAX,
 
@@ -1640,98 +1777,168 @@ MG_STATIC_ASSERT(MGWLF__TESTBEGIN <= MGWLF__TESTEND);
 
 static const CFeatureTestProcedure g_afnRWLockFeatureTestProcedures[MGWLF__MAX] =
 {
-	&TestRWLockLocks<1, 0>, // MGWLF_1TW_ND,
-	&TestRWLockLocks<4, 0>, // MGWLF_4TW_ND,
-	&TestRWLockLocks<8, 0>, // MGWLF_8TW_ND,
-	&TestRWLockLocks<16, 0>, // MGWLF_16TW_ND,
+	&TestRWLockLocks<1, 0, LTL_C>, // MGWLF_1TW_ND_C,
+	&TestRWLockLocks<4, 0, LTL_C>, // MGWLF_4TW_ND_C,
+	&TestRWLockLocks<8, 0, LTL_C>, // MGWLF_8TW_ND_C,
+	&TestRWLockLocks<16, 0, LTL_C>, // MGWLF_16TW_ND_C,
 
-	&TestRWLockLocks<0, 1>, // MGWLF_1TR_ND,
-	&TestRWLockLocks<0, 4>, // MGWLF_4TR_ND,
-	&TestRWLockLocks<0, 8>, // MGWLF_8TR_ND,
-	&TestRWLockLocks<0, 16>, // MGWLF_16TR_ND,
+	&TestRWLockLocks<1, 0, LTL_CPP>, // MGWLF_1TW_ND_CPP,
+	&TestRWLockLocks<4, 0, LTL_CPP>, // MGWLF_4TW_ND_CPP,
+	&TestRWLockLocks<8, 0, LTL_CPP>, // MGWLF_8TW_ND_CPP,
+	&TestRWLockLocks<16, 0, LTL_CPP>, // MGWLF_16TW_ND_CPP,
 
-	&TestRWLockMixed<8, 8>, // MGWLF_8T_12PW_ND,
-	&TestRWLockMixed<16, 8>, // MGWLF_16T_12PW_ND,
-	&TestRWLockMixed<32, 8>, // MGWLF_32T_12PW_ND,
-	&TestRWLockMixed<64, 8>, // MGWLF_64T_12PW_ND,
+	&TestRWLockLocks<0, 1, LTL_C>, // MGWLF_1TR_ND_C,
+	&TestRWLockLocks<0, 4, LTL_C>, // MGWLF_4TR_ND_C,
+	&TestRWLockLocks<0, 8, LTL_C>, // MGWLF_8TR_ND_C,
+	&TestRWLockLocks<0, 16, LTL_C>, // MGWLF_16TR_ND_C,
 
-	&TestRWLockMixed<8, 4>, // MGWLF_8T_25PW_ND,
-	&TestRWLockMixed<16, 4>, // MGWLF_16T_25PW_ND,
-	&TestRWLockMixed<32, 4>, // MGWLF_32T_25PW_ND,
-	&TestRWLockMixed<64, 4>, // MGWLF_64T_25PW_ND,
+	&TestRWLockLocks<0, 1, LTL_CPP>, // MGWLF_1TR_ND_CPP,
+	&TestRWLockLocks<0, 4, LTL_CPP>, // MGWLF_4TR_ND_CPP,
+	&TestRWLockLocks<0, 8, LTL_CPP>, // MGWLF_8TR_ND_CPP,
+	&TestRWLockLocks<0, 16, LTL_CPP>, // MGWLF_16TR_ND_CPP,
 
-	&TestRWLockMixed<8, 2>, // MGWLF_8T_50PW_ND,
-	&TestRWLockMixed<16, 2>, // MGWLF_16T_50PW_ND,
-	&TestRWLockMixed<32, 2>, // MGWLF_32T_50PW_ND,
-	&TestRWLockMixed<64, 2>, // MGWLF_64T_50PW_ND,
+	&TestRWLockMixed<8, 8, LTL_C>, // MGWLF_8T_12PW_ND_C,
+	&TestRWLockMixed<16, 8, LTL_C>, // MGWLF_16T_12PW_ND_C,
+	&TestRWLockMixed<32, 8, LTL_C>, // MGWLF_32T_12PW_ND_C,
+	&TestRWLockMixed<64, 8, LTL_C>, // MGWLF_64T_12PW_ND_C,
 
-	&TestRWLockLocks<1, 1>, // MGWLF_1TW_1TR_ND,
-	&TestRWLockLocks<1, 4>, // MGWLF_1TW_4TR_ND,
-	&TestRWLockLocks<1, 8>, // MGWLF_1TW_8TR_ND,
-	&TestRWLockLocks<1, 16>, // MGWLF_1TW_16TR_ND,
+	&TestRWLockMixed<8, 8, LTL_CPP>, // MGWLF_8T_12PW_ND_CPP,
+	&TestRWLockMixed<16, 8, LTL_CPP>, // MGWLF_16T_12PW_ND_CPP,
+	&TestRWLockMixed<32, 8, LTL_CPP>, // MGWLF_32T_12PW_ND_CPP,
+	&TestRWLockMixed<64, 8, LTL_CPP>, // MGWLF_64T_12PW_ND_CPP,
 
-	&TestRWLockLocks<4, 4>, // MGWLF_4TW_4TR_ND,
-	&TestRWLockLocks<4, 8>, // MGWLF_4TW_8TR_ND,
-	&TestRWLockLocks<4, 16>, // MGWLF_4TW_16TR_ND,
-	&TestRWLockLocks<4, 32>, // MGWLF_4TW_32TR_ND,
+	&TestRWLockMixed<8, 4, LTL_C>, // MGWLF_8T_25PW_ND_C,
+	&TestRWLockMixed<16, 4, LTL_C>, // MGWLF_16T_25PW_ND_C,
+	&TestRWLockMixed<32, 4, LTL_C>, // MGWLF_32T_25PW_ND_C,
+	&TestRWLockMixed<64, 4, LTL_C>, // MGWLF_64T_25PW_ND_C,
 
-	&TestRWLockLocks<8, 8>, // MGWLF_8TW_8TR_ND,
-	&TestRWLockLocks<8, 16>, // MGWLF_8TW_16TR_ND,
-	&TestRWLockLocks<8, 32>, // MGWLF_8TW_32TR_ND,
-	&TestRWLockLocks<8, 64>, // MGWLF_8TW_64TR_ND,
+	&TestRWLockMixed<8, 4, LTL_CPP>, // MGWLF_8T_25PW_ND_CPP,
+	&TestRWLockMixed<16, 4, LTL_CPP>, // MGWLF_16T_25PW_ND_CPP,
+	&TestRWLockMixed<32, 4, LTL_CPP>, // MGWLF_32T_25PW_ND_CPP,
+	&TestRWLockMixed<64, 4, LTL_CPP>, // MGWLF_64T_25PW_ND_CPP,
 
-	&TestRWLockLocks<16, 16>, // MGWLF_16TW_16TR_ND,
-	&TestRWLockLocks<16, 32>, // MGWLF_16TW_32TR_ND,
-	&TestRWLockLocks<16, 64>, // MGWLF_16TW_64TR_ND,
-	&TestRWLockLocks<16, 128>, // MGWLF_16TW_128TR_ND,
+	&TestRWLockMixed<8, 2, LTL_C>, // MGWLF_8T_50PW_ND_C,
+	&TestRWLockMixed<16, 2, LTL_C>, // MGWLF_16T_50PW_ND_C,
+	&TestRWLockMixed<32, 2, LTL_C>, // MGWLF_32T_50PW_ND_C,
+	&TestRWLockMixed<64, 2, LTL_C>, // MGWLF_64T_50PW_ND_C,
+
+	&TestRWLockMixed<8, 2, LTL_CPP>, // MGWLF_8T_50PW_ND_CPP,
+	&TestRWLockMixed<16, 2, LTL_CPP>, // MGWLF_16T_50PW_ND_CPP,
+	&TestRWLockMixed<32, 2, LTL_CPP>, // MGWLF_32T_50PW_ND_CPP,
+	&TestRWLockMixed<64, 2, LTL_CPP>, // MGWLF_64T_50PW_ND_CPP,
+
+	&TestRWLockLocks<1, 1, LTL_C>, // MGWLF_1TW_1TR_ND_C,
+	&TestRWLockLocks<1, 4, LTL_C>, // MGWLF_1TW_4TR_ND_C,
+	&TestRWLockLocks<1, 8, LTL_C>, // MGWLF_1TW_8TR_ND_C,
+	&TestRWLockLocks<1, 16, LTL_C>, // MGWLF_1TW_16TR_ND_C,
+
+	&TestRWLockLocks<1, 1, LTL_CPP>, // MGWLF_1TW_1TR_ND_CPP,
+	&TestRWLockLocks<1, 4, LTL_CPP>, // MGWLF_1TW_4TR_ND_CPP,
+	&TestRWLockLocks<1, 8, LTL_CPP>, // MGWLF_1TW_8TR_ND_CPP,
+	&TestRWLockLocks<1, 16, LTL_CPP>, // MGWLF_1TW_16TR_ND_CPP,
+
+	&TestRWLockLocks<4, 4, LTL_C>, // MGWLF_4TW_4TR_ND_C,
+	&TestRWLockLocks<4, 8, LTL_C>, // MGWLF_4TW_8TR_ND_C,
+	&TestRWLockLocks<4, 16, LTL_C>, // MGWLF_4TW_16TR_ND_C,
+	&TestRWLockLocks<4, 32, LTL_C>, // MGWLF_4TW_32TR_ND_C,
+
+	&TestRWLockLocks<4, 4, LTL_CPP>, // MGWLF_4TW_4TR_ND_CPP,
+	&TestRWLockLocks<4, 8, LTL_CPP>, // MGWLF_4TW_8TR_ND_CPP,
+	&TestRWLockLocks<4, 16, LTL_CPP>, // MGWLF_4TW_16TR_ND_CPP,
+	&TestRWLockLocks<4, 32, LTL_CPP>, // MGWLF_4TW_32TR_ND_CPP,
+
+	&TestRWLockLocks<8, 16, LTL_C>, // MGWLF_8TW_16TR_ND_C,
+	&TestRWLockLocks<8, 32, LTL_C>, // MGWLF_8TW_32TR_ND_C,
+	&TestRWLockLocks<8, 64, LTL_C>, // MGWLF_8TW_64TR_ND_C,
+	&TestRWLockLocks<8, 128, LTL_C>, // MGWLF_8TW_128TR_ND_C,
+
+	&TestRWLockLocks<8, 16, LTL_CPP>, // MGWLF_8TW_16TR_ND_CPP,
+	&TestRWLockLocks<8, 32, LTL_CPP>, // MGWLF_8TW_32TR_ND_CPP,
+	&TestRWLockLocks<8, 64, LTL_CPP>, // MGWLF_8TW_64TR_ND_CPP,
+	&TestRWLockLocks<8, 128, LTL_CPP>, // MGWLF_8TW_128TR_ND_CPP,
 };
 
 static const char *const g_aszRWLockFeatureTestNames[MGWLF__MAX] =
 {
-	"1 Writer", // MGWLF_1TW_ND,
-	"4 Writers", // MGWLF_4TW_ND,
-	"8 Writers", // MGWLF_8TW_ND,
-	"16 Writers", // MGWLF_16TW_ND,
+	"1 Writer, C", // MGWLF_1TW_ND_C,
+	"4 Writers, C", // MGWLF_4TW_ND_C,
+	"8 Writers, C", // MGWLF_8TW_ND_C,
+	"16 Writers, C", // MGWLF_16TW_ND_C,
 
-	"1 Reader", // MGWLF_1TR_ND,
-	"4 Readers", // MGWLF_4TR_ND,
-	"8 Readers", // MGWLF_8TR_ND,
-	"16 Readers", // MGWLF_16TR_ND,
+	"1 Writer, C++", // MGWLF_1TW_ND_CPP,
+	"4 Writers, C++", // MGWLF_4TW_ND_CPP,
+	"8 Writers, C++", // MGWLF_8TW_ND_CPP,
+	"16 Writers, C++", // MGWLF_16TW_ND_CPP,
 
-	"12% writes, 8 threads", // MGWLF_8T_12PW_ND,
-	"12% writes, 16 threads", // MGWLF_16T_12PW_ND,
-	"12% writes, 32 threads", // MGWLF_32T_12PW_ND,
-	"12% writes, 64 threads", // MGWLF_64T_12PW_ND,
+	"1 Reader, C", // MGWLF_1TR_ND_C,
+	"4 Readers, C", // MGWLF_4TR_ND_C,
+	"8 Readers, C", // MGWLF_8TR_ND_C,
+	"16 Readers, C", // MGWLF_16TR_ND_C,
 
-	"25% writes, 8 threads", // MGWLF_8T_25PW_ND,
-	"25% writes, 16 threads", // MGWLF_16T_25PW_ND,
-	"25% writes, 32 threads", // MGWLF_32T_25PW_ND,
-	"25% writes, 64 threads", // MGWLF_64T_25PW_ND,
+	"1 Reader, C++", // MGWLF_1TR_ND_CPP,
+	"4 Readers, C++", // MGWLF_4TR_ND_CPP,
+	"8 Readers, C++", // MGWLF_8TR_ND_CPP,
+	"16 Readers, C++", // MGWLF_16TR_ND_CPP,
 
-	"50% writes, 8 threads",  // MGWLF_8T_50PW_ND,
-	"50% writes, 16 threads", // MGWLF_16T_50PW_ND,
-	"50% writes, 32 threads", // MGWLF_32T_50PW_ND,
-	"50% writes, 64 threads", // MGWLF_64T_50PW_ND,
+	"12% writes, 8 threads, C", // MGWLF_8T_12PW_ND_C,
+	"12% writes, 16 threads, C", // MGWLF_16T_12PW_ND_C,
+	"12% writes, 32 threads, C", // MGWLF_32T_12PW_ND_C,
+	"12% writes, 64 threads, C", // MGWLF_64T_12PW_ND_C,
 
-	"1 Writer, 1 Reader", // MGWLF_1TW_1TR_ND,
-	"1 Writer, 4 Readers", // MGWLF_1TW_4TR_ND,
-	"1 Writer, 8 Readers", // MGWLF_1TW_8TR_ND,
-	"1 Writer, 16 Readers", // MGWLF_1TW_16TR_ND,
+	"12% writes, 8 threads, C++", // MGWLF_8T_12PW_ND_CPP,
+	"12% writes, 16 threads, C++", // MGWLF_16T_12PW_ND_CPP,
+	"12% writes, 32 threads, C++", // MGWLF_32T_12PW_ND_CPP,
+	"12% writes, 64 threads, C++", // MGWLF_64T_12PW_ND_CPP,
 
-	"4 Writers, 4 Readers", // MGWLF_4TW_4TR_ND,
-	"4 Writers, 8 Readers", // MGWLF_4TW_8TR_ND,
-	"4 Writers, 16 Readers", // MGWLF_4TW_16TR_ND,
-	"4 Writers, 32 Readers", // MGWLF_4TW_32TR_ND,
+	"25% writes, 8 threads, C", // MGWLF_8T_25PW_ND_C,
+	"25% writes, 16 threads, C", // MGWLF_16T_25PW_ND_C,
+	"25% writes, 32 threads, C", // MGWLF_32T_25PW_ND_C,
+	"25% writes, 64 threads, C", // MGWLF_64T_25PW_ND_C,
 
-	"8 Writers, 8 Readers", // MGWLF_8TW_8TR_ND,
-	"8 Writers, 16 Readers", // MGWLF_8TW_16TR_ND,
-	"8 Writers, 32 Readers", // MGWLF_8TW_32TR_ND,
-	"8 Writers, 64 Readers", // MGWLF_8TW_64TR_ND,
+	"25% writes, 8 threads, C++", // MGWLF_8T_25PW_ND_CPP,
+	"25% writes, 16 threads, C++", // MGWLF_16T_25PW_ND_CPP,
+	"25% writes, 32 threads, C++", // MGWLF_32T_25PW_ND_CPP,
+	"25% writes, 64 threads, C++", // MGWLF_64T_25PW_ND_CPP,
 
-	"16 Writers, 16 Readers", // MGWLF_16TW_16TR_ND,
-	"16 Writers, 32 Readers", // MGWLF_16TW_32TR_ND,
-	"16 Writers, 64 Readers", // MGWLF_16TW_64TR_ND,
-	"16 Writers, 128 Readers", // MGWLF_16TW_128TR_ND,
+	"50% writes, 8 threads, C",  // MGWLF_8T_50PW_ND_C,
+	"50% writes, 16 threads, C", // MGWLF_16T_50PW_ND_C,
+	"50% writes, 32 threads, C", // MGWLF_32T_50PW_ND_C,
+	"50% writes, 64 threads, C", // MGWLF_64T_50PW_ND_C,
+
+	"50% writes, 8 threads, C++",  // MGWLF_8T_50PW_ND_CPP,
+	"50% writes, 16 threads, C++", // MGWLF_16T_50PW_ND_CPP,
+	"50% writes, 32 threads, C++", // MGWLF_32T_50PW_ND_CPP,
+	"50% writes, 64 threads, C++", // MGWLF_64T_50PW_ND_CPP,
+
+	"1 Writer, 1 Reader, C", // MGWLF_1TW_1TR_ND_C,
+	"1 Writer, 4 Readers, C", // MGWLF_1TW_4TR_ND_C,
+	"1 Writer, 8 Readers, C", // MGWLF_1TW_8TR_ND_C,
+	"1 Writer, 16 Readers, C", // MGWLF_1TW_16TR_ND_C,
+
+	"1 Writer, 1 Reader, C++", // MGWLF_1TW_1TR_ND_CPP,
+	"1 Writer, 4 Readers, C++", // MGWLF_1TW_4TR_ND_CPP,
+	"1 Writer, 8 Readers, C++", // MGWLF_1TW_8TR_ND_CPP,
+	"1 Writer, 16 Readers, C++", // MGWLF_1TW_16TR_ND_CPP,
+
+	"4 Writers, 4 Readers, C", // MGWLF_4TW_4TR_ND_C,
+	"4 Writers, 8 Readers, C", // MGWLF_4TW_8TR_ND_C,
+	"4 Writers, 16 Readers, C", // MGWLF_4TW_16TR_ND_C,
+	"4 Writers, 32 Readers, C", // MGWLF_4TW_32TR_ND_C,
+
+	"4 Writers, 4 Readers, C++", // MGWLF_4TW_4TR_ND_CPP,
+	"4 Writers, 8 Readers, C++", // MGWLF_4TW_8TR_ND_CPP,
+	"4 Writers, 16 Readers, C++", // MGWLF_4TW_16TR_ND_CPP,
+	"4 Writers, 32 Readers, C++", // MGWLF_4TW_32TR_ND_CPP,
+
+	"8 Writers, 16 Readers, C", // MGWLF_8TW_16TR_ND_C,
+	"8 Writers, 32 Readers, C", // MGWLF_8TW_32TR_ND_C,
+	"8 Writers, 64 Readers, C", // MGWLF_8TW_64TR_ND_C,
+	"8 Writers, 128 Readers, C", // MGWLF_8TW_128TR_ND_C,
+
+	"8 Writers, 16 Readers, C++", // MGWLF_8TW_16TR_ND_CPP,
+	"8 Writers, 32 Readers, C++", // MGWLF_8TW_32TR_ND_CPP,
+	"8 Writers, 64 Readers, C++", // MGWLF_8TW_64TR_ND_CPP,
+	"8 Writers, 128 Readers, C++", // MGWLF_8TW_128TR_ND_CPP,
 };
 
 
@@ -1784,7 +1991,19 @@ static const CMGSubsystemTestProcedure g_afnMGSubsystemTestProcedures[MGST__MAX]
 static const char *const g_aszMGSubsystemNames[MGST__MAX] =
 {
 	"parent_wrapper", // MGST_PARENT_WRAPPER,
-	"RWLock", // MGST_RWLOCK,
+	"RWLock ("
+#if _MGTEST_TEST_TRWL
+	"with"
+#else
+	"w/o"
+#endif
+	" try-write, "
+#if _MGTEST_TEST_TRDL
+	"with"
+#else
+	"w/o"
+#endif
+	" try-read, " MAKE_STRING_LITERAL(MGTEST_LOCK_ITERATION_COUNT) " cycles/thr)", // MGST_RWLOCK,
 };
 
 static 

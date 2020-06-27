@@ -547,6 +547,9 @@ int _mutexgear_monotonic_clock_time(uint64_t *__out_timepoint)
 
 //////////////////////////////////////////////////////////////////////////
 
+#define _MAKE_STRING_LITERAL_HELPER(s) #s
+#define MAKE_STRING_LITERAL(s) _MAKE_STRING_LITERAL_HELPER(s)
+
 #define IN_RANGE(Value, Min, Max) ((size_t)((size_t)(Value) - (size_t)(Min)) < (size_t)((size_t)(Max) - (size_t)(Min)))
 
 #if !defined(__cplusplus)

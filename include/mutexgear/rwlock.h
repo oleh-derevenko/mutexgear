@@ -276,19 +276,21 @@ _MUTEXGEAR_API int mutexgear_rwlockattr_getwritechannels(mutexgear_rwlockattr_t 
  *	----------
  *
  *	\li 1. acquire the mutex of \c acquired_reads;
- *	\li 2. if \c waiting_writes is empty then goto 13;
+ *	\li 2. if \c waiting_writes is empty then goto 15;
  *	\li 3. release the mutex of \c acquired_reads;
- *	\li 4. add \c __item_instance with \c __worker_instance into \c waiting_reads; if the queue was not empty then goto 10;
- *	\li 5. acquire the mutex of \c waiting_writes;
- *	\li 6. if \c waiting_writes is not empty then wait on its tail with \c __waiter_instance, atomically releasing the mutex of \c waiting_writes; then goto 5;
- *	\li 7. release the mutex of \c waiting_writes;
- *	\li 8. splice all the items of \c waiting_reads into \c read_wait_drain; remove \c __item_instance from the moved queue awakening the next queued reader there, if any;
- *	\li 9. goto 1;
- *	\li 10. wait on the former last item in \c waiting_reads with \c __waiter_instance, atomically releasing the mutex of \c acquired_reads;
- *	\li 11. remove \c __item_instance from its current queue awakening the next queued reader there, if any;
- *	\li 12. goto 1;
- *	\li 13. add \c __item_instance with \c __worker_instance into \c acquired_reads;
- *	\li 14. release the mutex of \c acquired_reads.
+ *	\li 4. acquire the mutex of \c waiting_reads;
+ *	\li 5. add \c __item_instance with \c __worker_instance into the \c waiting_reads; if the queue was not empty then goto 12;
+ *	\li 6. release the mutex of \c waiting_reads;
+ *	\li 7. acquire the mutex of \c waiting_writes;
+ *	\li 8. if \c waiting_writes is not empty then wait on its tail with \c __waiter_instance, atomically releasing the mutex of \c waiting_writes; then goto 7;
+ *	\li 9. release the mutex of \c waiting_writes;
+ *	\li 10. splice all the items of \c waiting_reads into \c read_wait_drain; remove \c __item_instance from the moved queue awakening the next queued reader there, if any;
+ *	\li 11. goto 1;
+ *	\li 12. wait on the former last item in \c waiting_reads with \c __waiter_instance, atomically releasing the mutex of \c waiting_reads;
+ *	\li 13. remove \c __item_instance from its current queue awakening the next queued reader there, if any;
+ *	\li 14. goto 1;
+ *	\li 15. add \c __item_instance with \c __worker_instance into \c acquired_reads;
+ *	\li 16. release the mutex of \c acquired_reads.
  *
  *	(exiting with having the \c __item_instance with the \c __worker_instance added into \c acquired_reads)
  *
@@ -353,7 +355,7 @@ typedef struct _mutexgear_rwlock
  *
  *	\li 1. atomically increment \c wrlock_waits;
  *	\li 2. lock and imediately unlock \c tryread_wrapper_lock;
- *	\li 1. try-acquire the mutex of \c acquired_reads, decrementing the \c wrlock_waits and exiting with EBUSY if the mutex is busy;
+ *	\li 1. try-acquire the mutex of \c acquired_reads, decrementing the \c wrlock_waits and exiting with EBUSY if the mutex was busy;
  *	\li 2. if \c acquired_reads is empty then exit with EOK;
  *	\li 3. release the mutex of \c acquired_reads and atomically decrement \c wrlock_waits;
  *	\li 4. exit with EBUSY;
@@ -398,7 +400,8 @@ typedef struct _mutexgear_trdl_rwlock
 	mutexgear_rwlock_t           basic_lock;
 	// Extra fields for tryrdlock operation support
 	ptrdiff_t                    wrlock_waits;
-	_MUTEXGEAR_LOCK_T            tryread_wrapper_lock;
+	_MUTEXGEAR_LOCK_T            tryread_queue_lock;
+	mutexgear_completion_item_t  tryread_queue_separator;
 
 } mutexgear_trdl_rwlock_t;
 

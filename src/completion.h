@@ -225,11 +225,24 @@ mutexgear_completion_item_t *_mutexgear_completion_queue_getunsafepreceding(mute
 	return mutexgear_completion_queue_getunsafepreceding(__item_instance);
 }
 
+_MUTEXGEAR_PURE_INLINE 
+mutexgear_completion_item_t *_mutexgear_completion_queue_getrend(mutexgear_completion_queue_t *__queue_instance)
+{
+	return mutexgear_completion_queue_getrend(__queue_instance);
+}
+
 _MUTEXGEAR_PURE_INLINE
 bool _mutexgear_completion_queue_unsafegethead(mutexgear_completion_item_t **__out_head_item,
 	mutexgear_completion_queue_t *__queue_instance)
 {
 	return mutexgear_completion_queue_unsafegethead(__out_head_item, __queue_instance);
+}
+
+_MUTEXGEAR_PURE_INLINE
+mutexgear_completion_item_t *_mutexgear_completion_queue_unsafegetunsafehead(
+	mutexgear_completion_queue_t *__queue_instance)
+{
+	return mutexgear_completion_queue_unsafegetunsafehead(__queue_instance);
 }
 
 _MUTEXGEAR_PURE_INLINE
@@ -239,9 +252,22 @@ bool _mutexgear_completion_queue_unsafegetnext(mutexgear_completion_item_t **__o
 	return mutexgear_completion_queue_unsafegetnext(__out_next_item, __queue_instance, __item_instance);
 }
 
+_MUTEXGEAR_PURE_INLINE 
+mutexgear_completion_item_t *_mutexgear_completion_queue_unsafegetunsafenext(
+	const mutexgear_completion_item_t *__item_instance)
+{
+	return mutexgear_completion_queue_unsafegetunsafenext(__item_instance);
+}
 
 _MUTEXGEAR_PURE_INLINE
-int _mutexgear_completion_queue_enqueue(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance,
+mutexgear_completion_item_t *_mutexgear_completion_queue_getend(mutexgear_completion_queue_t *__queue_instance)
+{
+	return mutexgear_completion_queue_getend(__queue_instance);
+}
+
+
+_MUTEXGEAR_PURE_INLINE
+int _mutexgear_completion_queue_enqueue_before(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__before_item, mutexgear_completion_item_t *__item_instance,
 	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
 {
 	bool success = false;
@@ -257,7 +283,7 @@ int _mutexgear_completion_queue_enqueue(mutexgear_completion_queue_t *__queue_in
 		}
 		// mutex_locked = true; -- no breaks after this point at this time
 
-		mutexgear_dlralist_linkback(&__queue_instance->work_list, &__item_instance->work_item);
+		mutexgear_dlralist_linkat(&__queue_instance->work_list, &__item_instance->work_item, &__before_item->work_item);
 		
 		if (__lock_hint == NULL)
 		{
@@ -282,6 +308,28 @@ int _mutexgear_completion_queue_enqueue(mutexgear_completion_queue_t *__queue_in
 	}
 
 	return ret;
+}
+
+_MUTEXGEAR_PURE_INLINE
+int _mutexgear_completion_queue_enqueue_back(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance,
+	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
+{
+	mutexgear_completion_item_t *end_item = _mutexgear_completion_queue_getend(__queue_instance);
+	return _mutexgear_completion_queue_enqueue_before(__queue_instance, end_item, __item_instance, __lock_hint);
+}
+
+_MUTEXGEAR_PURE_INLINE
+int _mutexgear_completion_queue_enqueue(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance,
+	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
+{
+	return _mutexgear_completion_queue_enqueue_back(__queue_instance, __item_instance, __lock_hint);
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_queue_unsafespliceat(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__before_item, mutexgear_completion_item_t *__item_instance)
+{
+	mutexgear_dlraitem_t *next_item = mutexgear_dlraitem_getnext(&__item_instance->work_item);
+	mutexgear_dlralist_spliceat(&__queue_instance->work_list, &__before_item->work_item, &__item_instance->work_item, next_item);
 }
 
 _MUTEXGEAR_PURE_INLINE
