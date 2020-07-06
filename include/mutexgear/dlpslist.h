@@ -41,24 +41,36 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
 // The list is defined via template
 
 #define _MUTEXGEAR_LITEM_GETNEXT(p_item_instance) ((p_item_instance)->p_next_item)
-#define _MUTEXGEAR_LITEM_SAFEGETPREV(p_item_instance) ((p_item_instance)->p_prev_item)
-#define _MUTEXGEAR_LITEM_SETNEXT(p_item_instance, p_next_instance) ((p_item_instance)->p_next_item = (p_next_instance))
-#define _MUTEXGEAR_LITEM_CONSTRPREV(p_item_instance, p_prev_instance) ((p_item_instance)->p_next_item = (p_prev_instance))
+#define _MUTEXGEAR_LITEM_GETPREV(p_item_instance) ((p_item_instance)->p_prev_item)
+#define _MUTEXGEAR_LITEM_SETNEXT(p_item_instance, new_next_instance) ((p_item_instance)->p_next_item = (new_next_instance))
+#define _MUTEXGEAR_LITEM_CONSTRPREV(p_item_instance, new_prev_instance) ((p_item_instance)->p_next_item = (new_prev_instance))
 #define _MUTEXGEAR_LITEM_DESTRPREV(p_item_instance) ((void)(p_item_instance))
-#define _MUTEXGEAR_LITEM_UNSAFESETPREV(p_item_instance, p_prev_instance) ((p_item_instance)->p_prev_item = (p_prev_instance))
-#define _MUTEXGEAR_LITEM_SAFESETPREV(p_item_instance, p_prev_instance) ((p_item_instance)->p_prev_item = (p_prev_instance))
+#define _MUTEXGEAR_LITEM_UNSAFESETPREV(p_item_instance, new_prev_instance) ((p_item_instance)->p_prev_item = (new_prev_instance))
+#define _MUTEXGEAR_LITEM_SAFESETPREV(p_item_instance, new_prev_instance) ((p_item_instance)->p_prev_item = (new_prev_instance))
+#define _MUTEXGEAR_LITEM_TRYSETPREV(p_item_instance, p_expected_prev_instance, new_prev_instance) ((p_item_instance)->p_prev_item == *(p_expected_prev_instance) ? ((p_item_instance)->p_prev_item = (new_prev_instance), true) : (*(p_expected_prev_instance) = (p_item_instance)->p_prev_item, false))
+#define _MUTEXGEAR_LITEM_SWAPPREV(p_item_instance, new_prev_instance) _mutexgear_dlpsitem_swap_items(&(p_item_instance)->p_prev_item, new_prev_instance)
 
 #include <mutexgear/_llisttmpl.h>
 
 _MUTEXGEAR_DEFINE_LLIST_T(dlps, _t_mutexgear_dlpsitem_t *, _t_mutexgear_dlpsitem_t *);
 
+_MUTEXGEAR_PURE_INLINE
+_t_mutexgear_dlpsitem_t *_mutexgear_dlpsitem_swap_items(_t_mutexgear_dlpsitem_t **p_item_storage, _t_mutexgear_dlpsitem_t *new_item_instance)
+{
+	_t_mutexgear_dlpsitem_t *existing_item_instance = *p_item_storage;
+	*p_item_storage = new_item_instance;
+	return existing_item_instance;
+}
+
 #undef _MUTEXGEAR_LITEM_GETNEXT
-#undef _MUTEXGEAR_LITEM_SAFEGETPREV
+#undef _MUTEXGEAR_LITEM_GETPREV
 #undef _MUTEXGEAR_LITEM_SETNEXT
 #undef _MUTEXGEAR_LITEM_CONSTRPREV
 #undef _MUTEXGEAR_LITEM_DESTRPREV
 #undef _MUTEXGEAR_LITEM_UNSAFESETPREV
 #undef _MUTEXGEAR_LITEM_SAFESETPREV
+#undef _MUTEXGEAR_LITEM_TRYSETPREV
+#undef _MUTEXGEAR_LITEM_SWAPPREV
 
 
 //////////////////////////////////////////////////////////////////////////

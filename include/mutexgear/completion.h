@@ -193,9 +193,9 @@ typedef struct _mutexgear_completion_waiter
 
 // Helper definitions for mutexgear_completion_item_t
 typedef ptrdiff_t _mutexgear_completion_item_extradata_t; // It does not really matter which type to use. The ptrdiff_t is OK for alignment and the library already has atomics for it.
-#define _mg_atomic_construct_completion_item_extradata(p) _mg_atomic_construct_ptrdiff(p)
-#define _mg_atomic_init_completion_item_extradata(p, v) _mg_atomic_init_ptrdiff(p, v)
+#define _mg_atomic_construct_completion_item_extradata(p, v) _mg_atomic_construct_ptrdiff(p, v)
 #define _mg_atomic_destroy_completion_item_extradata(p) _mg_atomic_destroy_ptrdiff(p)
+#define _mg_atomic_reinit_completion_item_extradata(p, v) _mg_atomic_reinit_ptrdiff(p, v)
 #define _mg_atomic_unsafeor_relaxed_completion_item_extradata(p, v) _mg_atomic_unsafeor_relaxed_ptrdiff(p, v)
 #define _mg_atomic_unsafeand_relaxed_completion_item_extradata(p, v) _mg_atomic_unsafeand_relaxed_ptrdiff(p, v)
 #define _mg_atomic_load_relaxed_completion_item_extradata(p) _mg_atomic_load_relaxed_ptrdiff(p)
@@ -261,16 +261,47 @@ MG_STATIC_ASSERT((_mutexgear_completion_item_extradata_t)1 << MUTEXGEAR_COMPLETI
  *	storage as an extension there.
  */
 _MUTEXGEAR_PURE_INLINE void mutexgear_completion_item_settag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value);
+
+/**
+ *	\fn void mutexgear_completion_item_setunsafetag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index, bool __tag_value)
+ *	\brief Assigns a value to a tag without ensuring thread safety
+ *
+ *	The function operates on tag in a thread unsafe manner considering accesses to other tags. If there are other threads trying to access tags 
+ *	of the same item the accesses must be serialized with external means.
+ */
+_MUTEXGEAR_PURE_INLINE void mutexgear_completion_item_setunsafetag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value);
+
+/**
+*	\fn void mutexgear_completion_item_setallunsafetags(mutexgear_completion_item_t *__item_instance, bool __tag_value)
+*	\brief Assigns same value to all tags without ensuring thread safety
+*
+*	The function operates on tag in a thread unsafe manner. If there are other threads trying to access tags
+*	of the same item the accesses must be serialized with external means.
+*/
+_MUTEXGEAR_PURE_INLINE void mutexgear_completion_item_setallunsafetags(mutexgear_completion_item_t *__item_instance, bool __tag_value);
+
 /**
  *	\fn bool mutexgear_completion_item_unsafemodifytag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index, bool __tag_value)
- *	\brief Modifies a tag in an unsafe manner (test and assignment without atomicity) and returns whether the modification has actually occurred
+ *	\brief Modifies a tag in an unsafe manner (a test and an assignment without atomicity) and returns whether the modification has actually occurred
  *
  *	Tags are handled in thread safe manned with respect to other tags of the same Item, however the modifications of each single tag
  *	are not atomic and must be serialized with external means. Also, no memory barriers are issued on tag assignments.
  *	If more strict atomicity is needed, derive a child structure from \c mutexgear_completion_item_t and implement the necessary
  *	storage as an extension there.
+ *	\return Whether modification occurred
  */
 _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_item_unsafemodifytag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value);
+
+/**
+ *	\fn bool mutexgear_completion_item_unsafemodifytag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index, bool __tag_value)
+ *	\brief Modifies a tag without ensuring thread safety
+ *
+ *	The function operates on tag in a thread unsafe manner considering accesses to other tags. If there are other threads trying to access tags
+ *	of the same item the accesses must be serialized with external means.
+ *	\return Whether modification occurred
+ */
+_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_item_modifyunsafetag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value);
+
 /**
  *	\fn bool mutexgear_completion_item_gettag(const mutexgear_completion_item_t *__item_instance, unsigned int __tag_index)
  *	\brief Returns value of an item's tag
@@ -279,8 +310,21 @@ _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_item_unsafemodifytag(mutexgear_
  *	are not atomic and must be serialized with external means. Also, no memory barriers are issued on tag assignments.
  *	If more strict atomicity is needed, derive a child structure from \c mutexgear_completion_item_t and implement the necessary
  *	storage as an extension there.
+ *	\return Current value of the tag
  */
 _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_item_gettag(const mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/);
+
+/**
+*	\fn bool mutexgear_completion_item_getanytags(const mutexgear_completion_item_t *__item_instance)
+*	\brief Returns if any tag is set
+*
+*	Tags are handled in thread safe manned with respect to other tags of the same Item, however the modifications of each single tag
+*	are not atomic and must be serialized with external means. Also, no memory barriers are issued on tag assignments.
+*	If more strict atomicity is needed, derive a child structure from \c mutexgear_completion_item_t and implement the necessary
+*	storage as an extension there.
+*	\return Current value of the tag
+*/
+_MUTEXGEAR_PURE_INLINE bool mutexgear_completion_item_getanytags(const mutexgear_completion_item_t *__item_instance);
 
 
 
@@ -1371,8 +1415,7 @@ mutexgear_completion_item_t *_mutexgear_completion_item_getfromworkitem(const mu
 _MUTEXGEAR_PURE_INLINE
 void _mutexgear_completion_item_constructwow(mutexgear_completion_item_t *__item_instance, void *__worker_or_waiter)
 {
-	_mg_atomic_construct_ptrdiff(_MG_PA_PTRDIFF(&__item_instance->p_worker_or_waiter));
-	_mg_atomic_init_ptrdiff(_MG_PA_PTRDIFF(&__item_instance->p_worker_or_waiter), (uint8_t *)__worker_or_waiter - (uint8_t *)__item_instance);
+	_mg_atomic_construct_ptrdiff(_MG_PA_PTRDIFF(&__item_instance->p_worker_or_waiter), (uint8_t *)__worker_or_waiter - (uint8_t *)__item_instance);
 }
 
 _MUTEXGEAR_PURE_INLINE
@@ -1397,8 +1440,7 @@ void *_mutexgear_completion_item_getwow(const mutexgear_completion_item_t *__ite
 _MUTEXGEAR_PURE_INLINE
 void _mutexgear_completion_item_constructextra(mutexgear_completion_item_t *__item_instance, _mutexgear_completion_item_extradata_t __extra_value)
 {
-	_mg_atomic_construct_completion_item_extradata(_MG_PA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data));
-	_mg_atomic_init_completion_item_extradata(_MG_PA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __extra_value);
+	_mg_atomic_construct_completion_item_extradata(_MG_PA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __extra_value);
 }
 
 _MUTEXGEAR_PURE_INLINE
@@ -1419,6 +1461,38 @@ void _mutexgear_completion_item_assignextrabit(mutexgear_completion_item_t *__it
 	else
 	{
 		_mg_atomic_unsafeand_relaxed_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), ~((_mutexgear_completion_item_extradata_t)1 << __bit_index));
+	}
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_item_assignunsafeextrabit(mutexgear_completion_item_t *__item_instance, unsigned int __bit_index, bool __bit_value)
+{
+	MG_ASSERT(__bit_index < MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT);
+
+	if (__bit_value)
+	{
+		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data | ((_mutexgear_completion_item_extradata_t)1 << __bit_index));
+	}
+	else
+	{
+		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data & ~((_mutexgear_completion_item_extradata_t)1 << __bit_index));
+	}
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_item_assignunsafeallextrabits(mutexgear_completion_item_t *__item_instance, unsigned int __bit_count, bool __bit_value)
+{
+	MG_ASSERT(__bit_count != 0);
+
+	if (__bit_value)
+	{
+		const _mutexgear_completion_item_extradata_t change_bitmask = (((((_mutexgear_completion_item_extradata_t)1 << ((__bit_count) - 1)) - 1) << 1) | 1);
+		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data | change_bitmask);
+	}
+	else
+	{
+		const _mutexgear_completion_item_extradata_t change_bitmask = (((((_mutexgear_completion_item_extradata_t)1 << ((__bit_count) - 1)) - 1) << 1) | 1);
+		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data & ~change_bitmask);
 	}
 }
 
@@ -1444,9 +1518,40 @@ bool _mutexgear_completion_item_unsafemodifyextrabit(mutexgear_completion_item_t
 }
 
 _MUTEXGEAR_PURE_INLINE
+bool _mutexgear_completion_item_modifyunsafeextrabit(mutexgear_completion_item_t *__item_instance, unsigned int __bit_index, bool __bit_value)
+{
+	MG_ASSERT(__bit_index < MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT);
+
+	bool ret;
+
+	if (__bit_value)
+	{
+		ret = (__item_instance->extra_data & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) == 0
+			&& (_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data | ((_mutexgear_completion_item_extradata_t)1 << __bit_index)), true);
+	}
+	else
+	{
+		ret = (__item_instance->extra_data & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) != 0
+			&& (_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data & ~((_mutexgear_completion_item_extradata_t)1 << __bit_index)), true);
+	}
+
+	return ret;
+}
+
+_MUTEXGEAR_PURE_INLINE
 bool _mutexgear_completion_item_testextrabit(const mutexgear_completion_item_t *__item_instance, unsigned int __bit_index)
 {
 	bool ret = (_mg_atomic_load_relaxed_completion_item_extradata(_MG_PCVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data)) & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) != 0;
+	return ret;
+}
+
+_MUTEXGEAR_PURE_INLINE
+bool _mutexgear_completion_item_testanyextrabits(const mutexgear_completion_item_t *__item_instance, unsigned int __bit_count)
+{
+	MG_ASSERT(__bit_count != 0);
+
+	const _mutexgear_completion_item_extradata_t test_bitmask = (((((_mutexgear_completion_item_extradata_t)1 << ((__bit_count) - 1)) - 1) << 1) | 1);
+	bool ret = (_mg_atomic_load_relaxed_completion_item_extradata(_MG_PCVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data)) & test_bitmask) != 0;
 	return ret;
 }
 
@@ -1491,6 +1596,18 @@ void mutexgear_completion_item_settag(mutexgear_completion_item_t *__item_instan
 	_mutexgear_completion_item_assignextrabit(__item_instance, __tag_index, __tag_value);
 }
 
+_MUTEXGEAR_PURE_INLINE
+void mutexgear_completion_item_setunsafetag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
+{
+	_mutexgear_completion_item_assignunsafeextrabit(__item_instance, __tag_index, __tag_value);
+}
+
+_MUTEXGEAR_PURE_INLINE 
+void mutexgear_completion_item_setallunsafetags(mutexgear_completion_item_t *__item_instance, bool __tag_value)
+{
+	_mutexgear_completion_item_assignunsafeallextrabits(__item_instance, MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT, __tag_value);
+}
+
 _MUTEXGEAR_PURE_INLINE 
 bool mutexgear_completion_item_unsafemodifytag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
 {
@@ -1498,10 +1615,23 @@ bool mutexgear_completion_item_unsafemodifytag(mutexgear_completion_item_t *__it
 }
 
 _MUTEXGEAR_PURE_INLINE
+bool mutexgear_completion_item_modifyunsafetag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
+{
+	return _mutexgear_completion_item_modifyunsafeextrabit(__item_instance, __tag_index, __tag_value);
+}
+
+_MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_item_gettag(const mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/)
 {
 	return _mutexgear_completion_item_testextrabit(__item_instance, __tag_index);
 }
+
+_MUTEXGEAR_PURE_INLINE 
+bool mutexgear_completion_item_getanytags(const mutexgear_completion_item_t *__item_instance)
+{
+	return _mutexgear_completion_item_testanyextrabits(__item_instance, MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT);
+}
+
 
 
 _MUTEXGEAR_PURE_INLINE

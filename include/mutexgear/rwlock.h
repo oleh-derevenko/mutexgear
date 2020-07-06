@@ -314,11 +314,17 @@ typedef struct _mutexgear_rwlock
 {
 	// Fields modified by readers
 	mutexgear_completion_drainablequeue_t waiting_reads;
-	// Flags are kept after the drainablequeue to fit with its odd size
-	unsigned int                 mode_flags;
+	mutexgear_dlraitem_prev_t    express_reads;
 	// Rarely modified fields for separation
 	mutexgear_completion_queue_t waiting_writes;
 	mutexgear_completion_drain_t read_wait_drain;
+	// Fields accessed by writers
+	union
+	{
+		unsigned int                mode_flags;
+		size_t                      _reserved1; // For alignment of the subsequent fields
+	
+	} fl_un;
 	// Fields modified by writers
 	_MUTEXGEAR_LOCK_T            reader_push_locks[_MUTEXGEAR_RWLOCK_READERPUSHLOCK_MAXCOUNT];
 	// Fields modified by both readers and writers are to be kept at an end to minimize cache invalidations among the threads on other fields

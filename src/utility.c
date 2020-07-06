@@ -19,5 +19,5 @@
 #include "utility.h"
 
 
-/*extern */int mg_failed_check_status = EOK;
+/*extern */volatile int mg_failed_check_status = EOK;
 

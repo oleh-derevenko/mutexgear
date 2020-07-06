@@ -181,7 +181,9 @@
     <ClInclude Include="..\..\include\mutexgear\wheel.hpp" />
     <ClInclude Include="..\..\include\mutexgear\_llisttmpl.h" />
     <ClInclude Include="..\..\src\completion.h" />
+    <ClInclude Include="..\..\src\dlralist.h" />
     <ClInclude Include="..\..\src\utility.h" />
+    <ClInclude Include="..\..\src\wheel.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

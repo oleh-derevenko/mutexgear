@@ -42,8 +42,8 @@
 #error Please define _MUTEXGEAR_LITEM_GETNEXT
 #endif
 
-#ifndef _MUTEXGEAR_LITEM_SAFEGETPREV
-#error Please define _MUTEXGEAR_LITEM_SAFEGETPREV
+#ifndef _MUTEXGEAR_LITEM_GETPREV
+#error Please define _MUTEXGEAR_LITEM_GETPREV
 #endif
 
 #ifndef _MUTEXGEAR_LITEM_SETNEXT
@@ -121,21 +121,21 @@ _t_mutexgear_##t_prefix##item_t *_t_mutexgear_##t_prefix##item_getnext(const _t_
 _MUTEXGEAR_PURE_INLINE \
 _t_mutexgear_##t_prefix##item_t *_t_mutexgear_##t_prefix##item_getprevious(const _t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
-	return (_t_mutexgear_##t_prefix##item_t *)_MUTEXGEAR_LITEM_SAFEGETPREV(p_item_instance); \
+	return (_t_mutexgear_##t_prefix##item_t *)_MUTEXGEAR_LITEM_GETPREV(p_item_instance); \
 } \
 \
 /* Private litem_t definitions */ \
 \
 _MUTEXGEAR_PURE_INLINE \
-void _t__mutexgear_##t_prefix##item_setnext(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *p_next_instance) \
+void _t__mutexgear_##t_prefix##item_setnext(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *new_next_instance) \
 { \
-	_MUTEXGEAR_LITEM_SETNEXT(p_item_instance, p_next_instance); \
+	_MUTEXGEAR_LITEM_SETNEXT(p_item_instance, new_next_instance); \
 } \
 \
 _MUTEXGEAR_PURE_INLINE \
-void _t__mutexgear_##t_prefix##item_constructprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *p_prev_instance) \
+void _t__mutexgear_##t_prefix##item_constructprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *new_prev_instance) \
 { \
-	_MUTEXGEAR_LITEM_CONSTRPREV(p_item_instance, p_prev_instance); \
+	_MUTEXGEAR_LITEM_CONSTRPREV(p_item_instance, new_prev_instance); \
 } \
 \
 _MUTEXGEAR_PURE_INLINE \
@@ -145,15 +145,27 @@ void _t__mutexgear_##t_prefix##item_destroyprevious(_t_mutexgear_##t_prefix##ite
 } \
 \
 _MUTEXGEAR_PURE_INLINE \
-void _t__mutexgear_##t_prefix##item_unsafesetprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *p_prev_instance) \
+void _t__mutexgear_##t_prefix##item_setunsafeprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *new_prev_instance) \
 { \
-	_MUTEXGEAR_LITEM_UNSAFESETPREV(p_item_instance, p_prev_instance); \
+	_MUTEXGEAR_LITEM_UNSAFESETPREV(p_item_instance, new_prev_instance); \
 } \
 \
 _MUTEXGEAR_PURE_INLINE \
-void _t__mutexgear_##t_prefix##item_setprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *p_prev_instance) \
+void _t__mutexgear_##t_prefix##item_setprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *new_prev_instance) \
 { \
-	_MUTEXGEAR_LITEM_SAFESETPREV(p_item_instance, p_prev_instance); \
+	_MUTEXGEAR_LITEM_SAFESETPREV(p_item_instance, new_prev_instance); \
+} \
+\
+_MUTEXGEAR_PURE_INLINE \
+bool _t__mutexgear_##t_prefix##item_trysetprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t **p_expected_prev_instance, _t_mutexgear_##t_prefix##item_t *new_prev_instance) \
+{ \
+	return _MUTEXGEAR_LITEM_TRYSETPREV(p_item_instance, p_expected_prev_instance, new_prev_instance); \
+} \
+\
+_MUTEXGEAR_PURE_INLINE \
+_t_mutexgear_##t_prefix##item_t *_t__mutexgear_##t_prefix##item_swapprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *new_prev_instance) \
+{ \
+	return _MUTEXGEAR_LITEM_SWAPPREV(p_item_instance, new_prev_instance); \
 } \
 \
 _MUTEXGEAR_PURE_INLINE \
@@ -176,17 +188,17 @@ void _t__mutexgear_##t_prefix##item_internaldestroy(_t_mutexgear_##t_prefix##ite
 } \
 \
 _MUTEXGEAR_PURE_INLINE \
-void _t__mutexgear_##t_prefix##item_resettounlinked(_t_mutexgear_##t_prefix##item_t *p_item_instance) \
+void _t__mutexgear_##t_prefix##item_unsaferesettounlinked(_t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
-	/* Store relaxed since this is the only write and there are no dependent ones */ \
-	_t__mutexgear_##t_prefix##item_setprevious(p_item_instance, p_item_instance); \
+	/* Store unsafe since there should not be interlocked access from other threads to an item being reset to unlinked */ \
+	_t__mutexgear_##t_prefix##item_setunsafeprevious(p_item_instance, p_item_instance); \
 } \
 \
 _MUTEXGEAR_PURE_INLINE \
 void _t__mutexgear_##t_prefix##item_unsaferesettoselflinked(_t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	_t__mutexgear_##t_prefix##item_setnext(p_item_instance, p_item_instance); \
-	_t__mutexgear_##t_prefix##item_unsafesetprevious(p_item_instance, p_item_instance); \
+	_t__mutexgear_##t_prefix##item_setunsafeprevious(p_item_instance, p_item_instance); \
 } \
 \
 _MUTEXGEAR_PURE_INLINE \
@@ -199,8 +211,8 @@ void _t__mutexgear_##t_prefix##item_naive_swap(_t_mutexgear_##t_prefix##item_t *
 	/* Note: The function is not intended to be invoked concurrently with mutexgear_is_dlitem_linked and thus, */ \
 	/* the atomic assignment/retrieval is not necessary here. */ \
 	_t_mutexgear_##t_prefix##item_t *p_prev_item = _t_mutexgear_##t_prefix##item_getprevious(p_item_instance); \
-	_t__mutexgear_##t_prefix##item_unsafesetprevious(p_item_instance, _t_mutexgear_##t_prefix##item_getprevious(p_another_item)); \
-	_t__mutexgear_##t_prefix##item_unsafesetprevious(p_another_item, p_prev_item); \
+	_t__mutexgear_##t_prefix##item_setunsafeprevious(p_item_instance, _t_mutexgear_##t_prefix##item_getprevious(p_another_item)); \
+	_t__mutexgear_##t_prefix##item_setunsafeprevious(p_another_item, p_prev_item); \
 } \
 \
 /************************** List implementation **************************/ \
@@ -289,6 +301,21 @@ bool _t_mutexgear_##t_prefix##list_trygetprevious(_t_mutexgear_##t_prefix##item_
 } \
 \
 _MUTEXGEAR_PURE_INLINE \
+void _t_mutexgear_##t_prefix##list_multilinkat(_t_mutexgear_##t_prefix##list_t *p_list_instance, _t_mutexgear_##t_prefix##item_t *p_first_item_to_be_linked, _t_mutexgear_##t_prefix##item_t *p_last_item_to_be_linked, _t_mutexgear_##t_prefix##item_t *p_insert_before_item) \
+{ \
+	MG_ASSERT(!_t_mutexgear_##t_prefix##item_islinked(p_first_item_to_be_linked)); \
+	\
+	_t__mutexgear_##t_prefix##item_setnext(p_last_item_to_be_linked, p_insert_before_item); \
+	\
+	_t_mutexgear_##t_prefix##item_t *p_insert_after_item = _t_mutexgear_##t_prefix##item_getprevious(p_insert_before_item); \
+	_t__mutexgear_##t_prefix##item_setunsafeprevious(p_first_item_to_be_linked, p_insert_after_item); /* NITPIDR */ \
+	\
+	/* This is OK to be stored relaxed -- stronger modes are of no benefit */ \
+	_t__mutexgear_##t_prefix##item_setprevious(p_insert_before_item, p_last_item_to_be_linked); \
+	_t__mutexgear_##t_prefix##item_setnext(p_insert_after_item, p_first_item_to_be_linked); \
+} \
+\
+_MUTEXGEAR_PURE_INLINE \
 void _t_mutexgear_##t_prefix##list_linkat(_t_mutexgear_##t_prefix##list_t *p_list_instance, _t_mutexgear_##t_prefix##item_t *p_item_to_be_linked, _t_mutexgear_##t_prefix##item_t *p_insert_before_item) \
 { \
 	MG_ASSERT(!_t_mutexgear_##t_prefix##item_islinked(p_item_to_be_linked)); \
@@ -296,7 +323,7 @@ void _t_mutexgear_##t_prefix##list_linkat(_t_mutexgear_##t_prefix##list_t *p_lis
 	_t__mutexgear_##t_prefix##item_setnext(p_item_to_be_linked, p_insert_before_item); \
 	\
 	_t_mutexgear_##t_prefix##item_t *p_insert_after_item = _t_mutexgear_##t_prefix##item_getprevious(p_insert_before_item); \
-	_t__mutexgear_##t_prefix##item_unsafesetprevious(p_item_to_be_linked, p_insert_after_item); /* NITPIDR */ \
+	_t__mutexgear_##t_prefix##item_setunsafeprevious(p_item_to_be_linked, p_insert_after_item); /* NITPIDR */ \
 	\
 	/* This is OK to be stored relaxed -- stronger modes are of no benefit */ \
 	_t__mutexgear_##t_prefix##item_setprevious(p_insert_before_item, p_item_to_be_linked); \
@@ -330,7 +357,7 @@ void _t_mutexgear_##t_prefix##list_unlink(_t_mutexgear_##t_prefix##item_t *p_ite
 	_t__mutexgear_##t_prefix##item_setprevious(p_following_item, p_preceding_item); \
 	_t__mutexgear_##t_prefix##item_setnext(p_preceding_item, p_following_item); \
 	\
-	_t__mutexgear_##t_prefix##item_resettounlinked(p_item_to_be_unlinked); \
+	_t__mutexgear_##t_prefix##item_unsaferesettounlinked(p_item_to_be_unlinked); \
 } \
 \
 _MUTEXGEAR_PURE_INLINE \
@@ -346,7 +373,7 @@ void _t_mutexgear_##t_prefix##list_spliceat(_t_mutexgear_##t_prefix##list_t *p_l
 		_t_mutexgear_##t_prefix##item_t *p_one_before_first_spliced_item = _t_mutexgear_##t_prefix##item_getprevious(p_to_be_spliced_begin); \
 		\
 		_t_mutexgear_##t_prefix##item_t *p_insert_after_item = _t_mutexgear_##t_prefix##item_getprevious(p_insert_before_item); \
-		_t__mutexgear_##t_prefix##item_setprevious(p_to_be_spliced_begin, p_insert_after_item); \
+		_t__mutexgear_##t_prefix##item_setunsafeprevious(p_to_be_spliced_begin, p_insert_after_item); \
 		\
 		_t__mutexgear_##t_prefix##item_setprevious(p_insert_before_item, p_last_spliced_item); \
 		_t__mutexgear_##t_prefix##item_setnext(p_insert_after_item, p_to_be_spliced_begin); \

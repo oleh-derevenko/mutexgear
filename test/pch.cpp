@@ -3,4 +3,4 @@
 #include "pch.h"
 
 
-/*extern */int mg_failed_check_status = 0;
+/*extern */volatile int mg_failed_check_status = 0;

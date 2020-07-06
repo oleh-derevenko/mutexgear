@@ -1465,7 +1465,7 @@ void CRWLockLockTestThread<TOperationExecutor>::DoTheDirtyJob(CExecutorExtraObje
 		*piiOperationIndexBuffer++ = iiUnlockOperationSequence;
 
 		m_oeOperationExecutor.ReleaseLock(eoRefExecutorExtraObjects);
-		MG_ASSERT(LOK__MAX == 2);
+		MG_STATIC_ASSERT(LOK__MAX == 2);
 	}
 }
 
@@ -1699,13 +1699,13 @@ enum EMGRWLOCKFEATURE
 
 	MGWLF_1TR_ND_C,
 	MGWLF_4TR_ND_C,
-	MGWLF_8TR_ND_C,
 	MGWLF_16TR_ND_C,
+	MGWLF_64TR_ND_C,
 
 	MGWLF_1TR_ND_CPP,
 	MGWLF_4TR_ND_CPP,
-	MGWLF_8TR_ND_CPP,
 	MGWLF_16TR_ND_CPP,
+	MGWLF_64TR_ND_CPP,
 
 	MGWLF_8T_12PW_ND_C,
 	MGWLF_16T_12PW_ND_C,
@@ -1789,13 +1789,13 @@ static const CFeatureTestProcedure g_afnRWLockFeatureTestProcedures[MGWLF__MAX] 
 
 	&TestRWLockLocks<0, 1, LTL_C>, // MGWLF_1TR_ND_C,
 	&TestRWLockLocks<0, 4, LTL_C>, // MGWLF_4TR_ND_C,
-	&TestRWLockLocks<0, 8, LTL_C>, // MGWLF_8TR_ND_C,
 	&TestRWLockLocks<0, 16, LTL_C>, // MGWLF_16TR_ND_C,
+	&TestRWLockLocks<0, 64, LTL_C>, // MGWLF_64TR_ND_C,
 
 	&TestRWLockLocks<0, 1, LTL_CPP>, // MGWLF_1TR_ND_CPP,
 	&TestRWLockLocks<0, 4, LTL_CPP>, // MGWLF_4TR_ND_CPP,
-	&TestRWLockLocks<0, 8, LTL_CPP>, // MGWLF_8TR_ND_CPP,
 	&TestRWLockLocks<0, 16, LTL_CPP>, // MGWLF_16TR_ND_CPP,
+	&TestRWLockLocks<0, 64, LTL_CPP>, // MGWLF_64TR_ND_CPP,
 
 	&TestRWLockMixed<8, 8, LTL_C>, // MGWLF_8T_12PW_ND_C,
 	&TestRWLockMixed<16, 8, LTL_C>, // MGWLF_16T_12PW_ND_C,
@@ -1872,13 +1872,13 @@ static const char *const g_aszRWLockFeatureTestNames[MGWLF__MAX] =
 
 	"1 Reader, C", // MGWLF_1TR_ND_C,
 	"4 Readers, C", // MGWLF_4TR_ND_C,
-	"8 Readers, C", // MGWLF_8TR_ND_C,
 	"16 Readers, C", // MGWLF_16TR_ND_C,
+	"64 Readers, C", // MGWLF_64TR_ND_C,
 
 	"1 Reader, C++", // MGWLF_1TR_ND_CPP,
 	"4 Readers, C++", // MGWLF_4TR_ND_CPP,
-	"8 Readers, C++", // MGWLF_8TR_ND_CPP,
 	"16 Readers, C++", // MGWLF_16TR_ND_CPP,
+	"64 Readers, C++", // MGWLF_64TR_ND_CPP,
 
 	"12% writes, 8 threads, C", // MGWLF_8T_12PW_ND_C,
 	"12% writes, 16 threads, C", // MGWLF_16T_12PW_ND_C,

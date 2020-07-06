@@ -85,7 +85,7 @@
 #include <assert.h>
 #include <stdlib.h>
 
-extern int mg_failed_check_status;
+extern volatile int mg_failed_check_status;
 
 #ifndef NDEBUG
 #define MG_CHECK(v, x) if (x); else (mg_failed_check_status = (v), assert(!#v))
@@ -137,15 +137,18 @@ extern int mg_failed_check_status;
 
 #define __MUTEXGEAR_ATOMIC_PTRDIFF_NS std::
 #define __MUTEXGEAR_ATOMIC_PTRDIFF_T atomic_ptrdiff_t
-#define __MUTEGEAR_ATOMIC_CONSTRUCT_PTRDIFF(destination) new(__destination) __MUTEXGEAR_ATOMIC_PTRDIFF_NS __MUTEXGEAR_ATOMIC_PTRDIFF_T()
+#define __MUTEGEAR_ATOMIC_CONSTRUCT_PTRDIFF(destination, value) new(__destination) __MUTEXGEAR_ATOMIC_PTRDIFF_NS __MUTEXGEAR_ATOMIC_PTRDIFF_T(value)
 #define __MUTEGEAR_ATOMIC_DESTROY_PTRDIFF(destination) (destination)->__MUTEXGEAR_ATOMIC_PTRDIFF_NS __MUTEXGEAR_ATOMIC_PTRDIFF_T::~__MUTEXGEAR_ATOMIC_PTRDIFF_T()
-#define __MUTEGEAR_ATOMIC_INIT_PTRDIFF(destination, value) std::atomic_init(destination, (ptrdiff_t)(value))
 #define __MUTEGEAR_ATOMIC_REINIT_PTRDIFF(destination, value) (destination)->store((ptrdiff_t)(value), std::memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_STORE_RELAXED_PTRDIFF(destination, value) (destination)->store((ptrdiff_t)(value), std::memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_STORE_RELEASE_PTRDIFF(destination, value) (destination)->store((ptrdiff_t)(value), std::memory_order_release)
+#define __MUTEGEAR_ATOMIC_CAS_RELAXED_PTRDIFF(destination, comparand_and_update, value) (destination)->compare_exchange_strong(*(comparand_and_update), (ptrdiff_t)(value), std::memory_order_relaxed, std::memory_order_relaxed)
+#define __MUTEGEAR_ATOMIC_CAS_RELEASE_PTRDIFF(destination, comparand_and_update, value) (destination)->compare_exchange_strong(*(comparand_and_update), (ptrdiff_t)(value), std::memory_order_release, std::memory_order_relaxed)
+#define __MUTEGEAR_ATOMIC_SWAP_RELEASE_PTRDIFF(destination, value) (destination)->exchange((ptrdiff_t)(value), std::memory_order_release)
 #define __MUTEGEAR_ATOMIC_FETCH_ADD_RELAXED_PTRDIFF(destination, value) (destination)->fetch_add((ptrdiff_t)(value), std::memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_FETCH_SUB_RELAXED_PTRDIFF(destination, value) (destination)->fetch_sub((ptrdiff_t)(value), std::memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_UNSAFEOR_RELAXED_PTRDIFF(destination, value) ((void)(destination)->fetch_or((ptrdiff_t)(value), std::memory_order_relaxed))
+#define __MUTEGEAR_ATOMIC_FETCH_OR_RELAXED_PTRDIFF(destination, value) (destination)->fetch_or((ptrdiff_t)(value), std::memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_UNSAFEAND_RELAXED_PTRDIFF(destination, value) ((void)(destination)->fetch_and((ptrdiff_t)(value), std::memory_order_relaxed))
 #define __MUTEGEAR_ATOMIC_LOAD_RELAXED_PTRDIFF(source) (source)->load(std::memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_LOAD_ACQUIRE_PTRDIFF(source) (source)->load(std::memory_order_acquire)
@@ -162,15 +165,18 @@ extern int mg_failed_check_status;
 
 #define __MUTEXGEAR_ATOMIC_PTRDIFF_NS
 #define __MUTEXGEAR_ATOMIC_PTRDIFF_T atomic_ptrdiff_t
-#define __MUTEGEAR_ATOMIC_CONSTRUCT_PTRDIFF(destination) ((void)destination)
+#define __MUTEGEAR_ATOMIC_CONSTRUCT_PTRDIFF(destination, value) atomic_store_explicit(destination, (ptrdiff_t)(value), memory_order_relaxed) // atomic_init(destination, (ptrdiff_t)(value)))
 #define __MUTEGEAR_ATOMIC_DESTROY_PTRDIFF(destination) ((void)destination)
-#define __MUTEGEAR_ATOMIC_INIT_PTRDIFF(destination, value) atomic_init(destination, (ptrdiff_t)(value))
-#define __MUTEGEAR_ATOMIC_REINIT_PTRDIFF(destination, value) atomic_init(destination, (ptrdiff_t)(value))
+#define __MUTEGEAR_ATOMIC_REINIT_PTRDIFF(destination, value) atomic_store_explicit(destination, (ptrdiff_t)(value), memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_STORE_RELAXED_PTRDIFF(destination, value) atomic_store_explicit(destination, (ptrdiff_t)(value), memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_STORE_RELEASE_PTRDIFF(destination, value) atomic_store_explicit(destination, (ptrdiff_t)(value), memory_order_release)
+#define __MUTEGEAR_ATOMIC_CAS_RELAXED_PTRDIFF(destination, comparand_and_update, value) atomic_compare_exchange_strong_explicit(destination, comparand_and_update, (ptrdiff_t)(value), memory_order_relaxed, memory_order_relaxed)
+#define __MUTEGEAR_ATOMIC_CAS_RELEASE_PTRDIFF(destination, comparand_and_update, value) atomic_compare_exchange_strong_explicit(destination, comparand_and_update, (ptrdiff_t)(value), memory_order_release, memory_order_relaxed)
+#define __MUTEGEAR_ATOMIC_SWAP_RELEASE_PTRDIFF(destination, value) atomic_exchange_explicit(destination, (ptrdiff_t)(value), memory_order_release)
 #define __MUTEGEAR_ATOMIC_FETCH_ADD_RELAXED_PTRDIFF(destination, value) atomic_fetch_add_explicit(destination, (ptrdiff_t)(value), memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_FETCH_SUB_RELAXED_PTRDIFF(destination, value) atomic_fetch_sub_explicit(destination, (ptrdiff_t)(value), memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_UNSAFEOR_RELAXED_PTRDIFF(destination, value) ((void)atomic_fetch_or_explicit(destination, (ptrdiff_t)(value), memory_order_relaxed))
+#define __MUTEGEAR_ATOMIC_FETCH_OR_RELAXED_PTRDIFF(destination, value) atomic_fetch_or_explicit(destination, (ptrdiff_t)(value), memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_UNSAFEAND_RELAXED_PTRDIFF(destination, value) ((void)atomic_fetch_and_explicit(destination, (ptrdiff_t)(value), memory_order_relaxed))
 #define __MUTEGEAR_ATOMIC_LOAD_RELAXED_PTRDIFF(source) ((ptrdiff_t)atomic_load_explicit(source, memory_order_relaxed))
 #define __MUTEGEAR_ATOMIC_LOAD_ACQUIRE_PTRDIFF(source) ((ptrdiff_t)atomic_load_explicit(source, memory_order_acquire))
@@ -206,10 +212,6 @@ extern int mg_failed_check_status;
 #error Please define __MUTEGEAR_ATOMIC_DESTROY_PTRDIFF
 #endif
 
-#ifndef __MUTEGEAR_ATOMIC_INIT_PTRDIFF
-#error Please define __MUTEGEAR_ATOMIC_INIT_PTRDIFF
-#endif
-
 #ifndef __MUTEGEAR_ATOMIC_REINIT_PTRDIFF
 #error Please define __MUTEGEAR_ATOMIC_REINIT_PTRDIFF
 #endif
@@ -222,6 +224,18 @@ extern int mg_failed_check_status;
 #error Please define __MUTEGEAR_ATOMIC_STORE_RELEASE_PTRDIFF
 #endif
 
+#ifndef __MUTEGEAR_ATOMIC_CAS_RELAXED_PTRDIFF
+#error Please define __MUTEGEAR_ATOMIC_CAS_RELAXED_PTRDIFF
+#endif
+
+#ifndef __MUTEGEAR_ATOMIC_CAS_RELEASE_PTRDIFF
+#error Please define __MUTEGEAR_ATOMIC_CAS_RELEASE_PTRDIFF
+#endif
+
+#ifndef __MUTEGEAR_ATOMIC_SWAP_RELEASE_PTRDIFF
+#error Please define __MUTEGEAR_ATOMIC_SWAP_RELEASE_PTRDIFF
+#endif
+
 #ifndef __MUTEGEAR_ATOMIC_FETCH_ADD_RELAXED_PTRDIFF
 #error Please define __MUTEGEAR_ATOMIC_FETCH_ADD_RELAXED_PTRDIFF
 #endif
@@ -232,6 +246,10 @@ extern int mg_failed_check_status;
 
 #ifndef __MUTEGEAR_ATOMIC_UNSAFEOR_RELAXED_PTRDIFF
 #error Please define __MUTEGEAR_ATOMIC_UNSAFEOR_RELAXED_PTRDIFF
+#endif
+
+#ifndef __MUTEGEAR_ATOMIC_FETCH_OR_RELAXED_PTRDIFF
+#error Please define __MUTEGEAR_ATOMIC_FETCH_OR_RELAXED_PTRDIFF
 #endif
 
 #ifndef __MUTEGEAR_ATOMIC_UNSAFEAND_RELAXED_PTRDIFF
@@ -281,21 +299,15 @@ const volatile _mg_atomic_ptrdiff_t *_mg_make_pcv_atomic_ptrdiff(const ptrdiff_t
 
 
 _MUTEXGEAR_PURE_INLINE
-void _mg_atomic_construct_ptrdiff(_mg_atomic_ptrdiff_t *__destination)
+void _mg_atomic_construct_ptrdiff(_mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value)
 {
-	__MUTEGEAR_ATOMIC_CONSTRUCT_PTRDIFF(__destination);
+	__MUTEGEAR_ATOMIC_CONSTRUCT_PTRDIFF(__destination, __value);
 }
 
 _MUTEXGEAR_PURE_INLINE
 void _mg_atomic_destroy_ptrdiff(_mg_atomic_ptrdiff_t *__destination)
 {
 	__MUTEGEAR_ATOMIC_DESTROY_PTRDIFF(__destination);
-}
-
-_MUTEXGEAR_PURE_INLINE
-void _mg_atomic_init_ptrdiff(_mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value)
-{
-	__MUTEGEAR_ATOMIC_INIT_PTRDIFF(__destination, __value);
 }
 
 _MUTEXGEAR_PURE_INLINE
@@ -317,6 +329,24 @@ void _mg_atomic_store_release_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destinati
 }
 
 _MUTEXGEAR_PURE_INLINE
+bool _mg_atomic_cas_relaxed_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t *__comparand_and_update, ptrdiff_t __value)
+{
+	return __MUTEGEAR_ATOMIC_CAS_RELAXED_PTRDIFF(__destination, __comparand_and_update, __value);
+}
+
+_MUTEXGEAR_PURE_INLINE
+bool _mg_atomic_cas_release_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t *__comparand_and_update, ptrdiff_t __value)
+{
+	return __MUTEGEAR_ATOMIC_CAS_RELEASE_PTRDIFF(__destination, __comparand_and_update, __value);
+}
+
+_MUTEXGEAR_PURE_INLINE
+ptrdiff_t _mg_atomic_swap_release_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value)
+{
+	return __MUTEGEAR_ATOMIC_SWAP_RELEASE_PTRDIFF(__destination, __value);
+}
+
+_MUTEXGEAR_PURE_INLINE
 ptrdiff_t _mg_atomic_fetch_add_relaxed_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value)
 {
 	return __MUTEGEAR_ATOMIC_FETCH_ADD_RELAXED_PTRDIFF(__destination, __value);
@@ -332,6 +362,12 @@ _MUTEXGEAR_PURE_INLINE
 void _mg_atomic_unsafeor_relaxed_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value)
 {
 	__MUTEGEAR_ATOMIC_UNSAFEOR_RELAXED_PTRDIFF(__destination, __value);
+}
+
+_MUTEXGEAR_PURE_INLINE
+ptrdiff_t _mg_atomic_fetch_or_relaxed_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value)
+{
+	return __MUTEGEAR_ATOMIC_FETCH_OR_RELAXED_PTRDIFF(__destination, __value);
 }
 
 _MUTEXGEAR_PURE_INLINE
