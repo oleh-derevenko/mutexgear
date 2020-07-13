@@ -386,19 +386,20 @@ public:
 		mutexgear_completion_queueditem_start(static_cast<item::pointer>(iRefItemInstance), static_cast<worker::pointer>(wRefWorkerToBeEngaged));
 	}
 
-	void finish(item &iRefItemInstance, worker &wRefEngagedWorker, lock_token_type ltLockToken) noexcept
+	static 
+	void unsafefinish__locked(item &iRefItemInstance) noexcept
 	{
-		MG_ASSERT(ltLockToken != nullptr);
-
-		const mutexgear_completion_locktoken_t clQueueLock = ltLockToken;
-		int iFinishResult = mutexgear_completion_queueditem_finish(&m_cqQueueInstance, static_cast<item::pointer>(iRefItemInstance), static_cast<worker::pointer>(wRefEngagedWorker), clQueueLock);
-		MG_VERIFY(iFinishResult == EOK);
+		mutexgear_completion_queueditem_unsafefinish__locked(static_cast<item::pointer>(iRefItemInstance));
 	}
 
-	void finish_with_locking(item &iRefItemInstance, worker &wRefEngagedWorker)
+	void unsafefinish__unlocked(item &iRefItemInstance, worker &wRefEngagedWorker) noexcept
 	{
-		const mutexgear_completion_locktoken_t clQueueLock = nullptr;
-		int iFinishResult = mutexgear_completion_queueditem_finish(&m_cqQueueInstance, static_cast<item::pointer>(iRefItemInstance), static_cast<worker::pointer>(wRefEngagedWorker), clQueueLock);
+		mutexgear_completion_queueditem_unsafefinish__unlocked(&m_cqQueueInstance, static_cast<item::pointer>(iRefItemInstance), static_cast<worker::pointer>(wRefEngagedWorker));
+	}
+
+	void safefinish(item &iRefItemInstance, worker &wRefEngagedWorker)
+	{
+		int iFinishResult = mutexgear_completion_queueditem_safefinish(&m_cqQueueInstance, static_cast<item::pointer>(iRefItemInstance), static_cast<worker::pointer>(wRefEngagedWorker));
 
 		if (iFinishResult != EOK)
 		{
@@ -420,6 +421,7 @@ waitable_queue::const_iterator::const_iterator(const waitable_queue::const_rever
 waitable_queue::const_iterator &waitable_queue::const_iterator::operator =(const waitable_queue::const_reverse_iterator &itOtherIterator) noexcept
 {
 	m_ivIteratorInfo = *itOtherIterator;
+	return *this;
 }
 
 
@@ -655,19 +657,20 @@ public:
 		mutexgear_completion_cancelablequeueditem_start(static_cast<item::pointer>(iRefItemInstance), static_cast<worker::pointer>(wRefWorkerToBeEngaged));
 	}
 
-	void finish(item &iRefItemInstance, worker &wRefEngagedWorker, lock_token_type ltLockToken) noexcept
+	static 
+	void unsafefinish__locked(item &iRefItemInstance) noexcept
 	{
-		MG_ASSERT(ltLockToken != nullptr);
-
-		const mutexgear_completion_locktoken_t clQueueLock = ltLockToken;
-		int iFinishResult = mutexgear_completion_cancelablequeueditem_finish(&m_cqQueueInstance, static_cast<item::pointer>(iRefItemInstance), static_cast<worker::pointer>(wRefEngagedWorker), clQueueLock);
-		MG_VERIFY(iFinishResult == EOK);
+		mutexgear_completion_cancelablequeueditem_unsafefinish__locked(static_cast<item::pointer>(iRefItemInstance));
 	}
 
-	void finish_with_locking(item &iRefItemInstance, worker &wRefEngagedWorker)
+	void unsafefinish__unlocked(item &iRefItemInstance, worker &wRefEngagedWorker) noexcept
 	{
-		const mutexgear_completion_locktoken_t clQueueLock = nullptr;
-		int iFinishResult = mutexgear_completion_cancelablequeueditem_finish(&m_cqQueueInstance, static_cast<item::pointer>(iRefItemInstance), static_cast<worker::pointer>(wRefEngagedWorker), clQueueLock);
+		mutexgear_completion_cancelablequeueditem_unsafefinish__unlocked(&m_cqQueueInstance, static_cast<item::pointer>(iRefItemInstance), static_cast<worker::pointer>(wRefEngagedWorker));
+	}
+
+	void safefinish(item &iRefItemInstance, worker &wRefEngagedWorker)
+	{
+		int iFinishResult = mutexgear_completion_cancelablequeueditem_safefinish(&m_cqQueueInstance, static_cast<item::pointer>(iRefItemInstance), static_cast<worker::pointer>(wRefEngagedWorker));
 
 		if (iFinishResult != EOK)
 		{
@@ -721,6 +724,7 @@ cancelable_queue::const_iterator::const_iterator(const cancelable_queue::const_r
 cancelable_queue::const_iterator &cancelable_queue::const_iterator::operator =(const cancelable_queue::const_reverse_iterator &itOtherIterator) noexcept
 {
 	m_ivIteratorInfo = *itOtherIterator;
+	return *this;
 }
 
 

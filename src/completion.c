@@ -112,7 +112,7 @@ int _mutexgear_completion_cancelablequeue_unlockandcancel(mutexgear_completion_c
 
 			if (wait_detach_lock_status == EOK)
 			{
-				_mutexgear_completion_item_settag(__item_to_be_canceled, mutexgear_completion_cancelablequeue_itemtag_cancelrequested, true);
+				_mutexgear_completion_itemdata_settag(&__item_to_be_canceled->data, mutexgear_completion_cancelablequeue_itemtag_cancelrequested, true);
 
 				_mutexgear_completion_item_barriersetwow(__item_to_be_canceled, __waiter_instance);
 			}
@@ -249,34 +249,49 @@ bool _mutexgear_completion_cancelablequeueditem_iscanceled(const mutexgear_compl
 		MG_ASSERT(current_worker != (void *)__item_instance);
 
 		// Finally, check if the cancel flag is set
-		ret = _mutexgear_completion_item_gettag(__item_instance, mutexgear_completion_cancelablequeue_itemtag_cancelrequested);
+		ret = _mutexgear_completion_itemdata_gettag(&__item_instance->data, mutexgear_completion_cancelablequeue_itemtag_cancelrequested);
 	}
 
 	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
-int _mutexgear_completion_cancelablequeueditem_finish(mutexgear_completion_cancelablequeue_t *__queue_instance,
-	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
-	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
+int _mutexgear_completion_cancelablequeueditem_safefinish(mutexgear_completion_cancelablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
 {
 	int ret;
 
 	do
 	{
-		if ((ret = _mutexgear_completion_queueditem_finish(&__queue_instance->basic_queue, __item_instance, __worker_instance, __lock_hint)) != EOK)
+		if ((ret = _mutexgear_completion_queueditem_safefinish(&__queue_instance->basic_queue, __item_instance, __worker_instance)) != EOK)
 		{
 			break;
 		}
 
 		// Clear the cancel request tag that might have been set for the item
-		_mutexgear_completion_item_settag(__item_instance, mutexgear_completion_cancelablequeue_itemtag_cancelrequested, false);
+		_mutexgear_completion_itemdata_settag(&__item_instance->data, mutexgear_completion_cancelablequeue_itemtag_cancelrequested, false);
 
 		MG_ASSERT(ret == EOK);
 	}
 	while (false);
 
 	return ret;
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_cancelablequeueditem_unsafefinish__locked(mutexgear_completion_item_t *__item_instance)
+{
+	_mutexgear_completion_queueditem_unsafefinish__locked(__item_instance);
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_cancelablequeueditem_unsafefinish__unlocked(mutexgear_completion_cancelablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+{
+	_mutexgear_completion_queueditem_unsafefinish__unlocked(&__queue_instance->basic_queue, __item_instance, __worker_instance);
+
+	// Clear the cancel request tag that might have been set for the item
+	_mutexgear_completion_itemdata_settag(&__item_instance->data, mutexgear_completion_cancelablequeue_itemtag_cancelrequested, false);
 }
 
 
@@ -429,12 +444,22 @@ void mutexgear_completion_queue_unsafedequeue(mutexgear_completion_item_t *__ite
 
 
 /*_MUTEXGEAR_API */
-int mutexgear_completion_queueditem_finish(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
-	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
+int mutexgear_completion_queueditem_safefinish(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
 {
-	return _mutexgear_completion_queueditem_finish(__queue_instance, __item_instance, __worker_instance, __lock_hint);
+	return _mutexgear_completion_queueditem_safefinish(__queue_instance, __item_instance, __worker_instance);
 }
 
+/*_MUTEXGEAR_API */
+void mutexgear_completion_queueditem_unsafefinish__locked(mutexgear_completion_item_t *__item_instance)
+{
+	_mutexgear_completion_queueditem_unsafefinish__locked(__item_instance);
+}
+
+/*_MUTEXGEAR_API */
+void mutexgear_completion_queueditem_unsafefinish__unlocked(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+{
+	_mutexgear_completion_queueditem_unsafefinish__unlocked(__queue_instance, __item_instance, __worker_instance);
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Completion DrainableQueue Public APIs Implementation
@@ -480,12 +505,21 @@ int mutexgear_completion_drainablequeue_getindex(mutexgear_completion_drainidx_t
 }
 
 /*_MUTEXGEAR_API */
-int mutexgear_completion_drainablequeue_drain(mutexgear_completion_drainablequeue_t *__queue_instance,
+int mutexgear_completion_drainablequeue_safedrain(mutexgear_completion_drainablequeue_t *__queue_instance,
 	mutexgear_completion_item_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,
-	mutexgear_completion_drain_t *__target_drain, mutexgear_completion_locktoken_t __lock_hint/*=NULL*/, bool *__out_drain_execution_status/*=NULL*/)
+	mutexgear_completion_drain_t *__target_drain, bool *__out_drain_execution_status/*=NULL*/)
 {
-	return _mutexgear_completion_drainablequeue_drain(__queue_instance, __drain_head_item, __item_drain_index, __target_drain, __lock_hint, __out_drain_execution_status);
+	return _mutexgear_completion_drainablequeue_safedrain(__queue_instance, __drain_head_item, __item_drain_index, __target_drain, __out_drain_execution_status);
 }
+
+/*_MUTEXGEAR_API */
+void mutexgear_completion_drainablequeue_unsafedrain__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,
+	mutexgear_completion_drain_t *__target_drain, bool *__out_drain_execution_status/*=NULL*/)
+{
+	_mutexgear_completion_drainablequeue_unsafedrain__locked(__queue_instance, __drain_head_item, __item_drain_index, __target_drain, __out_drain_execution_status);
+}
+
 
 /*_MUTEXGEAR_API */
 int mutexgear_completion_drainablequeue_plainunlock(mutexgear_completion_drainablequeue_t *__queue_instance)
@@ -516,12 +550,26 @@ void mutexgear_completion_drainablequeue_unsafedequeue(mutexgear_completion_item
 
 
 /*_MUTEXGEAR_API */
-int mutexgear_completion_drainablequeueditem_finish(mutexgear_completion_drainablequeue_t *__queue_instance,
+int mutexgear_completion_drainablequeueditem_safefinish(mutexgear_completion_drainablequeue_t *__queue_instance,
 	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
-	mutexgear_completion_drainidx_t __item_drain_index/*=MUTEXGEAR_COMPLETION_INVALID_DRAINIDX*/, mutexgear_completion_drain_t *__target_drain/*=NULL*/,
-	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
+	mutexgear_completion_drainidx_t __item_drain_index/*=MUTEXGEAR_COMPLETION_INVALID_DRAINIDX*/, mutexgear_completion_drain_t *__target_drain/*=NULL*/)
 {
-	return _mutexgear_completion_drainablequeueditem_finish(__queue_instance, __item_instance, __worker_instance, __item_drain_index, __target_drain, __lock_hint);
+	return _mutexgear_completion_drainablequeueditem_safefinish(__queue_instance, __item_instance, __worker_instance, __item_drain_index, __target_drain);
+}
+
+/*_MUTEXGEAR_API */
+void mutexgear_completion_drainablequeueditem_unsafefinish__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance,
+	mutexgear_completion_drainidx_t __item_drain_index/*=MUTEXGEAR_COMPLETION_INVALID_DRAINIDX*/, mutexgear_completion_drain_t *__target_drain/*=NULL*/)
+{
+	_mutexgear_completion_drainablequeueditem_unsafefinish__locked(__queue_instance, __item_instance, __item_drain_index, __target_drain);
+}
+
+/*_MUTEXGEAR_API */
+void mutexgear_completion_drainablequeueditem_unsafefinish__unlocked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+{
+	_mutexgear_completion_drainablequeueditem_unsafefinish__unlocked(__queue_instance, __item_instance, __worker_instance);
 }
 
 
@@ -599,9 +647,20 @@ bool mutexgear_completion_cancelablequeueditem_iscanceled(const mutexgear_comple
 }
 
 /*_MUTEXGEAR_API */
-int mutexgear_completion_cancelablequeueditem_finish(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
-	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
+int mutexgear_completion_cancelablequeueditem_safefinish(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
 {
-	return _mutexgear_completion_cancelablequeueditem_finish(__queue_instance, __item_instance, __worker_instance, __lock_hint);
+	return _mutexgear_completion_cancelablequeueditem_safefinish(__queue_instance, __item_instance, __worker_instance);
 }
 
+_MUTEXGEAR_API 
+void mutexgear_completion_cancelablequeueditem_unsafefinish__locked(mutexgear_completion_item_t *__item_instance)
+{
+	_mutexgear_completion_cancelablequeueditem_unsafefinish__locked(__item_instance);
+}
+
+_MUTEXGEAR_API 
+void mutexgear_completion_cancelablequeueditem_unsafefinish__unlocked(mutexgear_completion_cancelablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+{
+	_mutexgear_completion_cancelablequeueditem_unsafefinish__unlocked(__queue_instance, __item_instance, __worker_instance);
+}

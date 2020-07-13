@@ -19,5 +19,5 @@
 #include "utility.h"
 
 
-/*extern */volatile int mg_failed_check_status = EOK;
+/*extern */volatile intmax_t mg_failed_check_status = EOK;
 

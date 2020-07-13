@@ -1,7 +1,7 @@
 #include "pch.h"
 
-#define _MGTEST_TEST_TRWL		1
-#define _MGTEST_TEST_TRDL		1
+#define _MGTEST_TEST_TWRL		1
+#define _MGTEST_TEST_TRDL		0
 
 #include <mutexgear/shared_mutex.hpp>
 #include <shared_mutex>
@@ -205,13 +205,13 @@ public:
 	{
 		bool bLockedWithTryVariant;
 
-#if _MGTEST_TEST_TRWL
+#if _MGTEST_TEST_TWRL
 		int iLockResult = _mutexgear_rwlock_trywrlock(&m_wlRWLock);
 		bLockedWithTryVariant = iLockResult == EOK;
-#else // !_MGTEST_TEST_TRWL
+#else // !_MGTEST_TEST_TWRL
 		int iLockResult = EBUSY;
 		bLockedWithTryVariant = false;
-#endif // !_MGTEST_TEST_TRWL
+#endif // !_MGTEST_TEST_TWRL
 
 		if (!bLockedWithTryVariant)
 		{
@@ -288,11 +288,11 @@ public:
 	{
 		bool bLockedWithTryVariant;
 
-#if _MGTEST_TEST_TRWL
+#if _MGTEST_TEST_TWRL
 		bLockedWithTryVariant = m_wlRWLock.try_lock();
-#else // !_MGTEST_TEST_TRWL
+#else // !_MGTEST_TEST_TWRL
 		bLockedWithTryVariant = false;
-#endif // !_MGTEST_TEST_TRWL
+#endif // !_MGTEST_TEST_TWRL
 
 		if (!bLockedWithTryVariant)
 		{
@@ -396,13 +396,13 @@ public:
 	bool LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
 	{
 		bool bLockedWithTryVariant;
-#if _MGTEST_TEST_TRWL
+#if _MGTEST_TEST_TWRL
 		int iLockResult = mutexgear_rwlock_trywrlock(&m_wlRWLock);
 		bLockedWithTryVariant = iLockResult == EOK;
-#else // !_MGTEST_TEST_TRWL
+#else // !_MGTEST_TEST_TWRL
 		int iLockResult = EBUSY;
 		bLockedWithTryVariant = false;
-#endif // !_MGTEST_TEST_TRWL
+#endif // !_MGTEST_TEST_TWRL
 
 		if (!bLockedWithTryVariant)
 		{
@@ -512,11 +512,11 @@ public:
 	bool LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
 	{
 		bool bLockedWithTryVariant;
-#if _MGTEST_TEST_TRWL
+#if _MGTEST_TEST_TWRL
 		bLockedWithTryVariant = m_wlRWLock.try_lock();
-#else // !_MGTEST_TEST_TRWL
+#else // !_MGTEST_TEST_TWRL
 		bLockedWithTryVariant = false;
-#endif // !_MGTEST_TEST_TRWL
+#endif // !_MGTEST_TEST_TWRL
 
 		if (!bLockedWithTryVariant)
 		{
@@ -1069,7 +1069,6 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	threadcntint uiThreadIndex = 0;
 
 	typename CRWLockWriteLockExecutor<ttoTestedObjectKind, ttlTestLanguage>::CConstructionParameter cpWriteExecutorParameter(liRefRWLock);
-	operationidxint nThreadOperationCount = (operationidxint)uiIterationCount * LOK__MAX;
 
 	const threadcntint ciWritersEndIndex = uiThreadIndex + ciWriterCount;
 	for (; uiThreadIndex != ciWritersEndIndex; ++uiThreadIndex)
@@ -1992,7 +1991,7 @@ static const char *const g_aszMGSubsystemNames[MGST__MAX] =
 {
 	"parent_wrapper", // MGST_PARENT_WRAPPER,
 	"RWLock ("
-#if _MGTEST_TEST_TRWL
+#if _MGTEST_TEST_TWRL
 	"with"
 #else
 	"w/o"

@@ -206,6 +206,13 @@ typedef ptrdiff_t _mutexgear_completion_item_extradata_t; // It does not really 
 MG_STATIC_ASSERT(_MUTEXGEAR_COMPLETION_ITEM_EXTRA___HIGHEST_BIT != 0);
 MG_STATIC_ASSERT((_MUTEXGEAR_COMPLETION_ITEM_EXTRA___HIGHEST_BIT & (_MUTEXGEAR_COMPLETION_ITEM_EXTRA___HIGHEST_BIT - 1)) == 0);
 
+typedef struct __mutexgear_completion_itemdata
+{
+	mutexgear_dlraitem_t		work_item;
+	_mutexgear_completion_item_extradata_t extra_data;
+
+} _mutexgear_completion_itemdata_t;
+
 /**
  *	\struct mutexgear_completion_item_t
  *	\brief A structure to represent an operation that can be waited for.
@@ -218,9 +225,8 @@ MG_STATIC_ASSERT((_MUTEXGEAR_COMPLETION_ITEM_EXTRA___HIGHEST_BIT & (_MUTEXGEAR_C
  */
 typedef struct _mutexgear_completion_item
 {
-	mutexgear_dlraitem_t		work_item;
+	_mutexgear_completion_itemdata_t data;
 	ptrdiff_t					p_worker_or_waiter;
-	_mutexgear_completion_item_extradata_t extra_data;
 
 } mutexgear_completion_item_t;
 
@@ -234,7 +240,7 @@ typedef struct _mutexgear_completion_item
 _MUTEXGEAR_PURE_INLINE
 mutexgear_dlraitem_t *mutexgear_completion_item_getworkitem(const mutexgear_completion_item_t *__item_instance)
 {
-	const mutexgear_dlraitem_t *ret = &__item_instance->work_item;
+	const mutexgear_dlraitem_t *ret = &__item_instance->data.work_item;
 	return (mutexgear_dlraitem_t *)ret;
 }
 
@@ -565,8 +571,8 @@ _MUTEXGEAR_PURE_INLINE void mutexgear_completion_item_destroy(mutexgear_completi
  *	\see mutexgear_completion_queueditem_start
  *	\see mutexgear_completion_cancelablequeueditem_start
  *	\see mutexgear_completion_item_isstarted
- *	\see mutexgear_completion_queueditem_finish
- *	\see mutexgear_completion_cancelablequeueditem_finish
+ *	\see mutexgear_completion_queueditem_safefinish
+ *	\see mutexgear_completion_cancelablequeueditem_safefinish
  */
 _MUTEXGEAR_PURE_INLINE void mutexgear_completion_item_prestart(mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
 
@@ -580,8 +586,8 @@ _MUTEXGEAR_PURE_INLINE void mutexgear_completion_item_prestart(mutexgear_complet
  *	\see mutexgear_completion_item_prestart
  *	\see mutexgear_completion_queueditem_start
  *	\see mutexgear_completion_cancelablequeueditem_start
- *	\see mutexgear_completion_queueditem_finish
- *	\see mutexgear_completion_cancelablequeueditem_finish
+ *	\see mutexgear_completion_queueditem_safefinish
+ *	\see mutexgear_completion_cancelablequeueditem_safefinish
  */
 _MUTEXGEAR_PURE_INLINE bool mutexgear_completion_item_isstarted(const mutexgear_completion_item_t *__item_instance);
 
@@ -872,28 +878,61 @@ _MUTEXGEAR_API void mutexgear_completion_queue_unsafedequeue(mutexgear_completio
  *
  *	The function is implemented as an inline call.
  *	\see mutexgear_completion_item_isstarted
- *	\see mutexgear_completion_queueditem_finish
+ *	\see mutexgear_completion_queueditem_safefinish
  *	\see mutexgear_completion_item_prestart
  */
 _MUTEXGEAR_PURE_INLINE void mutexgear_completion_queueditem_start(mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
 
 
 /**
- *	\fn int mutexgear_completion_queueditem_finish(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_locktoken_t __lock_hint)
- *	\brief Mark Item as complete and remove it from Queue notifying possible Waiter.
+ *	\fn int mutexgear_completion_queueditem_safefinish(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+ *	\brief Mark Item as complete, remove it from Queue and notify possible Waiter locking and unlocking the queue as necessary.
  *
- *	The caller (the Worker) is responsible for releasing the Item.
- *
- *	If the queue is locked, the \c __lock_hint must the corresponding lock token. Otherwise, NULL is to be passed.
+ *	The caller (the Worker) is responsible for disposing the Item.
  *
  *	\return EOK on success or a system error code on failure.
  *	\see mutexgear_completion_queue_enqueue
  *	\see mutexgear_completion_item_prestart
  *	\see mutexgear_completion_queueditem_start
  *	\see mutexgear_completion_item_isstarted
+ *	\see mutexgear_completion_queueditem_unsafefinish__locked
+ *	\see mutexgear_completion_queueditem_unsafefinish__unlocked
  */
-_MUTEXGEAR_API int mutexgear_completion_queueditem_finish(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
-	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/);
+_MUTEXGEAR_API int mutexgear_completion_queueditem_safefinish(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
+
+/**
+ *	\fn void mutexgear_completion_queueditem_unsafefinish__locked(mutexgear_completion_item_t *__item_instance)
+ *	\brief A part of routing to mark an Item as complete, remove it from a Queue and notify possible Waiter to be called with the queue locked
+ *
+ *	The function implements the "locked" part of the routine while \c mutexgear_completion_queueditem_unsafefinish__unlocked, being the other part, is to be called
+ *	after the queue lock is released. Together these correspond to a call of \c mutexgear_completion_queueditem_safefinish.
+ *	The separation can be used to include extra code in the queue's critical section.
+ *
+ *	Calling the function while \c __queue_instance is not locked may result in threading races and memory structure corruptions.
+ *
+ *	The caller (the Worker) is responsible for disposing the Item.
+ *
+ *	\see mutexgear_completion_queueditem_unsafefinish__unlocked
+ *	\see mutexgear_completion_queueditem_safefinish
+ */
+_MUTEXGEAR_API void mutexgear_completion_queueditem_unsafefinish__locked(mutexgear_completion_item_t *__item_instance);
+
+/**
+ *	\fn mutexgear_completion_queueditem_unsafefinish__unlocked(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+ *	\brief A part of routing to mark an Item as complete, remove it from a Queue and notify possible Waiter to be called after the queue is unlocked
+ *
+ *	The function implements the "unlocked" part of the routine while \c mutexgear_completion_queueditem_unsafefinish__locked, being the other part, is to be called
+ *	within the queue's locked section, before it is exited. Together these correspond to a call of \c mutexgear_completion_queueditem_safefinish.
+ *	The separation can be used to include extra code in the queue's critical section.
+ *
+ *	Calling the function while \c __queue_instance is locked will be an unnecessary extension of the critical section.
+ *
+ *	The caller (the Worker) is responsible for disposing the Item.
+ *
+ *	\see mutexgear_completion_queueditem_unsafefinish__locked
+ *	\see mutexgear_completion_queueditem_safefinish
+ */
+_MUTEXGEAR_API void mutexgear_completion_queueditem_unsafefinish__unlocked(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -956,39 +995,62 @@ _MUTEXGEAR_API int mutexgear_completion_drainablequeue_lock(mutexgear_completion
  *	\fn int mutexgear_completion_drainablequeue_getindex(mutexgear_completion_drainidx_t *__out_queue_drain_index, mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_locktoken_t __lock_hint)
  *	\brief Retrieve current drain index for the queue
  *
- *	Drain index is incremented each time \c mutexgear_completion_drainablequeue_drain is called. 
+ *	Drain index is incremented each time \c mutexgear_completion_drainablequeue_safedrain is called. 
  *	The index can be used to determine whether an Item is still in the Queue or whether it was drained.
  *
  *	If the queue is locked, the \c __lock_hint must the corresponding lock token. Otherwise, NULL is to be passed.
  *
  *	\param __out_queue_drain_index Pointer to a variable to receive queue's current drain index
  *	\return EOK on success or a system error code on failure.
- *	\see mutexgear_completion_drainablequeue_drain
+ *	\see mutexgear_completion_drainablequeue_safedrain
  */
 _MUTEXGEAR_API int mutexgear_completion_drainablequeue_getindex(mutexgear_completion_drainidx_t *__out_queue_drain_index,
 	mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_locktoken_t __lock_hint/*=NULL*/);
 
 /**
- *	\fn int mutexgear_completion_drainablequeue_drain(mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_drainableitem_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,	mutexgear_completion_drain_t *__target_drain, mutexgear_completion_locktoken_t __lock_hint, bool *__out_drain_execution_status)
- *	\brief Drain queue's items
+ *	\fn int mutexgear_completion_drainablequeue_safedrain(mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_drainableitem_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,	mutexgear_completion_drain_t *__target_drain, bool *__out_drain_execution_status)
+ *	\brief Drain queue's items locking and unlocking the queue as necessary
  *
  *	The function considers items starting with \c __drain_head_item to be removed into the drain.
  *	If the specified queue tail is drained if \c __drain_head_item is the actual queue head 
  *	or if \c __item_drain_index matches the current queue's drain index. Otherwise the drain request is ignored.
  *	The \c __out_drain_execution_status (if provided) receives the drain status.
  *
- *	If the queue is locked, the \c __lock_hint must the corresponding lock token. Otherwise, NULL is to be passed.
+ *	Calling the function while \c __queue_instance is locked may result in a mutex lock error.
  *
  *	\param __drain_head_item Head item to be drained
  *	\param __item_drain_index The drain index retrieved at the time when \c __drain_head_item was inserted
  *	\param __target_drain Drain instance to receive the items (if removed)
  *	\param __out_drain_execution_status Optional pointer to a variable to receive the drain execution status
  *	\return EOK on success or a system error code on failure (an ignored drain is still a success).
+ *	\see mutexgear_completion_drainablequeue_unsafedrain__locked
  *	\see mutexgear_completion_drainablequeue_getindex
  */
-_MUTEXGEAR_API int mutexgear_completion_drainablequeue_drain(mutexgear_completion_drainablequeue_t *__queue_instance,
+_MUTEXGEAR_API int mutexgear_completion_drainablequeue_safedrain(mutexgear_completion_drainablequeue_t *__queue_instance,
 	mutexgear_completion_item_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,
-	mutexgear_completion_drain_t *__target_drain, mutexgear_completion_locktoken_t __lock_hint/*=NULL*/, bool *__out_drain_execution_status/*=NULL*/);
+	mutexgear_completion_drain_t *__target_drain, bool *__out_drain_execution_status/*=NULL*/);
+
+/**
+ *	\fn void mutexgear_completion_drainablequeue_unsafedrain__locked(mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_drainableitem_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,	mutexgear_completion_drain_t *__target_drain, bool *__out_drain_execution_status)
+ *	\brief Drain queue's items assuming the queue is already locked
+ *
+ *	The function considers items starting with \c __drain_head_item to be removed into the drain.
+ *	If the specified queue tail is drained if \c __drain_head_item is the actual queue head
+ *	or if \c __item_drain_index matches the current queue's drain index. Otherwise the drain request is ignored.
+ *	The \c __out_drain_execution_status (if provided) receives the drain status.
+ *
+ *	Calling the function while \c __queue_instance is not locked may result in threading races and memory structure corruptions.
+ *
+ *	\param __drain_head_item Head item to be drained
+ *	\param __item_drain_index The drain index retrieved at the time when \c __drain_head_item was inserted
+ *	\param __target_drain Drain instance to receive the items (if removed)
+ *	\param __out_drain_execution_status Optional pointer to a variable to receive the drain execution status
+ *	\see mutexgear_completion_drainablequeue_safedrain
+ *	\see mutexgear_completion_drainablequeue_getindex
+ */
+_MUTEXGEAR_API void mutexgear_completion_drainablequeue_unsafedrain__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,
+	mutexgear_completion_drain_t *__target_drain, bool *__out_drain_execution_status/*=NULL*/);
 
 /**
  *	\fn int mutexgear_completion_drainablequeue_plainunlock(mutexgear_completion_drainablequeue_t *__queue_instance)
@@ -1119,20 +1181,61 @@ _MUTEXGEAR_API void mutexgear_completion_drainablequeue_unsafedequeue(mutexgear_
 
 
 /**
- *	\fn int mutexgear_completion_drainablequeueditem_finish(mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_drainableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_drainidx_t __item_drain_index, mutexgear_completion_drain_t *__target_drain, mutexgear_completion_locktoken_t __lock_hint)
- *	\brief Atomically mark Item as finished, remove it, and request a optionally drain of the Queue tail after the Item
+ *	\fn int mutexgear_completion_drainablequeueditem_safefinish(mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_drainableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_drainidx_t __item_drain_index, mutexgear_completion_drain_t *__target_drain)
+ *	\brief Atomically mark Item as finished, remove it, and request an optional drain of the Queue tail after the Item
  *
- *	The function is an atomic combination of \c mutexgear_completion_drainablequeue_drain
- *	and inherited \c mutexgear_completion_queueditem_finish.
+ *	The function is an atomic combination of \c mutexgear_completion_drainablequeue_safedrain
+ *	and inherited \c mutexgear_completion_queueditem_safefinish.
+ *
+ *	Calling the function while \c __queue_instance is locked may result in a mutex lock error and will be an inefficient call.
+ *	The combination of \c mutexgear_completion_drainablequeueditem_unsafefinish__locked and \c mutexgear_completion_drainablequeueditem_unsafefinish__unlocked
+ *	must be used in such cases instead.
+ *
+ *	\see mutexgear_completion_drainablequeue_safedrain
+ *	\see mutexgear_completion_queueditem_safefinish
+ *	\see mutexgear_completion_drainablequeueditem_unsafefinish__locked
+ *	\see mutexgear_completion_drainablequeueditem_unsafefinish__unlocked
+ */
+_MUTEXGEAR_API int mutexgear_completion_drainablequeueditem_safefinish(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
+	mutexgear_completion_drainidx_t __item_drain_index/*=MUTEXGEAR_COMPLETION_INVALID_DRAINIDX*/, mutexgear_completion_drain_t *__target_drain/*=NULL*/);
+
+/**
+ *	\fn void mutexgear_completion_drainablequeueditem_unsafefinish__locked(mutexgear_completion_drainablequeue_t *__queue_instance,	mutexgear_completion_item_t *__item_instance, mutexgear_completion_drainidx_t __item_drain_index, mutexgear_completion_drain_t *__target_drain)
+ *	\brief A part of atomically marking Item as finished, removing it, and requesting an optionally drain of the Queue tail after the Item to be called with the queue locked
+ *
+ *	The function is a locked routine part of an atomic queue drain along with an item finish. The other counterpart (\c mutexgear_completion_drainablequeueditem_unsafefinish__unlocked)
+ *	is to be called after the \c __queue_instance locked section is exited. Together, these function calls correspond to a call to \c mutexgear_completion_drainablequeueditem_safefinish.
+ *	The separation can be used to include extra code in the queue's critical section.
+ *
+ *	Calling the function while \c __queue_instance is not locked may result in threading races and memory structure corruptions.
+ *
+ *	\see mutexgear_completion_drainablequeueditem_unsafefinish__unlocked
+ *	\see mutexgear_completion_drainablequeueditem_safefinish
+ *	\see mutexgear_completion_drainablequeue_unsafedrain__locked
+ *	\see mutexgear_completion_queueditem_unsafefinish__locked
+ */
+_MUTEXGEAR_API void mutexgear_completion_drainablequeueditem_unsafefinish__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance,
+	mutexgear_completion_drainidx_t __item_drain_index/*=MUTEXGEAR_COMPLETION_INVALID_DRAINIDX*/, mutexgear_completion_drain_t *__target_drain/*=NULL*/);
+
+/**
+ *	\fn void mutexgear_completion_drainablequeueditem_unsafefinish__unlocked(mutexgear_completion_drainablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+ *	\brief A part of atomically marking Item as finished, removing it, and requesting an optionally drain of the Queue tail after the Item to be called after the queue is unlocked
+ *
+ *	The function is an unlocked routine part of an atomic queue drain along with an item finish. The other counterpart (\c mutexgear_completion_drainablequeueditem_unsafefinish__locked)
+ *	is to be called withing the critical section, before the \c __queue_instance lock is released. Together, these function calls correspond to a call to \c mutexgear_completion_drainablequeueditem_safefinish.
+ *	The separation can be used to include extra code in the queue's critical section.
+ *
+ *	Calling the function while \c __queue_instance is locked will be an unnecessary extension of the critical section.
  *
  *	\return EOK on success or a system error code on failure (an ignored drain is still a success).
- *	\see mutexgear_completion_drainablequeue_drain
- *	\see mutexgear_completion_queueditem_finish
+ *	\see mutexgear_completion_drainablequeueditem_unsafefinish__locked
+ *	\see mutexgear_completion_drainablequeueditem_safefinish
+ *	\see mutexgear_completion_queueditem_unsafefinish__unlocked
  */
-_MUTEXGEAR_API int mutexgear_completion_drainablequeueditem_finish(mutexgear_completion_drainablequeue_t *__queue_instance,
-	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
-	mutexgear_completion_drainidx_t __item_drain_index/*=MUTEXGEAR_COMPLETION_INVALID_DRAINIDX*/, mutexgear_completion_drain_t *__target_drain/*=NULL*/,
-	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/);
+_MUTEXGEAR_API void mutexgear_completion_drainablequeueditem_unsafefinish__unlocked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -1210,7 +1313,7 @@ _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_unlockandwait(mutexgear_
  *	\brief Mark Item to be canceled and either remove it from Queue if work on the Item was not started yet, or unlock the Queue and wait for the Item to be finished and removed by its Worker
  *
  *	The call requests its Item to be canceled. If work was not started on the Item yet 
- *	the Item is simply removed from the Queue and the caller becomes its owner (is responsible for releasing the Item).
+ *	the Item is simply removed from the Queue and the caller becomes its owner (is responsible for disposing the Item).
  *	If the Item already has a Worker assigned at the moment of the call the Item is marked to be canceled 
  *	and waited for being finished and removed by its Worker. Workers are supposed to check their item statuses 
  *	with \c mutexgear_completion_cancelablequeueditem_iscanceled and abort any operations requiring significant effort if necessary.
@@ -1341,7 +1444,7 @@ _MUTEXGEAR_API void mutexgear_completion_cancelablequeue_unsafedequeue(mutexgear
 //  *	\brief Retrieve a queued Item assigning it Worker to mark the former as being handled
 //  *
 //  *	The function scans the Queue for an Item without a Worker assigned and occupies and returns one if found.
-//  *	The Item remains in the queue until being finished with a subsequent call to \c mutexgear_completion_cancelablequeueditem_finish
+//  *	The Item remains in the queue until being finished with a subsequent call to \c mutexgear_completion_cancelablequeueditem_safefinish
 //  *	to indicate that the handling was completed.
 //  *
 //  *	If the queue is locked, the \c __lock_hint must the corresponding lock token. Otherwise, NULL is to be passed.
@@ -1350,7 +1453,7 @@ _MUTEXGEAR_API void mutexgear_completion_cancelablequeue_unsafedequeue(mutexgear
 //  *	\return EOK on success or a system error code on failure
 //  *	\see mutexgear_completion_cancelablequeue_enqueue
 //  *	\see mutexgear_completion_cancelablequeueditem_iscanceled
-//  *	\see mutexgear_completion_cancelablequeueditem_finish
+//  *	\see mutexgear_completion_cancelablequeueditem_safefinish
 //  */
 // _MUTEXGEAR_API int mutexgear_completion_cancelablequeue_locateandstart(mutexgear_completion_item_t **__out_acquired_item,
 // 	mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_worker_t *__worker_instance,
@@ -1365,7 +1468,7 @@ _MUTEXGEAR_API void mutexgear_completion_cancelablequeue_unsafedequeue(mutexgear
  *
  *	The function is implemented as an inline call.
  *	\see mutexgear_completion_item_isstarted
- *	\see mutexgear_completion_cancelablequeueditem_finish
+ *	\see mutexgear_completion_cancelablequeueditem_safefinish
  */
 _MUTEXGEAR_PURE_INLINE void mutexgear_completion_cancelablequeueditem_start(mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
 
@@ -1375,28 +1478,49 @@ _MUTEXGEAR_PURE_INLINE void mutexgear_completion_cancelablequeueditem_start(mute
  *
  *	The function is to be called periodically by Workers after they start their work on items with \c mutexgear_completion_cancelablequeueditem_start
  *	to check whether Waiters have not requested the work to be aborted. If so, the Workers are supposed to skip 
- *	any work remainders on such the Items and finish them with \c mutexgear_completion_cancelablequeueditem_finish ASAP.
+ *	any work remainders on such the Items and finish them with \c mutexgear_completion_cancelablequeueditem_safefinish ASAP.
  *
  *	The function is OK to be called regardless of the respective Queue lock state.
  *
  *	\param __worker_instance The Worker being handling the Item (self)
  *	\return EOK on success or a system error code on failure
  *	\see mutexgear_completion_cancelablequeueditem_start
- *	\see mutexgear_completion_cancelablequeueditem_finish
+ *	\see mutexgear_completion_cancelablequeueditem_safefinish
  */
 _MUTEXGEAR_API bool mutexgear_completion_cancelablequeueditem_iscanceled(const mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
 
 /**
- *	\fn int mutexgear_completion_cancelablequeueditem_finish(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_locktoken_t __lock_hint)
- *	\brief An inherited method for \c mutexgear_completion_queueditem_finish
+ *	\fn int mutexgear_completion_cancelablequeueditem_safefinish(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_cancelableitem_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+ *	\brief An inherited method for \c mutexgear_completion_queueditem_safefinish
  *
  *	\return EOK on success or a system error code on failure.
  *	\see mutexgear_completion_cancelablequeueditem_start
  *	\see mutexgear_completion_item_isstarted
- *	\see mutexgear_completion_queueditem_finish
+ *	\see mutexgear_completion_queueditem_safefinish
+ *	\see mutexgear_completion_cancelablequeueditem_unsafefinish__locked
+ *	\see mutexgear_completion_cancelablequeueditem_unsafefinish__unlocked
  */
-_MUTEXGEAR_API int mutexgear_completion_cancelablequeueditem_finish(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
-	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/);
+_MUTEXGEAR_API int mutexgear_completion_cancelablequeueditem_safefinish(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
+
+/**
+ *	\fn void mutexgear_completion_cancelablequeueditem_unsafefinish__locked(mutexgear_completion_item_t *__item_instance)
+ *	\brief An inherited method for \c mutexgear_completion_queueditem_unsafefinish__locked
+ *
+ *	\see mutexgear_completion_cancelablequeueditem_safefinish
+ *	\see mutexgear_completion_queueditem_unsafefinish__locked
+ *	\see mutexgear_completion_cancelablequeueditem_unsafefinish__unlocked
+ */
+_MUTEXGEAR_API void mutexgear_completion_cancelablequeueditem_unsafefinish__locked(mutexgear_completion_item_t *__item_instance);
+
+/**
+ *	\fn void mutexgear_completion_cancelablequeueditem_unsafefinish__unlocked(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+ *	\brief An inherited method for \c mutexgear_completion_queueditem_unsafefinish__unlocked
+ *
+ *	\see mutexgear_completion_cancelablequeueditem_safefinish
+ *	\see mutexgear_completion_queueditem_unsafefinish__unlocked
+ *	\see mutexgear_completion_cancelablequeueditem_unsafefinish__locked
+ */
+_MUTEXGEAR_API void mutexgear_completion_cancelablequeueditem_unsafefinish__unlocked(mutexgear_completion_cancelablequeue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -1408,7 +1532,7 @@ mutexgear_completion_item_t *_mutexgear_completion_item_getfromworkitem(const mu
 	MG_ASSERT(__work_item != NULL);
 
 	MG_DECLARE_TYPE_CAST(mutexgear_completion_item_t);
-	return MG_PERFORM_TYPE_CAST((uint8_t *)__work_item - offsetof(mutexgear_completion_item_t, work_item));
+	return MG_PERFORM_TYPE_CAST((uint8_t *)__work_item - offsetof(mutexgear_completion_item_t, data.work_item));
 }
 
 
@@ -1438,66 +1562,66 @@ void *_mutexgear_completion_item_getwow(const mutexgear_completion_item_t *__ite
 
 
 _MUTEXGEAR_PURE_INLINE
-void _mutexgear_completion_item_constructextra(mutexgear_completion_item_t *__item_instance, _mutexgear_completion_item_extradata_t __extra_value)
+void _mutexgear_completion_itemdata_constructextra(_mutexgear_completion_itemdata_t *__data_instance, _mutexgear_completion_item_extradata_t __extra_value)
 {
-	_mg_atomic_construct_completion_item_extradata(_MG_PA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __extra_value);
+	_mg_atomic_construct_completion_item_extradata(_MG_PA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data), __extra_value);
 }
 
 _MUTEXGEAR_PURE_INLINE
-void _mutexgear_completion_item_destroyextra(mutexgear_completion_item_t *__item_instance)
+void _mutexgear_completion_itemdata_destroyextra(_mutexgear_completion_itemdata_t *__data_instance)
 {
-	_mg_atomic_destroy_completion_item_extradata(_MG_PA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data));
+	_mg_atomic_destroy_completion_item_extradata(_MG_PA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data));
 }
 
 _MUTEXGEAR_PURE_INLINE
-void _mutexgear_completion_item_assignextrabit(mutexgear_completion_item_t *__item_instance, unsigned int __bit_index, bool __bit_value)
-{
-	MG_ASSERT(__bit_index < MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT);
-
-	if (__bit_value)
-	{
-		_mg_atomic_unsafeor_relaxed_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), (_mutexgear_completion_item_extradata_t)1 << __bit_index);
-	}
-	else
-	{
-		_mg_atomic_unsafeand_relaxed_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), ~((_mutexgear_completion_item_extradata_t)1 << __bit_index));
-	}
-}
-
-_MUTEXGEAR_PURE_INLINE
-void _mutexgear_completion_item_assignunsafeextrabit(mutexgear_completion_item_t *__item_instance, unsigned int __bit_index, bool __bit_value)
+void _mutexgear_completion_itemdata_assignextrabit(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __bit_index, bool __bit_value)
 {
 	MG_ASSERT(__bit_index < MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT);
 
 	if (__bit_value)
 	{
-		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data | ((_mutexgear_completion_item_extradata_t)1 << __bit_index));
+		_mg_atomic_unsafeor_relaxed_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data), (_mutexgear_completion_item_extradata_t)1 << __bit_index);
 	}
 	else
 	{
-		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data & ~((_mutexgear_completion_item_extradata_t)1 << __bit_index));
+		_mg_atomic_unsafeand_relaxed_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data), ~((_mutexgear_completion_item_extradata_t)1 << __bit_index));
 	}
 }
 
 _MUTEXGEAR_PURE_INLINE
-void _mutexgear_completion_item_assignunsafeallextrabits(mutexgear_completion_item_t *__item_instance, unsigned int __bit_count, bool __bit_value)
+void _mutexgear_completion_itemdata_assignunsafeextrabit(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __bit_index, bool __bit_value)
+{
+	MG_ASSERT(__bit_index < MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT);
+
+	if (__bit_value)
+	{
+		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data), __data_instance->extra_data | ((_mutexgear_completion_item_extradata_t)1 << __bit_index));
+	}
+	else
+	{
+		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data), __data_instance->extra_data & ~((_mutexgear_completion_item_extradata_t)1 << __bit_index));
+	}
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_itemdata_assignunsafeallextrabits(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __bit_count, bool __bit_value)
 {
 	MG_ASSERT(__bit_count != 0);
 
 	if (__bit_value)
 	{
 		const _mutexgear_completion_item_extradata_t change_bitmask = (((((_mutexgear_completion_item_extradata_t)1 << ((__bit_count) - 1)) - 1) << 1) | 1);
-		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data | change_bitmask);
+		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data), __data_instance->extra_data | change_bitmask);
 	}
 	else
 	{
 		const _mutexgear_completion_item_extradata_t change_bitmask = (((((_mutexgear_completion_item_extradata_t)1 << ((__bit_count) - 1)) - 1) << 1) | 1);
-		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data & ~change_bitmask);
+		_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data), __data_instance->extra_data & ~change_bitmask);
 	}
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool _mutexgear_completion_item_unsafemodifyextrabit(mutexgear_completion_item_t *__item_instance, unsigned int __bit_index, bool __bit_value)
+bool _mutexgear_completion_itemdata_unsafemodifyextrabit(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __bit_index, bool __bit_value)
 {
 	MG_ASSERT(__bit_index < MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT);
 
@@ -1505,20 +1629,20 @@ bool _mutexgear_completion_item_unsafemodifyextrabit(mutexgear_completion_item_t
 
 	if (__bit_value)
 	{
-		ret = (_mg_atomic_load_relaxed_completion_item_extradata(_MG_PCVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data)) & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) == 0
-			&& (_mg_atomic_unsafeor_relaxed_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), (_mutexgear_completion_item_extradata_t)1 << __bit_index), true);
+		ret = (_mg_atomic_load_relaxed_completion_item_extradata(_MG_PCVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data)) & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) == 0
+			&& (_mg_atomic_unsafeor_relaxed_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data), (_mutexgear_completion_item_extradata_t)1 << __bit_index), true);
 	}
 	else
 	{
-		ret = (_mg_atomic_load_relaxed_completion_item_extradata(_MG_PCVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data)) & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) != 0
-			&& (_mg_atomic_unsafeand_relaxed_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), ~((_mutexgear_completion_item_extradata_t)1 << __bit_index)), true);
+		ret = (_mg_atomic_load_relaxed_completion_item_extradata(_MG_PCVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data)) & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) != 0
+			&& (_mg_atomic_unsafeand_relaxed_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data), ~((_mutexgear_completion_item_extradata_t)1 << __bit_index)), true);
 	}
 
 	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool _mutexgear_completion_item_modifyunsafeextrabit(mutexgear_completion_item_t *__item_instance, unsigned int __bit_index, bool __bit_value)
+bool _mutexgear_completion_itemdata_modifyunsafeextrabit(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __bit_index, bool __bit_value)
 {
 	MG_ASSERT(__bit_index < MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT);
 
@@ -1526,48 +1650,57 @@ bool _mutexgear_completion_item_modifyunsafeextrabit(mutexgear_completion_item_t
 
 	if (__bit_value)
 	{
-		ret = (__item_instance->extra_data & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) == 0
-			&& (_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data | ((_mutexgear_completion_item_extradata_t)1 << __bit_index)), true);
+		ret = (__data_instance->extra_data & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) == 0
+			&& (_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data), __data_instance->extra_data | ((_mutexgear_completion_item_extradata_t)1 << __bit_index)), true);
 	}
 	else
 	{
-		ret = (__item_instance->extra_data & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) != 0
-			&& (_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data), __item_instance->extra_data & ~((_mutexgear_completion_item_extradata_t)1 << __bit_index)), true);
+		ret = (__data_instance->extra_data & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) != 0
+			&& (_mg_atomic_reinit_completion_item_extradata(_MG_PVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data), __data_instance->extra_data & ~((_mutexgear_completion_item_extradata_t)1 << __bit_index)), true);
 	}
 
 	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool _mutexgear_completion_item_testextrabit(const mutexgear_completion_item_t *__item_instance, unsigned int __bit_index)
+bool _mutexgear_completion_itemdata_testextrabit(const _mutexgear_completion_itemdata_t *__data_instance, unsigned int __bit_index)
 {
-	bool ret = (_mg_atomic_load_relaxed_completion_item_extradata(_MG_PCVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data)) & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) != 0;
+	bool ret = (_mg_atomic_load_relaxed_completion_item_extradata(_MG_PCVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data)) & ((_mutexgear_completion_item_extradata_t)1 << __bit_index)) != 0;
 	return ret;
 }
 
 _MUTEXGEAR_PURE_INLINE
-bool _mutexgear_completion_item_testanyextrabits(const mutexgear_completion_item_t *__item_instance, unsigned int __bit_count)
+bool _mutexgear_completion_itemdata_testanyextrabits(const _mutexgear_completion_itemdata_t *__data_instance, unsigned int __bit_count)
 {
 	MG_ASSERT(__bit_count != 0);
 
 	const _mutexgear_completion_item_extradata_t test_bitmask = (((((_mutexgear_completion_item_extradata_t)1 << ((__bit_count) - 1)) - 1) << 1) | 1);
-	bool ret = (_mg_atomic_load_relaxed_completion_item_extradata(_MG_PCVA_COMPLETION_ITEM_EXTRADATA(&__item_instance->extra_data)) & test_bitmask) != 0;
+	bool ret = (_mg_atomic_load_relaxed_completion_item_extradata(_MG_PCVA_COMPLETION_ITEM_EXTRADATA(&__data_instance->extra_data)) & test_bitmask) != 0;
 	return ret;
 }
 
 
+_MUTEXGEAR_PURE_INLINE void _mutexgear_completion_itemdata_init(_mutexgear_completion_itemdata_t *__data_instance);
+_MUTEXGEAR_PURE_INLINE void _mutexgear_completion_itemdata_destroy(_mutexgear_completion_itemdata_t *__data_instance);
+
 _MUTEXGEAR_PURE_INLINE
 void mutexgear_completion_item_init(mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_dlraitem_init(&__item_instance->work_item);
+	_mutexgear_completion_itemdata_init(&__item_instance->data);
 	_mutexgear_completion_item_constructwow(__item_instance, __item_instance); // = NULL
-	_mutexgear_completion_item_constructextra(__item_instance, 0); // NOTE: Extra Data is initialized for client's convenience
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_itemdata_init(_mutexgear_completion_itemdata_t *__data_instance)
+{
+	mutexgear_dlraitem_init(&__data_instance->work_item);
+	_mutexgear_completion_itemdata_constructextra(__data_instance, 0); // NOTE: Extra Data is initialized for client's convenience
 }
 
 _MUTEXGEAR_PURE_INLINE
 void mutexgear_completion_item_reinit(mutexgear_completion_item_t *__item_instance)
 {
-	MG_ASSERT(!mutexgear_dlraitem_islinked(&__item_instance->work_item));
+	MG_ASSERT(!mutexgear_dlraitem_islinked(&__item_instance->data.work_item));
 
 	_mutexgear_completion_item_unsafesetwow(__item_instance, __item_instance); // = NULL
 	// NOTE: Extra Data is kept for client code and is not manager by the Item
@@ -1576,7 +1709,7 @@ void mutexgear_completion_item_reinit(mutexgear_completion_item_t *__item_instan
 _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_item_isasinit(const mutexgear_completion_item_t *__item_instance)
 {
-	bool ret = !mutexgear_dlraitem_islinked(&__item_instance->work_item) && _mutexgear_completion_item_getwow(__item_instance) == (void *)__item_instance
+	bool ret = !mutexgear_dlraitem_islinked(&__item_instance->data.work_item) && _mutexgear_completion_item_getwow(__item_instance) == (void *)__item_instance
 		/*&& NOTE: Extra Data is kept for client code and is not manager by the Item*/;
 	return ret;
 }
@@ -1584,54 +1717,109 @@ bool mutexgear_completion_item_isasinit(const mutexgear_completion_item_t *__ite
 _MUTEXGEAR_PURE_INLINE
 void mutexgear_completion_item_destroy(mutexgear_completion_item_t *__item_instance)
 {
-	_mutexgear_completion_item_destroyextra(__item_instance);
 	_mutexgear_completion_item_destroywow(__item_instance);
-	mutexgear_dlraitem_destroy(&__item_instance->work_item);
+	_mutexgear_completion_itemdata_destroy(&__item_instance->data);
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_itemdata_destroy(_mutexgear_completion_itemdata_t *__data_instance)
+{
+	_mutexgear_completion_itemdata_destroyextra(__data_instance);
+	mutexgear_dlraitem_destroy(&__data_instance->work_item);
 }
 
 
-_MUTEXGEAR_PURE_INLINE 
+_MUTEXGEAR_PURE_INLINE void _mutexgear_completion_itemdata_settag(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value);
+_MUTEXGEAR_PURE_INLINE void _mutexgear_completion_itemdata_setunsafetag(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value);
+_MUTEXGEAR_PURE_INLINE void _mutexgear_completion_itemdata_setallunsafetags(_mutexgear_completion_itemdata_t *__data_instance, bool __tag_value);
+_MUTEXGEAR_PURE_INLINE bool _mutexgear_completion_itemdata_unsafemodifytag(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value);
+_MUTEXGEAR_PURE_INLINE bool _mutexgear_completion_itemdata_modifyunsafetag(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value);
+_MUTEXGEAR_PURE_INLINE bool _mutexgear_completion_itemdata_gettag(const _mutexgear_completion_itemdata_t *__data_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/);
+_MUTEXGEAR_PURE_INLINE bool _mutexgear_completion_itemdata_getanytags(const _mutexgear_completion_itemdata_t *__data_instance);
+
+_MUTEXGEAR_PURE_INLINE
 void mutexgear_completion_item_settag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
 {
-	_mutexgear_completion_item_assignextrabit(__item_instance, __tag_index, __tag_value);
+	_mutexgear_completion_itemdata_settag(&__item_instance->data, __tag_index, __tag_value);
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_itemdata_settag(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
+{
+	_mutexgear_completion_itemdata_assignextrabit(__data_instance, __tag_index, __tag_value);
 }
 
 _MUTEXGEAR_PURE_INLINE
 void mutexgear_completion_item_setunsafetag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
 {
-	_mutexgear_completion_item_assignunsafeextrabit(__item_instance, __tag_index, __tag_value);
+	_mutexgear_completion_itemdata_setunsafetag(&__item_instance->data, __tag_index, __tag_value);
 }
 
-_MUTEXGEAR_PURE_INLINE 
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_itemdata_setunsafetag(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
+{
+	_mutexgear_completion_itemdata_assignunsafeextrabit(__data_instance, __tag_index, __tag_value);
+}
+
+_MUTEXGEAR_PURE_INLINE
 void mutexgear_completion_item_setallunsafetags(mutexgear_completion_item_t *__item_instance, bool __tag_value)
 {
-	_mutexgear_completion_item_assignunsafeallextrabits(__item_instance, MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT, __tag_value);
+	_mutexgear_completion_itemdata_setallunsafetags(&__item_instance->data, __tag_value);
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_itemdata_setallunsafetags(_mutexgear_completion_itemdata_t *__data_instance, bool __tag_value)
+{
+	_mutexgear_completion_itemdata_assignunsafeallextrabits(__data_instance, MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT, __tag_value);
 }
 
 _MUTEXGEAR_PURE_INLINE 
 bool mutexgear_completion_item_unsafemodifytag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
 {
-	return _mutexgear_completion_item_unsafemodifyextrabit(__item_instance, __tag_index, __tag_value);
+	return _mutexgear_completion_itemdata_unsafemodifytag(&__item_instance->data, __tag_index, __tag_value);
+}
+
+_MUTEXGEAR_PURE_INLINE
+bool _mutexgear_completion_itemdata_unsafemodifytag(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
+{
+	return _mutexgear_completion_itemdata_unsafemodifyextrabit(__data_instance, __tag_index, __tag_value);
 }
 
 _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_item_modifyunsafetag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
 {
-	return _mutexgear_completion_item_modifyunsafeextrabit(__item_instance, __tag_index, __tag_value);
+	return _mutexgear_completion_itemdata_modifyunsafetag(&__item_instance->data, __tag_index, __tag_value);
+}
+
+_MUTEXGEAR_PURE_INLINE
+bool _mutexgear_completion_itemdata_modifyunsafetag(_mutexgear_completion_itemdata_t *__data_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
+{
+	return _mutexgear_completion_itemdata_modifyunsafeextrabit(__data_instance, __tag_index, __tag_value);
 }
 
 _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_item_gettag(const mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/)
 {
-	return _mutexgear_completion_item_testextrabit(__item_instance, __tag_index);
+	return _mutexgear_completion_itemdata_gettag(&__item_instance->data, __tag_index);
 }
 
-_MUTEXGEAR_PURE_INLINE 
+_MUTEXGEAR_PURE_INLINE
+bool _mutexgear_completion_itemdata_gettag(const _mutexgear_completion_itemdata_t *__data_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/)
+{
+	return _mutexgear_completion_itemdata_testextrabit(__data_instance, __tag_index);
+}
+
+_MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_item_getanytags(const mutexgear_completion_item_t *__item_instance)
 {
-	return _mutexgear_completion_item_testanyextrabits(__item_instance, MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT);
+	return _mutexgear_completion_itemdata_getanytags(&__item_instance->data);
 }
 
+_MUTEXGEAR_PURE_INLINE
+bool _mutexgear_completion_itemdata_getanytags(const _mutexgear_completion_itemdata_t *__data_instance)
+{
+	return _mutexgear_completion_itemdata_testanyextrabits(__data_instance, MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT);
+}
 
 
 _MUTEXGEAR_PURE_INLINE
@@ -1678,8 +1866,8 @@ bool mutexgear_completion_queue_getpreceding(mutexgear_completion_item_t **__out
 	MG_ASSERT(__item_instance != NULL);
 
 	mutexgear_dlraitem_t *previous_work_item;
-	const mutexgear_dlraitem_t *work_item_to_use = &__item_instance->work_item;
-	bool ret = mutexgear_dlralist_trygetprevious(&previous_work_item, &__queue_instance->work_list, work_item_to_use);
+	const mutexgear_dlraitem_t *current_work_item = mutexgear_completion_item_getworkitem(__item_instance);
+	bool ret = mutexgear_dlralist_trygetprevious(&previous_work_item, &__queue_instance->work_list, current_work_item);
 	
 	*__out_preceding_item = _mutexgear_completion_item_getfromworkitem(previous_work_item);
 	return ret;
@@ -1690,7 +1878,8 @@ mutexgear_completion_item_t *mutexgear_completion_queue_getunsafepreceding(const
 {
 	MG_ASSERT(__item_instance != NULL);
 
-	mutexgear_dlraitem_t *previous_work_item = mutexgear_dlraitem_getprevious(&__item_instance->work_item);
+	const mutexgear_dlraitem_t *current_work_item = mutexgear_completion_item_getworkitem(__item_instance);
+	mutexgear_dlraitem_t *previous_work_item = mutexgear_dlraitem_getprevious(current_work_item);
 	return _mutexgear_completion_item_getfromworkitem(previous_work_item);
 }
 
@@ -1732,7 +1921,8 @@ bool mutexgear_completion_queue_unsafegetnext(mutexgear_completion_item_t **__ou
 	MG_ASSERT(__queue_instance != NULL);
 	MG_ASSERT(__item_instance != NULL);
 
-	mutexgear_dlraitem_t *next_work_item = mutexgear_dlraitem_getnext(&__item_instance->work_item), *work_items_end = mutexgear_dlralist_getend(&__queue_instance->work_list);
+	const mutexgear_dlraitem_t *current_work_item = mutexgear_completion_item_getworkitem(__item_instance);
+	mutexgear_dlraitem_t *next_work_item = mutexgear_dlraitem_getnext(current_work_item), *work_items_end = mutexgear_dlralist_getend(&__queue_instance->work_list);
 	
 	*__out_next_item = _mutexgear_completion_item_getfromworkitem(next_work_item);
 	return next_work_item != work_items_end;
@@ -1743,7 +1933,8 @@ mutexgear_completion_item_t *mutexgear_completion_queue_unsafegetunsafenext(cons
 {
 	MG_ASSERT(__item_instance != NULL);
 
-	mutexgear_dlraitem_t *next_work_item = mutexgear_dlraitem_getnext(&__item_instance->work_item);
+	const mutexgear_dlraitem_t *current_work_item = mutexgear_completion_item_getworkitem(__item_instance);
+	mutexgear_dlraitem_t *next_work_item = mutexgear_dlraitem_getnext(current_work_item);
 	return _mutexgear_completion_item_getfromworkitem(next_work_item);
 }
 

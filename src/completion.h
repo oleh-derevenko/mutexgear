@@ -218,48 +218,6 @@ bool _mutexgear_completion_item_isstarted(const mutexgear_completion_item_t *__i
 	return mutexgear_completion_item_isstarted(__item_instance);
 }
 
-_MUTEXGEAR_PURE_INLINE
-void _mutexgear_completion_item_settag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
-{
-	mutexgear_completion_item_settag(__item_instance, __tag_index, __tag_value);
-}
-
-_MUTEXGEAR_PURE_INLINE
-void _mutexgear_completion_item_setunsafetag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
-{
-	mutexgear_completion_item_setunsafetag(__item_instance, __tag_index, __tag_value);
-}
-
-_MUTEXGEAR_PURE_INLINE
-void _mutexgear_completion_item_setallunsafetags(mutexgear_completion_item_t *__item_instance, bool __tag_value)
-{
-	mutexgear_completion_item_setallunsafetags(__item_instance, __tag_value);
-}
-
-_MUTEXGEAR_PURE_INLINE
-bool _mutexgear_completion_item_unsafemodifytag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
-{
-	return mutexgear_completion_item_unsafemodifytag(__item_instance, __tag_index, __tag_value);
-}
-
-_MUTEXGEAR_PURE_INLINE
-bool _mutexgear_completion_item_modifyunsafetag(mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/, bool __tag_value)
-{
-	return mutexgear_completion_item_modifyunsafetag(__item_instance, __tag_index, __tag_value);
-}
-
-_MUTEXGEAR_PURE_INLINE
-bool _mutexgear_completion_item_gettag(const mutexgear_completion_item_t *__item_instance, unsigned int __tag_index/*<MUTEXGEAR_COMPLETION_ITEM_TAGINDEX_COUNT*/)
-{
-	return mutexgear_completion_item_gettag(__item_instance, __tag_index);
-}
-
-_MUTEXGEAR_PURE_INLINE
-bool _mutexgear_completion_item_getanytags(const mutexgear_completion_item_t *__item_instance)
-{
-	return mutexgear_completion_item_getanytags(__item_instance);
-}
-
 
 _MUTEXGEAR_PURE_INLINE int _mutexgear_completion_queue_init(mutexgear_completion_queue_t *__queue_instance, const mutexgear_completion_genattr_t *__attr/*=NULL*/);
 _MUTEXGEAR_PURE_INLINE int _mutexgear_completion_queue_destroy(mutexgear_completion_queue_t *__queue_instance);
@@ -378,7 +336,7 @@ int _mutexgear_completion_queue_enqueue_before(mutexgear_completion_queue_t *__q
 		}
 		// mutex_locked = true; -- no breaks after this point at this time
 
-		mutexgear_dlralist_linkat(&__queue_instance->work_list, &__item_instance->work_item, &__before_item->work_item);
+		mutexgear_dlralist_linkat(&__queue_instance->work_list, &__item_instance->data.work_item, &__before_item->data.work_item);
 		
 		if (__lock_hint == NULL)
 		{
@@ -425,14 +383,14 @@ _MUTEXGEAR_PURE_INLINE
 void _mutexgear_completion_queue_unsafeenqueue_before(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__before_item, 
 	mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_dlralist_linkat(&__queue_instance->work_list, &__item_instance->work_item, &__before_item->work_item);
+	mutexgear_dlralist_linkat(&__queue_instance->work_list, &__item_instance->data.work_item, &__before_item->data.work_item);
 }
 
 _MUTEXGEAR_PURE_INLINE
 void _mutexgear_completion_queue_unsafemultiqueue_before(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__before_item, 
 	mutexgear_completion_item_t *__first_item, mutexgear_completion_item_t *__last_item)
 {
-	_mutexgear_dlralist_multilinkat(&__queue_instance->work_list, &__first_item->work_item, &__last_item->work_item, &__before_item->work_item);
+	_mutexgear_dlralist_multilinkat(&__queue_instance->work_list, &__first_item->data.work_item, &__last_item->data.work_item, &__before_item->data.work_item);
 }
 
 _MUTEXGEAR_PURE_INLINE
@@ -446,14 +404,14 @@ void _mutexgear_completion_queue_unsafeenqueue_back(mutexgear_completion_queue_t
 _MUTEXGEAR_PURE_INLINE
 void _mutexgear_completion_queue_unsafespliceat(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__before_item, mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_dlraitem_t *next_item = mutexgear_dlraitem_getnext(&__item_instance->work_item);
-	mutexgear_dlralist_spliceat(&__queue_instance->work_list, &__before_item->work_item, &__item_instance->work_item, next_item);
+	mutexgear_dlraitem_t *next_item = mutexgear_dlraitem_getnext(&__item_instance->data.work_item);
+	mutexgear_dlralist_spliceat(&__queue_instance->work_list, &__before_item->data.work_item, &__item_instance->data.work_item, next_item);
 }
 
 _MUTEXGEAR_PURE_INLINE
 void _mutexgear_completion_queue_unsafedequeue(mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_dlralist_unlink(&__item_instance->work_item);
+	mutexgear_dlralist_unlink(&__item_instance->data.work_item);
 }
 
 static void _mutexgear_completion_queueditem_commcompletiontowaiter(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance,
@@ -466,9 +424,13 @@ void _mutexgear_completion_queueditem_start(mutexgear_completion_item_t *__item_
 	mutexgear_completion_queueditem_start(__item_instance, __worker_instance);
 }
 
+
+_MUTEXGEAR_PURE_INLINE void _mutexgear_completion_queueditem_unsafefinish__locked(mutexgear_completion_item_t *__item_instance);
+_MUTEXGEAR_PURE_INLINE void _mutexgear_completion_queueditem_unsafefinish__unlocked(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
+
+
 _MUTEXGEAR_PURE_INLINE 
-int _mutexgear_completion_queueditem_finish(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
-	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
+int _mutexgear_completion_queueditem_safefinish(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
 {
 	bool success = false;
 	int ret, mutex_unlock_status;
@@ -477,39 +439,18 @@ int _mutexgear_completion_queueditem_finish(mutexgear_completion_queue_t *__queu
 
 	do
 	{
-		if (__lock_hint == NULL && (ret = _mutexgear_lock_acquire(&__queue_instance->access_lock)) != EOK)
+		if ((ret = _mutexgear_lock_acquire(&__queue_instance->access_lock)) != EOK)
 		{
 			break;
 		}
 		// mutex_locked = true; -- no breaks after this point at this time
 
-		mutexgear_dlralist_unlink(&__item_instance->work_item);
+		_mutexgear_completion_queueditem_unsafefinish__locked(__item_instance);
 
-		if (__lock_hint == NULL)
-		{
-			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__queue_instance->access_lock)) == EOK); // Should succeed normally
-		}
+		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__queue_instance->access_lock)) == EOK); // Should succeed normally
 		// mutex_locked = false;
 
-		void *current_worker = _mutexgear_completion_item_getwow(__item_instance);
-		
-		if (current_worker != (void *)__worker_instance)
-		{
-			MG_ASSERT(current_worker != NULL);
-
-			mutexgear_completion_waiter_t *item_waiter = (mutexgear_completion_waiter_t *)current_worker;
-			_mutexgear_completion_queueditem_commcompletiontowaiter(__queue_instance, __item_instance, __worker_instance, item_waiter);
-
-			// Make sure no reinitialization is necessary
-			MG_ASSERT(_mutexgear_completion_item_isasinit(__item_instance));
-		}
-		else
-		{
-			// Reinitialize the item to have it prepared for next uses 
-			// (it is more convenient and logical to reinitialize the item after use in the routine 
-			// rather that requiring the caller to do it before each item reuse).
-			_mutexgear_completion_item_reinit(__item_instance);
-		}
+		_mutexgear_completion_queueditem_unsafefinish__unlocked(__queue_instance, __item_instance, __worker_instance);
 
 		ret = EOK;
 		success = true;
@@ -520,10 +461,7 @@ int _mutexgear_completion_queueditem_finish(mutexgear_completion_queue_t *__queu
 	{
 		// if (mutex_locked)
 		// {
-		// 	if (__lock_hint == NULL)
-		// 	{
 		// 		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(&__queue_instance->access_lock)) == EOK); // Should succeed normally
-		// 	}
 		// }
 	}
 
@@ -533,7 +471,7 @@ int _mutexgear_completion_queueditem_finish(mutexgear_completion_queue_t *__queu
 _MUTEXGEAR_PURE_INLINE
 void _mutexgear_completion_queueditem_unsafefinish__locked(mutexgear_completion_item_t *__item_instance)
 {
-	mutexgear_dlralist_unlink(&__item_instance->work_item);
+	mutexgear_dlralist_unlink(&__item_instance->data.work_item);
 }
 
 _MUTEXGEAR_PURE_INLINE
@@ -648,10 +586,15 @@ void _mutexgear_completion_drainablequeue_unsafegetindex(mutexgear_completion_dr
 	MG_ASSERT(queue_drain_index != MUTEXGEAR_COMPLETION_INVALID_DRAINIDX);
 }
 
-_MUTEXGEAR_PURE_INLINE
-int _mutexgear_completion_drainablequeue_drain(mutexgear_completion_drainablequeue_t *__queue_instance,
+
+_MUTEXGEAR_PURE_INLINE void _mutexgear_completion_drainablequeue_unsafedrain__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
 	mutexgear_completion_item_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,
-	mutexgear_completion_drain_t *__target_drain, mutexgear_completion_locktoken_t __lock_hint/*=NULL*/, bool *__out_drain_execution_status/*=NULL*/)
+	mutexgear_completion_drain_t *__target_drain, bool *__out_drain_execution_status/*=NULL*/);
+
+_MUTEXGEAR_PURE_INLINE
+int _mutexgear_completion_drainablequeue_safedrain(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,
+	mutexgear_completion_drain_t *__target_drain, bool *__out_drain_execution_status/*=NULL*/)
 {
 	MG_ASSERT(__drain_head_item != NULL);
 	MG_ASSERT(__item_drain_index != MUTEXGEAR_COMPLETION_INVALID_DRAINIDX);
@@ -663,58 +606,63 @@ int _mutexgear_completion_drainablequeue_drain(mutexgear_completion_drainableque
 
 	do
 	{
-		bool drain_execution_status = false;
-
-		if (__lock_hint == NULL && (ret = _mutexgear_completion_queue_lock(NULL, &__queue_instance->basic_queue)) != EOK)
+		if ((ret = _mutexgear_completion_queue_lock(NULL, &__queue_instance->basic_queue)) != EOK)
 		{
 			break;
 		}
 		// mutex_locked = true; -- no breaks after this point at this time
 
-		mutexgear_dlraitem_t *p_work_begin = mutexgear_dlralist_getbegin(&__queue_instance->basic_queue.work_list);
-		mutexgear_dlraitem_t *p_item_work = _mutexgear_completion_item_getworkitem(__drain_head_item);
-		if (p_item_work == p_work_begin || __item_drain_index == __queue_instance->drain_index)
-		{
-			mutexgear_dlraitem_t *p_work_end = mutexgear_dlralist_getend(&__queue_instance->basic_queue.work_list);
-			mutexgear_dlralist_spliceback(&__target_drain->drain_list, p_item_work, p_work_end);
+		_mutexgear_completion_drainablequeue_unsafedrain__locked(__queue_instance, __drain_head_item, __item_drain_index, __target_drain, __out_drain_execution_status);
 
-			__queue_instance->drain_index = _mutexgear_completion_drainidx_increment(__queue_instance->drain_index);
-			drain_execution_status = true;
-		}
-		else
-		{
-			// Ignore the drain request if the item is not at the head and provided index does not match that in the queue:
-			// the item might have already been already drained and it is not possible to quickly determine whether it was or was not.
-		}
-
-		if (__lock_hint == NULL)
-		{
-			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
-		}
+		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
 		// mutex_locked = false;
-
-		if (__out_drain_execution_status != NULL)
-		{
-			*__out_drain_execution_status = drain_execution_status;
-		}
 
 		ret = EOK;
 		success = true;
 	}
 	while (false);
 
-	if (!success)
-	{
-		// if (mutex_locked)
-		// {
-		// 	if (__lock_hint == NULL)
-		// 	{
-		// 		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = mutexgear_completion_plain_unlock_queue(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
-		// 	}
-		// }
-	}
+	// if (!success)
+	// {
+	// 	if (mutex_locked)
+	// 	{
+	// 			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = mutexgear_completion_plain_unlock_queue(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
+	// 	}
+	// }
 
 	return ret;
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_drainablequeue_unsafedrain__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,
+	mutexgear_completion_drain_t *__target_drain, bool *__out_drain_execution_status/*=NULL*/)
+{
+	MG_ASSERT(__drain_head_item != NULL);
+	MG_ASSERT(__item_drain_index != MUTEXGEAR_COMPLETION_INVALID_DRAINIDX);
+
+	bool drain_execution_status = false;
+
+	mutexgear_dlraitem_t *p_work_begin = mutexgear_dlralist_getbegin(&__queue_instance->basic_queue.work_list);
+	mutexgear_dlraitem_t *p_item_work = _mutexgear_completion_item_getworkitem(__drain_head_item);
+	if (p_item_work == p_work_begin || __item_drain_index == __queue_instance->drain_index)
+	{
+		mutexgear_dlraitem_t *p_work_end = mutexgear_dlralist_getend(&__queue_instance->basic_queue.work_list);
+		mutexgear_dlralist_spliceback(&__target_drain->drain_list, p_item_work, p_work_end);
+
+		__queue_instance->drain_index = _mutexgear_completion_drainidx_increment(__queue_instance->drain_index);
+		drain_execution_status = true;
+	}
+	else
+	{
+		// Ignore the drain request if the item is not at the head and provided index does not match that in the queue:
+		// the item might have already been already drained and it is not possible to quickly determine whether it was or was not.
+	}
+
+	if (__out_drain_execution_status != NULL)
+	{
+		*__out_drain_execution_status = drain_execution_status;
+	}
 }
 
 
@@ -840,67 +788,75 @@ void _mutexgear_completion_drainablequeue_unsafedequeue(mutexgear_completion_ite
 	_mutexgear_completion_queue_unsafedequeue(__item_instance);
 }
 
+
+_MUTEXGEAR_PURE_INLINE void _mutexgear_completion_drainablequeueditem_unsafefinish__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance,
+	mutexgear_completion_drainidx_t __item_drain_index/*=MUTEXGEAR_COMPLETION_INVALID_DRAINIDX*/, mutexgear_completion_drain_t *__target_drain/*=NULL*/);
+_MUTEXGEAR_PURE_INLINE void _mutexgear_completion_drainablequeueditem_unsafefinish__unlocked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance);
+
 _MUTEXGEAR_PURE_INLINE
-int _mutexgear_completion_drainablequeueditem_finish(mutexgear_completion_drainablequeue_t *__queue_instance,
+int _mutexgear_completion_drainablequeueditem_safefinish(mutexgear_completion_drainablequeue_t *__queue_instance,
 	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance,
-	mutexgear_completion_drainidx_t __item_drain_index/*=MUTEXGEAR_COMPLETION_INVALID_DRAINIDX*/, mutexgear_completion_drain_t *__target_drain/*=NULL*/,
-	mutexgear_completion_locktoken_t __lock_hint/*=NULL*/)
+	mutexgear_completion_drainidx_t __item_drain_index/*=MUTEXGEAR_COMPLETION_INVALID_DRAINIDX*/, mutexgear_completion_drain_t *__target_drain/*=NULL*/)
 {
 	MG_ASSERT((__target_drain == NULL) == (__item_drain_index == MUTEXGEAR_COMPLETION_INVALID_DRAINIDX));
 
 	bool success = false;
 	int ret, mutex_unlock_status;
 
-	bool mutex_locked = false;
+	// bool mutex_locked = false;
 
 	do
 	{
-		mutexgear_completion_locktoken_t lock_hint_to_use;
-
-		if (__lock_hint == NULL ? (ret = _mutexgear_completion_queue_lock(&lock_hint_to_use, &__queue_instance->basic_queue)) != EOK : (lock_hint_to_use = __lock_hint, false))
+		if ((ret = _mutexgear_completion_queue_lock(NULL, &__queue_instance->basic_queue)) != EOK)
 		{
 			break;
 		}
-		mutex_locked = true;
+		// mutex_locked = true;
 
-		MG_ASSERT(lock_hint_to_use == _mutexgear_completion_queue_derivetoken(&__queue_instance->basic_queue));
+		_mutexgear_completion_drainablequeueditem_unsafefinish__locked(__queue_instance, __item_instance, __item_drain_index, __target_drain);
 
-		// Explicitly override the value to make the optimizer's life easier
-		lock_hint_to_use = _mutexgear_completion_queue_derivetoken(&__queue_instance->basic_queue);
-
-		if (__target_drain != NULL
-			&& (ret = _mutexgear_completion_drainablequeue_drain(__queue_instance, __item_instance, __item_drain_index, __target_drain, lock_hint_to_use, NULL)) != EOK)
-		{
-			break;
-		}
-
-		_mutexgear_completion_queueditem_unsafefinish__locked(__item_instance);
-
-		if (__lock_hint == NULL)
-		{
-			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
-		}
+		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
 		// mutex_locked = false;
 
-		_mutexgear_completion_queueditem_unsafefinish__unlocked(&__queue_instance->basic_queue, __item_instance, __worker_instance);
+		_mutexgear_completion_drainablequeueditem_unsafefinish__unlocked(__queue_instance, __item_instance, __worker_instance);
 
 		ret = EOK;
 		success = true;
 	}
 	while (false);
 
-	if (!success)
-	{
-		if (mutex_locked)
-		{
-			if (__lock_hint == NULL)
-			{
-				MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
-			}
-		}
-	}
+	// if (!success)
+	// {
+	// 	if (mutex_locked)
+	// 	{
+	// 		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
+	// 	}
+	// }
 
 	return ret;
+}
+
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_drainablequeueditem_unsafefinish__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance, 
+	mutexgear_completion_drainidx_t __item_drain_index/*=MUTEXGEAR_COMPLETION_INVALID_DRAINIDX*/, mutexgear_completion_drain_t *__target_drain/*=NULL*/)
+{
+	if (__target_drain != NULL)
+	{
+		_mutexgear_completion_drainablequeue_unsafedrain__locked(__queue_instance, __item_instance, __item_drain_index, __target_drain, NULL);
+	}
+
+	_mutexgear_completion_queueditem_unsafefinish__locked(__item_instance);
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_drainablequeueditem_unsafefinish__unlocked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_item_t *__item_instance, mutexgear_completion_worker_t *__worker_instance)
+{
+	_mutexgear_completion_queueditem_unsafefinish__unlocked(&__queue_instance->basic_queue, __item_instance, __worker_instance);
 }
 
 
