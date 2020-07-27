@@ -27,9 +27,21 @@
 */
 
 
+#include "_confvars.h"
 #include <stddef.h>
-#include <stdbool.h>
 #include <stdint.h>
+
+#if !defined(_MUTEXGEAR_HAVE_NO_STDBOOL_H)
+#include <stdbool.h>
+#else // #if defined(_MUTEXGEAR_HAVE_NO_STDBOOL_H)
+#if !defined(__cplusplus)
+#if !defined(bool)
+#define bool int
+#define true 1
+#define false 0
+#endif // !defined(bool)
+#endif // #if !defined(__cplusplus)
+#endif // #if defined(_MUTEXGEAR_HAVE_NO_STDBOOL_H)
 
 
 #if defined(_MSC_VER) || (defined(__GNUC__) && defined(_WIN32))
@@ -108,7 +120,7 @@
 
 #if !defined(_MUTEXGEAR_PURE_INLINE)
 
-#define _MUTEXGEAR_PURE_INLINE static __inline
+#define _MUTEXGEAR_PURE_INLINE static inline
 
 
 #endif // #if !defined(_MUTEXGEAR_PURE_INLINE)
@@ -128,9 +140,9 @@
 
 #else // #ifndef _WIN32
 
-#if HAVE_PTHREAD_H
+#if defined(_MUTEXGEAR_HAVE_PTHREAD_H)
 #include <pthread.h>
-#endif // #if HAVE_PTHREAD_H
+#endif // #if defined(_MUTEXGEAR_HAVE_PTHREAD_H)
 
 
 #define _MUTEXGEAR_LOCKATTR_T		pthread_mutexattr_t

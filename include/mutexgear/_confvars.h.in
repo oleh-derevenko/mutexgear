@@ -1,0 +1,126 @@
+#ifndef __MUTEXGEAR__CONFVARS_H_INCLUDED
+#define __MUTEXGEAR__CONFVARS_H_INCLUDED
+
+/************************************************************************/
+/* The MutexGear Library                                                */
+/* The Library Configuration Variables                                  */
+/*                                                                      */
+/* WARNING!                                                             */
+/* This library contains a synchronization technique protected by       */
+/* the U.S. Patent 9,983,913.                                           */
+/*                                                                      */
+/* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
+/* AWAIT THE RELEASE AT https://mutexgear.com                           */
+/*                                                                      */
+/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/*                                                                      */
+/* E-mail: oleh.derevenko@gmail.com                                     */
+/* Skype: oleh_derevenko                                                */
+/************************************************************************/
+
+/**
+*	\file
+*	\brief MutexGear Library configuration variables
+*
+*	The file defines configuration variables to conditionally disable features 
+*	not applicable within the target environment.
+*/
+
+
+#define _MUTEXGEAR_VERSION "@MUTEXGEAR_VERSION@"
+
+
+#if defined(_MSC_VER)
+  #if !defined(_MUTEXGEAR_HAVE_NO_CXX11)
+    #define _MUTEXGEAR_HAVE_CXX11
+  #endif
+  #if !defined(_MUTEXGEAR_HAVE_NO_C11)
+    #define _MUTEXGEAR_HAVE_C11
+  #endif
+  #if !defined(_MUTEXGEAR_HAVE_PTHREAD_H)
+    #define _MUTEXGEAR_HAVE_NO_PTHREAD_H
+  #endif
+  #if !defined(_MUTEXGEAR_HAVE_ATOMIC_INSTEADOF_STDATOMIC)
+    #define _MUTEXGEAR_HAVE_NO_ATOMIC_INSTEADOF_STDATOMIC
+  #endif
+  #if !defined(_MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPRIOCEILING)
+    #define _MUTEXGEAR_HAVE_PTHREAD_MUTEXATTR_GETPRIOCEILING
+  #endif
+  #if !defined(_MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL)
+    #define _MUTEXGEAR_HAVE_PTHREAD_MUTEXATTR_GETPROTOCOL
+  #endif
+  #if !defined(_MUTEXGEAR_HAVE_CLOCK_GETTIME)
+    #define _MUTEXGEAR_HAVE_NO_CLOCK_GETTIME
+  #endif
+  #if !defined(_MUTEXGEAR_HAVE_GETTIMEOFDAY)
+    #define _MUTEXGEAR_HAVE_NO_GETTIMEOFDAY
+  #endif
+#endif
+
+
+#if defined(_MUTEXGEAR_HAVE_NO_CXX11)
+  #undef _MUTEXGEAR_HAVE_CXX11
+#elif !defined(_MUTEXGEAR_HAVE_CXX11)
+#if @MUTEXGEAR_HAVE_CXX11@ == 1
+  #define _MUTEXGEAR_HAVE_CXX11
+#endif
+#endif
+
+#if defined(_MUTEXGEAR_HAVE_NO_C11)
+  #undef _MUTEXGEAR_HAVE_C11
+#elif !defined(_MUTEXGEAR_HAVE_C11) 
+#if @MUTEXGEAR_HAVE_C11@ == 1
+  #define _MUTEXGEAR_HAVE_C11
+#endif
+#endif
+
+#if defined(_MUTEXGEAR_HAVE_NO_PTHREAD_H)
+  #undef _MUTEXGEAR_HAVE_PTHREAD_H
+#elif !defined(_MUTEXGEAR_HAVE_PTHREAD_H) 
+#if @MUTEXGEAR_HAVE_PTHREAD_H@ == 1
+  #define _MUTEXGEAR_HAVE_PTHREAD_H
+#endif
+#endif
+
+#if defined(_MUTEXGEAR_HAVE_NO_ATOMIC_INSTEADOF_STDATOMIC)
+  #undef _MUTEXGEAR_HAVE_ATOMIC_INSTEADOF_STDATOMIC
+#elif !defined(_MUTEXGEAR_HAVE_ATOMIC_INSTEADOF_STDATOMIC) 
+#if @MUTEXGEAR_HAVE_ATOMIC_INSTEADOF_STDATOMIC@ == 1
+  #define _MUTEXGEAR_HAVE_ATOMIC_INSTEADOF_STDATOMIC
+#endif
+#endif
+
+#if defined(_MUTEXGEAR_HAVE_PTHREAD_MUTEXATTR_GETPRIOCEILING)
+  #undef _MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPRIOCEILING
+#elif !defined(_MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPRIOCEILING) 
+#if @MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPRIOCEILING@ == 1
+  #define _MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPRIOCEILING
+#endif
+#endif
+
+#if defined(_MUTEXGEAR_HAVE_PTHREAD_MUTEXATTR_GETPROTOCOL)
+  #undef _MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL
+#elif !defined(_MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL) 
+#if @MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL@ == 1
+  #define _MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL
+#endif
+#endif
+
+#if defined(_MUTEXGEAR_HAVE_NO_CLOCK_GETTIME)
+  #undef _MUTEXGEAR_HAVE_CLOCK_GETTIME
+#elif !defined(_MUTEXGEAR_HAVE_CLOCK_GETTIME) 
+#if @MUTEXGEAR_HAVE_CLOCK_GETTIME@ == 1
+  #define _MUTEXGEAR_HAVE_CLOCK_GETTIME
+#endif
+#endif
+
+#if defined(_MUTEXGEAR_HAVE_NO_GETTIMEOFDAY)
+  #undef _MUTEXGEAR_HAVE_GETTIMEOFDAY
+#elif !defined(_MUTEXGEAR_HAVE_GETTIMEOFDAY) 
+#if @MUTEXGEAR_HAVE_GETTIMEOFDAY@ == 1
+  #define _MUTEXGEAR_HAVE_GETTIMEOFDAY
+#endif
+#endif
+
+
+#endif // #ifndef __MUTEXGEAR__CONFVARS_H_INCLUDED

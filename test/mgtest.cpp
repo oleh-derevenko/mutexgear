@@ -22,6 +22,7 @@
 #include <atomic>
 #include <utility>
 #include <stdio.h>
+#include <string.h>
 
 
 using mg::dlps_info;
@@ -29,7 +30,7 @@ using mg::dlps_list;
 using mg::parent_wrapper;
 
 
-#if HAVE_STD__SHARED_MUTEX
+#if _MGTEST_HAVE_STD__SHARED_MUTEX // <--------------------------------------- Automate this !!!
 #define SYSTEM_CPP_RWLOCK_VARIANT_T std::shared_mutex
 #else 
 #define SYSTEM_CPP_RWLOCK_VARIANT_T std::shared_timed_mutex // Ubuntu requires std::shared_timed_mutex rather than std::shared_mutex
@@ -54,6 +55,42 @@ typedef bool(*CFeatureTestProcedure)();
 
 
 //////////////////////////////////////////////////////////////////////////
+
+enum EMGRWLOCKFEATLEVEL
+{
+	MGMFL__MIN,
+
+	MGMFL_QUICK = MGMFL__MIN,
+
+	MGMFL__DUMP_MIN,
+
+	MGMFL_BASIC = MGMFL__DUMP_MIN,
+	MGMFL_EXTRA,
+
+	MGMFL__DUMP_MAX,
+
+	MGMFL__MAX = MGMFL__DUMP_MAX,
+
+	MGMFL__DEFAULT = MGMFL_QUICK,
+};
+
+static const char g_aszFeatureTestLevel_Quick[] = "quick";
+static const char g_aszFeatureTestLevel_Basic[] = "basic";
+static const char g_aszFeatureTestLevel_Extra[] = "extra";
+
+static inline 
+EMGRWLOCKFEATLEVEL DecodeMGRWLockFeatLevel(const char *szLevelName)
+{
+	EMGRWLOCKFEATLEVEL flResult = 
+		strcmp(szLevelName, g_aszFeatureTestLevel_Quick) == 0 ? MGMFL_QUICK :
+		strcmp(szLevelName, g_aszFeatureTestLevel_Basic) == 0 ? MGMFL_BASIC :
+		strcmp(szLevelName, g_aszFeatureTestLevel_Extra) == 0 ? MGMFL_EXTRA :
+		MGMFL__MAX;
+	MG_STATIC_ASSERT(MGMFL__MAX == 3);
+	
+	return flResult;
+}
+
 
 enum ERWLOCKLOCKTESTOBJECT
 {
@@ -82,6 +119,10 @@ static const unsigned g_uiLockOperationsPerLine = 100;
 const unsigned int g_uiSettleDownSleepDelay = 5000;
 
 static const char g_ascLockTestDetailsFileNameFormat[] = "LockTestDet_%zu%s_%zu_%s_%s.txt";
+
+static _mg_atomic_uint_t	g_uiPriorityAdjustmentErrorReported(0);
+
+static EMGRWLOCKFEATLEVEL	g_flSelectedFeatureRestLevel = MGMFL__DEFAULT;
 
 enum
 {
@@ -631,8 +672,9 @@ private:
 	void LaunchTheTest(CThreadExecutionBarrier &sbStartBarrier);
 	void WaitTheTestEnd(CThreadExecutionBarrier &sbFinishBarrier);
 
-	void InitializeTestResults(threadcntint ciWriterCount, threadcntint ciReraderCount);
-	void PublishTestResults(ERWLOCKLOCKTESTOBJECT toTestedObjectKind, threadcntint ciWriterCount, threadcntint ciReraderCount, CTimeUtils::timeduration tdTestDuration);
+	void InitializeTestResults(threadcntint ciWriterCount, threadcntint ciReraderCount, EMGRWLOCKFEATLEVEL flTestLevel);
+	void PublishTestResults(ERWLOCKLOCKTESTOBJECT toTestedObjectKind, threadcntint ciWriterCount, threadcntint ciReraderCount, EMGRWLOCKFEATLEVEL flTestLevel, 
+		CTimeUtils::timeduration tdTestDuration);
 	void BuildMergedThreadOperationMap(char ascMergeBuffer[], operationidxint iiLastSavedOperationIndex, operationidxint iiThreadOperationCount,
 		operationidxint aiiThreadLastOperationIndices[], threadcntint ciWriterCount, threadcntint ciReaderCount);
 	operationidxint FillThreadOperationMap(char ascMergeBuffer[], operationidxint iiLastSavedOperationIndex, const operationidxint iiThreadOperationCount,
@@ -640,7 +682,7 @@ private:
 	void InitializeThreadName(char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH + 1], char cMapFirstChar);
 	void IncrementThreadName(char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH + 1], threadcntint ciThreadIndex);
 	void SaveThreadOperationMapToDetails(ERWLOCKLOCKTESTOBJECT toTestedObjectKind, const char ascMergeBuffer[], operationidxint iiThreadOperationCount);
-	void FinalizeTestResults();
+	void FinalizeTestResults(EMGRWLOCKFEATLEVEL flTestLevel);
 
 private:
 	enum
@@ -923,7 +965,9 @@ CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, t
 template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
 bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::RunTheTask()
 {
-	InitializeTestResults(LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT);
+	EMGRWLOCKFEATLEVEL flLevelToTest = g_flSelectedFeatureRestLevel;
+
+	InitializeTestResults(LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest);
 	AllocateThreadOperationBuffers(LOCKTEST_THREAD_COUNT);
 
 	CThreadExecutionBarrier sbStartBarrier(LOCKTEST_THREAD_COUNT), sbFinishBarrier(LOCKTEST_THREAD_COUNT), sbExitBarrier(0);
@@ -946,7 +990,7 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 		CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
 		CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[toTestedObjectKind] = tpTestEndTime - tpTestStartTime;
-		PublishTestResults(toTestedObjectKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tdTestDuration);
+		PublishTestResults(toTestedObjectKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
 
 		FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
 
@@ -972,7 +1016,7 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 		CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
 		CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[toTestedObjectKind] = tpTestEndTime - tpTestStartTime;
-		PublishTestResults(toTestedObjectKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tdTestDuration);
+		PublishTestResults(toTestedObjectKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
 
 		FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
 
@@ -990,7 +1034,7 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 
 	
 	FreeThreadOperationBuffers(LOCKTEST_THREAD_COUNT);
-	FinalizeTestResults();
+	FinalizeTestResults(flLevelToTest);
 
 	return true;
 }
@@ -1141,7 +1185,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 
 
 template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::InitializeTestResults(threadcntint ciWriterCount, threadcntint ciReraderCount)
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::InitializeTestResults(threadcntint ciWriterCount, threadcntint ciReraderCount,
+	EMGRWLOCKFEATLEVEL flTestLevel)
 {
 	int iFileOpenStatus;
 	char ascFileNameFormatBuffer[256];
@@ -1153,52 +1198,58 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	{
 		MG_ASSERT(m_apsfOperationDetailFiles[toTestedObjectKind] == NULL);
 
-		const char *szObjectKindFileNameSuffix = g_aszTestedObjectKindFileNameSuffixes[toTestedObjectKind];
-		int iPrintResult = snprintf(ascFileNameFormatBuffer, sizeof(ascFileNameFormatBuffer), g_ascLockTestDetailsFileNameFormat,
-			tuiReaderWriteDivisor == 0 ? (size_t)ciWriterCount : (size_t)uiWritesPercent, tuiReaderWriteDivisor == 0 ? "" : "%", (size_t)ciReraderCount, szObjectKindFileNameSuffix, 
-			g_aszTestedObjectLanguageNames[ttlTestLanguage]);
-		MG_CHECK(iPrintResult, IN_RANGE(iPrintResult - 1, 0, ARRAY_SIZE(ascFileNameFormatBuffer) - 1) || (iPrintResult < 0 && (iPrintResult = -errno, false)));
+		if (IN_RANGE(flTestLevel, MGMFL__DUMP_MIN, MGMFL__DUMP_MAX))
+		{
+			const char *szObjectKindFileNameSuffix = g_aszTestedObjectKindFileNameSuffixes[toTestedObjectKind];
+			int iPrintResult = snprintf(ascFileNameFormatBuffer, sizeof(ascFileNameFormatBuffer), g_ascLockTestDetailsFileNameFormat,
+				tuiReaderWriteDivisor == 0 ? (size_t)ciWriterCount : (size_t)uiWritesPercent, tuiReaderWriteDivisor == 0 ? "" : "%", (size_t)ciReraderCount, szObjectKindFileNameSuffix, 
+				g_aszTestedObjectLanguageNames[ttlTestLanguage]);
+			MG_CHECK(iPrintResult, IN_RANGE(iPrintResult - 1, 0, ARRAY_SIZE(ascFileNameFormatBuffer) - 1) || (iPrintResult < 0 && (iPrintResult = -errno, false)));
 
-		FILE *psfObjectKindDetailsFile = fopen(ascFileNameFormatBuffer, "w+");
-		MG_CHECK(iFileOpenStatus, psfObjectKindDetailsFile != NULL || (iFileOpenStatus = errno, false));
+			FILE *psfObjectKindDetailsFile = fopen(ascFileNameFormatBuffer, "w+");
+			MG_CHECK(iFileOpenStatus, psfObjectKindDetailsFile != NULL || (iFileOpenStatus = errno, false));
 
-		m_apsfOperationDetailFiles[toTestedObjectKind] = psfObjectKindDetailsFile;
+			m_apsfOperationDetailFiles[toTestedObjectKind] = psfObjectKindDetailsFile;
+		}
 	}
 }
 
 template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
 void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::PublishTestResults(ERWLOCKLOCKTESTOBJECT toTestedObjectKind,
-	threadcntint ciWriterCount, threadcntint ciReaderCount, CTimeUtils::timeduration tdTestDuration)
+	threadcntint ciWriterCount, threadcntint ciReaderCount, EMGRWLOCKFEATLEVEL flTestLevel, CTimeUtils::timeduration tdTestDuration)
 {
 	MG_ASSERT(IN_RANGE(toTestedObjectKind, LTO__MIN, LTO__MAX));
 
-	const unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor;
-	const unsigned uiWritesPercent = uiReaderWriteDivisor != 0 ? 100 / uiReaderWriteDivisor : 0;
-
-	FILE *psfDetailsFile = m_apsfOperationDetailFiles[toTestedObjectKind];
-	int iPrintResult = fprintf(psfDetailsFile, "Lock-unlock test for %s with %zu%s write%s%s, %zu %s%s\nTime taken: %lu sec %lu nsec\n\nOperation sequence map:\n",
-		g_aszTestedObjectLanguageNames[ttlTestLanguage],
-		tuiReaderWriteDivisor == 0 ? (size_t)ciWriterCount : (size_t)uiWritesPercent, tuiReaderWriteDivisor == 0 ? "" : "%",
-		tuiReaderWriteDivisor == 0 ? "r" : "s", tuiReaderWriteDivisor == 0 && ciWriterCount != 1 ? "s" : "", (size_t)ciReaderCount, 
-		tuiReaderWriteDivisor == 0 ? "reader" : "thread", ciReaderCount != 1 ? "s" : "",
-		(unsigned long)(tdTestDuration / 1000000000), (unsigned long)(tdTestDuration % 1000000000));
-	MG_CHECK(iPrintResult, iPrintResult > 0 || (iPrintResult = errno, false));
-
-	const threadcntint ciTotalThreadCount = ciWriterCount + ciReaderCount;
-	operationidxint *piiThreadLastOperationIndices = new operationidxint[ciTotalThreadCount];
-	std::fill(piiThreadLastOperationIndices, piiThreadLastOperationIndices + ciTotalThreadCount, 0);
-
-	const operationidxint nThreadOperationCount = GetThreadOperationCount();
-	operationidxint iiLastSavedOperationIndex = 0;
-	char *pscMergeBuffer = GetDetailsMergeBuffer();
-	for (threadcntint ciCurrentBufferIndex = 0; ciCurrentBufferIndex != ciTotalThreadCount; ++ciCurrentBufferIndex)
+	if (IN_RANGE(flTestLevel, MGMFL__DUMP_MIN, MGMFL__DUMP_MAX))
 	{
-		BuildMergedThreadOperationMap(pscMergeBuffer, iiLastSavedOperationIndex, nThreadOperationCount, piiThreadLastOperationIndices, ciWriterCount, ciReaderCount);
-		SaveThreadOperationMapToDetails(toTestedObjectKind, pscMergeBuffer, nThreadOperationCount);
-		iiLastSavedOperationIndex += nThreadOperationCount;
-	}
+		const unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor;
+		const unsigned uiWritesPercent = uiReaderWriteDivisor != 0 ? 100 / uiReaderWriteDivisor : 0;
 
-	delete[] piiThreadLastOperationIndices;
+		FILE *psfDetailsFile = m_apsfOperationDetailFiles[toTestedObjectKind];
+		int iPrintResult = fprintf(psfDetailsFile, "Lock-unlock test for %s with %zu%s write%s%s, %zu %s%s\nTime taken: %lu sec %lu nsec\n\nOperation sequence map:\n",
+			g_aszTestedObjectLanguageNames[ttlTestLanguage],
+			tuiReaderWriteDivisor == 0 ? (size_t)ciWriterCount : (size_t)uiWritesPercent, tuiReaderWriteDivisor == 0 ? "" : "%",
+			tuiReaderWriteDivisor == 0 ? "r" : "s", tuiReaderWriteDivisor == 0 && ciWriterCount != 1 ? "s" : "", (size_t)ciReaderCount, 
+			tuiReaderWriteDivisor == 0 ? "reader" : "thread", ciReaderCount != 1 ? "s" : "",
+			(unsigned long)(tdTestDuration / 1000000000), (unsigned long)(tdTestDuration % 1000000000));
+		MG_CHECK(iPrintResult, iPrintResult > 0 || (iPrintResult = errno, false));
+
+		const threadcntint ciTotalThreadCount = ciWriterCount + ciReaderCount;
+		operationidxint *piiThreadLastOperationIndices = new operationidxint[ciTotalThreadCount];
+		std::fill(piiThreadLastOperationIndices, piiThreadLastOperationIndices + ciTotalThreadCount, 0);
+
+		const operationidxint nThreadOperationCount = GetThreadOperationCount();
+		operationidxint iiLastSavedOperationIndex = 0;
+		char *pscMergeBuffer = GetDetailsMergeBuffer();
+		for (threadcntint ciCurrentBufferIndex = 0; ciCurrentBufferIndex != ciTotalThreadCount; ++ciCurrentBufferIndex)
+		{
+			BuildMergedThreadOperationMap(pscMergeBuffer, iiLastSavedOperationIndex, nThreadOperationCount, piiThreadLastOperationIndices, ciWriterCount, ciReaderCount);
+			SaveThreadOperationMapToDetails(toTestedObjectKind, pscMergeBuffer, nThreadOperationCount);
+			iiLastSavedOperationIndex += nThreadOperationCount;
+		}
+
+		delete[] piiThreadLastOperationIndices;
+	}
 }
 
 template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
@@ -1318,18 +1369,23 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 }
 
 template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::FinalizeTestResults()
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, ttlTestLanguage>::FinalizeTestResults(EMGRWLOCKFEATLEVEL flTestLevel)
 {
 	for (ERWLOCKLOCKTESTOBJECT toTestedObjectKind = LTO__MIN; toTestedObjectKind != LTO__MAX; ++toTestedObjectKind)
 	{
-		FILE *psfObjectKindDetailsFile = m_apsfOperationDetailFiles[toTestedObjectKind];
-
-		if (psfObjectKindDetailsFile != NULL)
+		if (IN_RANGE(flTestLevel, MGMFL__DUMP_MIN, MGMFL__DUMP_MAX))
 		{
-			m_apsfOperationDetailFiles[toTestedObjectKind] = NULL;
+			FILE *psfObjectKindDetailsFile = m_apsfOperationDetailFiles[toTestedObjectKind];
 
-			fclose(psfObjectKindDetailsFile);
+			if (psfObjectKindDetailsFile != NULL)
+			{
+				m_apsfOperationDetailFiles[toTestedObjectKind] = NULL;
+
+				fclose(psfObjectKindDetailsFile);
+			}
 		}
+
+		MG_ASSERT(m_apsfOperationDetailFiles[toTestedObjectKind] == NULL);
 	}
 }
 
@@ -1399,24 +1455,19 @@ void *CRWLockLockTestThread<TOperationExecutor>::StaticExecuteThread(void *psvTh
 	return 0;
 }
 
+
 template<class TOperationExecutor>
 void CRWLockLockTestThread<TOperationExecutor>::AdjustThreadPriority()
 {
-#ifdef _WIN32
-	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL);
-
-#elif defined(_MGTEST_POSIX_ADJUST_SCHED)
+	int iPriorityIncreaseResult = _mutexgear_set_current_thread_high();
 	
-	int iSchedPolicy = SCHED_RR;
-
-	sched_param spSchedParam;
-	spSchedParam.sched_priority = 22;
-
-	int iSchedSetResult = sched_setscheduler(0, iSchedPolicy, &spSchedParam);
-	MG_ASSERT(iSchedSetResult == 0);
-
-
-#endif // #ifdef _MGTEST_POSIX_ADJUST_SCHED
+	if (iPriorityIncreaseResult != 0)
+	{
+		if (_mg_atomic_fetch_add_relaxed_uint(&g_uiPriorityAdjustmentErrorReported, iPriorityIncreaseResult) != 0)
+		{
+			_mg_atomic_fetch_sub_relaxed_uint(&g_uiPriorityAdjustmentErrorReported, iPriorityIncreaseResult);
+		}
+	}
 }
 
 template<class TOperationExecutor>
@@ -1774,6 +1825,90 @@ enum EMGRWLOCKFEATURE
 };
 MG_STATIC_ASSERT(MGWLF__TESTBEGIN <= MGWLF__TESTEND);
 
+
+static const EMGRWLOCKFEATLEVEL g_aflRWLockFeatureTestLevels[MGWLF__MAX] =
+{
+	MGMFL_BASIC, // MGWLF_1TW_ND_C,
+	MGMFL_BASIC, // MGWLF_4TW_ND_C,
+	MGMFL_QUICK, // MGWLF_8TW_ND_C,
+	MGMFL_BASIC, // MGWLF_16TW_ND_C,
+
+	MGMFL_EXTRA, // MGWLF_1TW_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_4TW_ND_CPP,
+	MGMFL_BASIC, // MGWLF_8TW_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_16TW_ND_CPP,
+
+	MGMFL_BASIC, // MGWLF_1TR_ND_C,
+	MGMFL_BASIC, // MGWLF_4TR_ND_C,
+	MGMFL_QUICK, // MGWLF_16TR_ND_C,
+	MGMFL_BASIC, // MGWLF_64TR_ND_C,
+
+	MGMFL_EXTRA, // MGWLF_1TR_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_4TR_ND_CPP,
+	MGMFL_BASIC, // MGWLF_16TR_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_64TR_ND_CPP,
+
+	MGMFL_BASIC, // MGWLF_8T_12PW_ND_C,
+	MGMFL_BASIC, // MGWLF_16T_12PW_ND_C,
+	MGMFL_BASIC, // MGWLF_32T_12PW_ND_C,
+	MGMFL_BASIC, // MGWLF_64T_12PW_ND_C,
+
+	MGMFL_EXTRA, // MGWLF_8T_12PW_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_16T_12PW_ND_CPP,
+	MGMFL_QUICK, // MGWLF_32T_12PW_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_64T_12PW_ND_CPP,
+
+	MGMFL_BASIC, // MGWLF_8T_25PW_ND_C,
+	MGMFL_BASIC, // MGWLF_16T_25PW_ND_C,
+	MGMFL_BASIC, // MGWLF_32T_25PW_ND_C,
+	MGMFL_BASIC, // MGWLF_64T_25PW_ND_C,
+
+	MGMFL_EXTRA, // MGWLF_8T_25PW_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_16T_25PW_ND_CPP,
+	MGMFL_BASIC, // MGWLF_32T_25PW_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_64T_25PW_ND_CPP,
+
+	MGMFL_BASIC, // MGWLF_8T_50PW_ND_C,
+	MGMFL_BASIC , // MGWLF_16T_50PW_ND_C,
+	MGMFL_BASIC, // MGWLF_32T_50PW_ND_C,
+	MGMFL_BASIC, // MGWLF_64T_50PW_ND_C,
+
+	MGMFL_EXTRA, // MGWLF_8T_50PW_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_16T_50PW_ND_CPP,
+	MGMFL_BASIC, // MGWLF_32T_50PW_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_64T_50PW_ND_CPP,
+
+	MGMFL_BASIC, // MGWLF_1TW_1TR_ND_C,
+	MGMFL_BASIC, // MGWLF_1TW_4TR_ND_C,
+	MGMFL_BASIC, // MGWLF_1TW_8TR_ND_C,
+	MGMFL_BASIC, // MGWLF_1TW_16TR_ND_C,
+
+	MGMFL_EXTRA, // MGWLF_1TW_1TR_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_1TW_4TR_ND_CPP,
+	MGMFL_BASIC, // MGWLF_1TW_8TR_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_1TW_16TR_ND_CPP,
+
+	MGMFL_BASIC, // MGWLF_4TW_4TR_ND_C,
+	MGMFL_BASIC, // MGWLF_4TW_8TR_ND_C,
+	MGMFL_BASIC, // MGWLF_4TW_16TR_ND_C,
+	MGMFL_BASIC, // MGWLF_4TW_32TR_ND_C,
+
+	MGMFL_EXTRA, // MGWLF_4TW_4TR_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_4TW_8TR_ND_CPP,
+	MGMFL_BASIC, // MGWLF_4TW_16TR_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_4TW_32TR_ND_CPP,
+
+	MGMFL_BASIC, // MGWLF_8TW_16TR_ND_C,
+	MGMFL_BASIC, // MGWLF_8TW_32TR_ND_C,
+	MGMFL_BASIC, // MGWLF_8TW_64TR_ND_C,
+	MGMFL_BASIC, // MGWLF_8TW_128TR_ND_C,
+
+	MGMFL_EXTRA, // MGWLF_8TW_16TR_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_8TW_32TR_ND_CPP,
+	MGMFL_BASIC, // MGWLF_8TW_64TR_ND_CPP,
+	MGMFL_EXTRA, // MGWLF_8TW_128TR_ND_CPP,
+};
+
 static const CFeatureTestProcedure g_afnRWLockFeatureTestProcedures[MGWLF__MAX] =
 {
 	&TestRWLockLocks<1, 0, LTL_C>, // MGWLF_1TW_ND_C,
@@ -1944,26 +2079,42 @@ static const char *const g_aszRWLockFeatureTestNames[MGWLF__MAX] =
 static 
 bool TestRWLock(unsigned int &nOutSuccessCount, unsigned int &nOutTestCount)
 {
-	unsigned int nSuccessCount = 0;
+	unsigned int nSuccessCount = 0, nTestCount = 0;
+
+	EMGRWLOCKFEATLEVEL flLevelToTest = g_flSelectedFeatureRestLevel;
 
 	for (EMGRWLOCKFEATURE lfRWLockFeature = MGWLF__TESTBEGIN; lfRWLockFeature != MGWLF__TESTEND; ++lfRWLockFeature)
 	{
-		const char *szFeatureName = g_aszRWLockFeatureTestNames[lfRWLockFeature];
-		printf("Testing %29s: ", szFeatureName);
-
-		CFeatureTestProcedure fnTestProcedure = g_afnRWLockFeatureTestProcedures[lfRWLockFeature];
-		bool bTestResult = fnTestProcedure();
-		printf("%s\n", bTestResult ? "success" : "failure");
-
-		if (bTestResult)
+		if (g_aflRWLockFeatureTestLevels[lfRWLockFeature] <= flLevelToTest)
 		{
-			nSuccessCount += 1;
+			++nTestCount;
+
+			const char *szFeatureName = g_aszRWLockFeatureTestNames[lfRWLockFeature];
+			printf("Testing %29s: ", szFeatureName);
+
+			CFeatureTestProcedure fnTestProcedure = g_afnRWLockFeatureTestProcedures[lfRWLockFeature];
+			bool bTestResult = fnTestProcedure();
+			printf("%s\n", bTestResult ? "success" : "failure");
+
+			if (bTestResult)
+			{
+				nSuccessCount += 1;
+			}
 		}
 	}
 
+	int iPriorityIncreaseResult;
+	if ((iPriorityIncreaseResult = _mg_atomic_load_relaxed_uint(&g_uiPriorityAdjustmentErrorReported)) != 0)
+	{
+		printf("WARNING: Test thread priority adjustment failed with error code %d (insufficient privileges?). Test times may be inaccurate.\n", iPriorityIncreaseResult);
+	}
+
+
 	nOutSuccessCount = nSuccessCount;
-	nOutTestCount = MGWLF__TESTCOUNT;
-	return nSuccessCount == MGWLF__TESTCOUNT;
+	nOutTestCount = nTestCount;
+	MG_ASSERT(nTestCount <= MGWLF__TESTCOUNT);
+
+	return nSuccessCount == nTestCount;
 }
 
 
@@ -2039,12 +2190,83 @@ bool PerformMGCoverageTests(unsigned int &nOutFailureCount)
 }
 
 
+static const char g_ascFeatureSwitchString_FeatureTestLevel[] = "-l";
+static const unsigned int g_uiFeatureSwitchLength_FeatureTestLevel = ARRAY_SIZE(g_ascFeatureSwitchString_FeatureTestLevel) - 1;
+
+static 
+bool ParseCommandLineArguments(unsigned int uiArgCount, char *pszArgValues[])
+{
+	bool bAnyFault = false;
+	
+	for (unsigned int uiCurrentArgIndex = 1; uiCurrentArgIndex < uiArgCount; ++uiCurrentArgIndex)
+	{
+		const char *szCurrentValue = pszArgValues[uiCurrentArgIndex];
+
+		const char *szSwitchLine;
+		unsigned int uiSwitchLength;
+		if (strncmp(szCurrentValue, (szSwitchLine = g_ascFeatureSwitchString_FeatureTestLevel), (uiSwitchLength = g_uiFeatureSwitchLength_FeatureTestLevel)) == 0)
+		{
+			if (szCurrentValue[uiSwitchLength] != '\0')
+			{
+				szCurrentValue += uiSwitchLength;
+			}
+			else if (++uiCurrentArgIndex == uiArgCount || (szCurrentValue = pszArgValues[uiCurrentArgIndex])[0] == '\0')
+			{
+				fprintf(stderr, "Level value is required after %s\n", szSwitchLine);
+				bAnyFault = true;
+				break;
+			}
+
+			EMGRWLOCKFEATLEVEL flLevelValue = DecodeMGRWLockFeatLevel(szCurrentValue);
+			if (flLevelValue == MGMFL__MAX)
+			{
+				fprintf(stderr, "Feature test level value is invalid: %s\n", szCurrentValue);
+				bAnyFault = true;
+				break;
+			}
+
+			g_flSelectedFeatureRestLevel = flLevelValue;
+		}
+		else
+		{
+			fprintf(stderr, "Unknown command line argument: %s\n", szCurrentValue);
+			bAnyFault = true;
+			break;
+		}
+	}
+
+	bool bResult = !bAnyFault;
+	return bResult;
+}
 
 
-int main()
+static 
+void PrintUsage(const char *szProgramPath)
+{
+	fprintf(stderr, "Usage:\n"
+		"%s [%s <Level>]\n"
+		"\t<Level> - feature test level: %s|%s|%s\n", 
+		szProgramPath, g_ascFeatureSwitchString_FeatureTestLevel,
+		g_aszFeatureTestLevel_Quick, g_aszFeatureTestLevel_Basic, g_aszFeatureTestLevel_Extra);
+}
+
+
+int main(int iArgCount, char *pszArgValues[])
 {
 	unsigned int nFailureCount;
-	PerformMGCoverageTests(nFailureCount);
+
+	do 
+	{
+		if (!ParseCommandLineArguments(iArgCount, pszArgValues))
+		{
+			PrintUsage(pszArgValues[0]);
+			nFailureCount = 1;
+			break;
+		}
+
+		PerformMGCoverageTests(nFailureCount);
+	}
+	while (false);
 
 	return nFailureCount;
 }

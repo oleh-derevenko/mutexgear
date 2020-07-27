@@ -368,6 +368,8 @@ int _mutexgear_rwlock_init(mutexgear_rwlock_t *__rwlock, mutexgear_rwlockattr_t 
 		mutexgear_dlraitem_t *const express_reads = _mutexgear_dlraitem_getfromprevious(&__rwlock->express_reads);
 		_mutexgear_dlraitem_initprevious(express_reads, express_reads);
 
+		_mg_atomic_construct_ptrdiff(_MG_PA_PTRDIFF(&__rwlock->express_commits), 0);
+
 		success = true;
 	}
 	while (false);
@@ -588,6 +590,7 @@ int _mutexgear_rwlock_destroy(mutexgear_rwlock_t *__rwlock)
 		_mutexgear_completion_drainablequeue_completedestroy(&__rwlock->waiting_reads);
 		_mutexgear_completion_drain_completedestroy(&__rwlock->read_wait_drain);
 		_mutexgear_dlraitem_destroyprevious(express_reads);
+		_mg_atomic_destroy_ptrdiff(_MG_PA_PTRDIFF(&__rwlock->express_commits));
 
 		success = true;
 	}
@@ -995,16 +998,23 @@ bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mut
 	const unsigned int lock_index_mask = (__rwlock->fl_un.mode_flags & _MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_MASK) >> _MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_SHIFT;
 	unsigned int starting_push_lock_index = _MUTEXGEAR_RWLOCK_MAKE_READER_PUSH_SELECTOR(__waiter);
 
-	unsigned int push_lock_index;
-	for (push_lock_index = starting_push_lock_index; ; )
+	ptrdiff_t known_express_commits = 0;
+	unsigned int push_lock_index = starting_push_lock_index;
+
+	if ((ret = _mutexgear_lock_acquire(&_MUTEXGEAR_RWLOCK_ACCESS_READER_PUSH_LOCK(__rwlock, push_lock_index & lock_index_mask))) != EOK)
 	{
-		if ((ret = _mutexgear_lock_acquire(&_MUTEXGEAR_RWLOCK_ACCESS_READER_PUSH_LOCK(__rwlock, push_lock_index & lock_index_mask))) != EOK)
-		{
-			fault = true;
-			break;
-		}
+		fault = true;
+	}
+
+	if (!fault)
+	{
 		++push_lock_index;
 
+		known_express_commits = _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->express_commits));
+	}
+
+	for (; !fault; fault = false)
+	{
 		// The readers push lock is a likely blocking lock, so there is a reason to re-check the acquired reads.
 		// This could, actually, be done within the rwlock_wrlock_wait_all_reads_and_acquire_access() 
 		// but extra checking here unrolls the first pass of the loop without entering the nested function.
@@ -1033,6 +1043,26 @@ bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mut
 		{
 			fault = true;
 			break;
+		}
+
+		// Check if express_commits counter changed...
+		ptrdiff_t new_express_commits = _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->express_commits));
+
+		// ...if not, proceed locking the next mutex
+		if (known_express_commits == new_express_commits)
+		{
+			if ((ret = _mutexgear_lock_acquire(&_MUTEXGEAR_RWLOCK_ACCESS_READER_PUSH_LOCK(__rwlock, push_lock_index & lock_index_mask))) != EOK)
+			{
+				fault = true;
+				break;
+			}
+
+			++push_lock_index;
+		}
+		// ...if changed, stay with the current locked mutex range and go for one more pass instead
+		else
+		{
+			known_express_commits = new_express_commits;
 		}
 	}
 
@@ -1451,6 +1481,10 @@ int _mutexgear_rwlock_rdlock(mutexgear_completion_item_t *__end_item, mutexgear_
 
 			if (express_tail_preview != express_reads)
 			{
+				// Increment the commit counter as soon as it is known that a commit will be performed 
+				// to make the beset effort preventing writers from merging within a single reader push lock.
+				_mg_atomic_store_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->express_commits)) + 1); // _mg_atomic_fetch_add_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), 1);
+
 				mutexgear_dlraitem_t *last_express_read = _mutexgear_dlraitem_swapprevious(express_reads, express_reads);
 				mutexgear_dlraitem_t *first_express_read = rwlock_rdlock_link_express_queue_till_rend(last_express_read, express_reads);
 				MG_ASSERT((_mutexgear_dlraitem_setunsafeprevious(first_express_read, first_express_read), true)); // To suppress an assertion check in _mutexgear_completion_queue_unsafemultiqueue_before() on the first item to be not linked
@@ -1939,6 +1973,10 @@ void rwlock_rdunlock_committed_commit_express_reads(mutexgear_rwlock_t *__rwlock
 
 	if (last_express_read != express_reads)
 	{
+		// Increment the commit counter as soon as it is known that a commit will be performed 
+		// to make the beset effort preventing writers from merging within a single reader push lock.
+		_mg_atomic_store_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->express_commits)) + 1); // _mg_atomic_fetch_add_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), 1);
+
 		mutexgear_dlraitem_t *first_express_read = rwlock_rdlock_link_express_queue_till_rend(last_express_read, express_reads);
 		MG_ASSERT((_mutexgear_dlraitem_setunsafeprevious(first_express_read, first_express_read), true)); // To suppress an assertion check in _mutexgear_completion_queue_unsafemultiqueue_before() on the first item to be not linked
 
@@ -1960,6 +1998,10 @@ void rwlock_rdunlock_queued_commit_express_reads(mutexgear_rwlock_t *__rwlock, m
 
 	if (last_express_read != item_work_item)
 	{
+		// Increment the commit counter as soon as it is known that a commit will be performed 
+		// to make the beset effort preventing writers from merging within a single reader push lock.
+		_mg_atomic_store_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->express_commits)) + 1); // _mg_atomic_fetch_add_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), 1);
+
 		mutexgear_dlraitem_t *first_preitem_express_read = rwlock_rdlock_link_express_queue_till_rend(last_express_read, item_work_item);
 		mutexgear_dlraitem_t *first_postitem_express_read = mutexgear_dlraitem_getprevious(item_work_item);
 
@@ -1983,6 +2025,10 @@ void rwlock_rdunlock_queued_commit_express_reads(mutexgear_rwlock_t *__rwlock, m
 
 		if (first_postitem_express_read != express_reads)
 		{
+			// Increment the commit counter as soon as it is known that a commit will be performed 
+			// to make the beset effort preventing writers from merging within a single reader push lock.
+			_mg_atomic_store_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->express_commits)) + 1); // _mg_atomic_fetch_add_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), 1);
+
 			last_express_read = first_postitem_express_read;
 			first_express_read = rwlock_rdlock_link_express_queue_till_rend(first_postitem_express_read, express_reads);
 

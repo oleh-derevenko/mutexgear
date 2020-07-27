@@ -1,4 +1,4 @@
-MutexGear Library License, version 1.0                                          
+The MutexGear Library License, version 1.0                                      
 Copyright (c) 2020, Oleh Derevenko <oluh.derevenko@gmail.com>(change 'u' to 'e')
 ================================================================================
                                                                                 
@@ -59,7 +59,7 @@ Copyright (c) 2020, Oleh Derevenko <oluh.derevenko@gmail.com>(change 'u' to 'e')
     this License in the documentation and/or other materials provided with the  
     distribution.                                                               
                                                                                 
-2.2. Alternatively, the MutexGear is permitted to be used, with or without       
+2.2. Alternatively, the MutexGear is permitted to be used, with or without      
   modifications, statically linked within, or in the form of a standalone Shared
   Library dynamically linked with, a Program or a Shared Library that meets all 
   of the following requirements:                                                

@@ -127,9 +127,9 @@ extern volatile intmax_t mg_failed_check_status;
 //////////////////////////////////////////////////////////////////////////
 // Atomics
 
-#ifdef _MUTEXGEAR_WITH_C11
-
 #ifdef __cplusplus
+
+#ifdef _MUTEXGEAR_HAVE_CXX11
 
 #include <atomic>
 #include <new>
@@ -153,9 +153,25 @@ extern volatile intmax_t mg_failed_check_status;
 #define __MUTEGEAR_ATOMIC_LOAD_ACQUIRE_PTRDIFF(source) ((ptrdiff_t)(source)->load(std::memory_order_acquire))
 
 
+#else // #ifndef _MUTEXGEAR_HAVE_CXX11
+
+#ifndef __MUTEXGEAR_ATOMIC_HEADER
+// If case if there is no user supplied definition define the header (see below) to self to avoid compilation errors on the inclusion
+#define __MUTEXGEAR_ATOMIC_HEADER <mutexgear/config.h>
+#endif
+
+// This should include a user supplied header to define atomic types/functions
+#include __MUTEXGEAR_ATOMIC_HEADER
+
+
+#endif // #ifndef _MUTEXGEAR_HAVE_CXX11
+
+
 #else // #ifndef __cplusplus
 
-#ifdef _MUTEXGEAR_WITH_ATOMIC_NOT_STDATOMIC
+#ifdef _MUTEXGEAR_HAVE_C11
+
+#ifdef _MUTEXGEAR_HAVE_ATOMIC_INSTEADOF_STDATOMIC
 #include <atomic.h>
 #else
 #include <stdatomic.h>
@@ -180,10 +196,7 @@ extern volatile intmax_t mg_failed_check_status;
 #define __MUTEGEAR_ATOMIC_LOAD_ACQUIRE_PTRDIFF(source) ((ptrdiff_t)atomic_load_explicit(source, memory_order_acquire))
 
 
-#endif // #ifndef __cplusplus
-
-
-#else // #ifndef _MUTEXGEAR_WITH_C11
+#else // #ifndef _MUTEXGEAR_HAVE_C11
 
 #ifndef __MUTEXGEAR_ATOMIC_HEADER
 // If case if there is no user supplied definition define the header (see below) to self to avoid compilation errors on the inclusion
@@ -193,6 +206,15 @@ extern volatile intmax_t mg_failed_check_status;
 // This should include a user supplied header to define atomic types/functions
 #include __MUTEXGEAR_ATOMIC_HEADER
 
+
+#endif // #ifndef _MUTEXGEAR_HAVE_C11
+
+
+#endif // #ifndef __cplusplus
+
+
+//////////////////////////////////////////////////////////////////////////
+// Checks that all the required definitions are present
 
 #ifndef __MUTEXGEAR_ATOMIC_PTRDIFF_NS
 #define __MUTEXGEAR_ATOMIC_PTRDIFF_NS
@@ -259,8 +281,8 @@ extern volatile intmax_t mg_failed_check_status;
 #endif
 
 
-#endif // #ifndef _MUTEXGEAR_WITH_C11
-
+//////////////////////////////////////////////////////////////////////////
+// Atomic function definitions
 
 typedef __MUTEXGEAR_ATOMIC_PTRDIFF_NS __MUTEXGEAR_ATOMIC_PTRDIFF_T _mg_atomic_ptrdiff_t;
 #define _MG_PA_PTRDIFF(argument) _mg_make_p_atomic_ptrdiff(argument)

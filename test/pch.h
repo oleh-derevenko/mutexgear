@@ -8,6 +8,7 @@
 #endif
 
 #include <mutexgear/utility.h>
+#include <mutexgear/config.h>
 
 
 #include <algorithm>
@@ -28,7 +29,7 @@ using std::max;
 //////////////////////////////////////////////////////////////////////////
 // Additional atomics
 
-#ifdef _MUTEXGEAR_WITH_C11
+#ifdef _MUTEXGEAR_HAVE_CXX11
 
 #include <atomic>
 
@@ -41,7 +42,7 @@ using std::max;
 #define __MUTEGEAR_ATOMIC_FETCH_SUB_RELAXED_UINT(destination, value) ((destination)->fetch_sub((unsigned int)(value), std::memory_order_relaxed))
 
 
-#else // #ifndef _MUTEXGEAR_WITH_C11
+#else // #ifndef _MUTEXGEAR_HAVE_CXX11
 
 #ifndef __MUTEXGEAR_ATOMIC_UINT_T
 #error Please define __MUTEXGEAR_ATOMIC_UINT_T
@@ -64,7 +65,7 @@ using std::max;
 #endif
 
 
-#endif // #ifndef _MUTEXGEAR_WITH_C11
+#endif // #ifndef _MUTEXGEAR_HAVE_CXX11
 
 
 typedef __MUTEXGEAR_ATOMIC_UINT_T _mg_atomic_uint_t;
@@ -162,9 +163,9 @@ int _mutexgear_rwlock_wrunlock(_MG_RWLOCK_T *__rwlock)
 
 #else // #ifndef _WIN32
 
-#if HAVE_PTHREAD_H
+#if defined(_MUTEXGEAR_HAVE_PTHREAD_H)
 #include <pthread.h>
-#endif // #if HAVE_PTHREAD_H
+#endif // #if defined(_MUTEXGEAR_HAVE_PTHREAD_H)
 
 
 _MUTEXGEAR_PURE_INLINE
@@ -269,9 +270,9 @@ int _mutexgear_manualevent_wait(_MG_MANUALEVENT_T *__event_instance)
 
 #else // #ifndef _WIN32
 
-#if HAVE_PTHREAD_H
+#if defined(_MUTEXGEAR_HAVE_PTHREAD_H)
 #include <pthread.h>
-#endif // #if HAVE_PTHREAD_H
+#endif // #if defined(_MUTEXGEAR_HAVE_PTHREAD_H)
 
 
 typedef struct __mutexgear_manualevent
@@ -515,9 +516,16 @@ int _mutexgear_sleep(uint64_t __timeout)
 _MUTEXGEAR_PURE_INLINE
 int _mutexgear_monotonic_clock_time(uint64_t *__out_timepoint)
 {
+#if defined(_MUTEXGEAR_HAVE_CLOCK_GETTIME)
 	struct timespec clock_time;
 	int ret = clock_gettime(CLOCK_MONOTONIC, &clock_time);
 	return ret == 0 ? (*__out_timepoint = (uint64_t)clock_time.tv_sec * 1000000000 + clock_time.tv_nsec, 0) : -1;
+#elif defined(_MUTEXGEAR_HAVE_GETTIMEOFDAY)
+    struct timeval tv;
+    return gettimeofday(&tv, NULL) == 0 ? (ts->tv_sec = tv.tv_sec, ts->tv_nsec = tv.tv_usec * 1000, 0) : (-1);
+#else
+#error Clock time retrieval function implementation is needed
+#endif
 }
 
 
@@ -538,9 +546,58 @@ int _mutexgear_monotonic_clock_time(uint64_t *__out_timepoint)
 #endif // #ifndef _WIN32
 
 
+#ifdef _WIN32
+	
+_MUTEXGEAR_PURE_INLINE
+int _mutexgear_set_current_thread_high()
+{
+	return SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_TIME_CRITICAL) ? 0 : GetLastError();
+}
+
+
+#elif defined(_MGTEST_POSIX_ADJUST_SCHED)
+
+#include <string.h>
+
+_MUTEXGEAR_PURE_INLINE
+int _mutexgear_set_current_thread_high()
+{
+	int iResult;
+	const int iSchedPolicy = SCHED_RR;
+
+	sched_param spSchedParam;
+	memset(&spSchedParam, 0, sizeof(spSchedParam));
+
+	int iMinPriority, iMaxPriority;
+	if ((iResult = iMinPriority = sched_get_priority_min(iSchedPolicy)) != -1 && (iResult = iMaxPriority = sched_get_priority_max(iSchedPolicy)) != -1)
+	{
+		spSchedParam.sched_priority = iMinPriority + (iMaxPriority - iMinPriority) * 3 / 4;
+
+		iResult = sched_setscheduler(0, iSchedPolicy, &spSchedParam);
+	}
+
+	return iResult != -1 ? 0 : errno;
+}
+
+
+#else
+	
+_MUTEXGEAR_PURE_INLINE
+int _mutexgear_set_current_thread_high()
+{
+	return ENOSYS;
+}
+
+
+#endif // #ifdef _MGTEST_POSIX_ADJUST_SCHED
+
+
+
+//////////////////////////////////////////////////////////////////////////
+
 #ifndef __linux__
-#ifndef HAVE_STD__SHARED_MUTEX
-#define HAVE_STD__SHARED_MUTEX 1
+#ifndef _MGTEST_HAVE_STD__SHARED_MUTEX
+#define _MGTEST_HAVE_STD__SHARED_MUTEX 1
 #endif
 #endif
 
@@ -560,13 +617,13 @@ TElementType(*__ARRAY_SIZE_HELPER(TElementType(&a)[tsiElementsCount]))[tsiElemen
 #define ARRAY_SIZE(a) (sizeof(*__ARRAY_SIZE_HELPER(a)) / sizeof((*__ARRAY_SIZE_HELPER(a))[0]))
 #endif
 
-#if defined(_MUTEXGEAR_WITH_C11)
+#if defined(_MUTEXGEAR_HAVE_CXX11)
 #include <type_traits>
 #endif
 
 template<typename EnumType>
 inline
-#if defined(_MUTEXGEAR_WITH_C11)
+#if defined(_MUTEXGEAR_HAVE_CXX11)
 typename std::enable_if<std::is_enum<EnumType>::value, EnumType>::type &operator ++(EnumType &Value)
 #else
 EnumType &operator ++(EnumType &Value)

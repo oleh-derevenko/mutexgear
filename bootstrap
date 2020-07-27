@@ -1,0 +1,14 @@
+#!/bin/sh
+
+echo "Running aclocal"
+aclocal -I m4 --install ||exit 1
+echo "Running libtoolize"
+libtoolize --copy --automake --install ||exit 1
+# echo "Running autoheader"
+# autoheader ||exit 1
+echo "Running automake"
+automake --foreign --add-missing --copy ||exit 1
+echo "Running autoconf"
+autoconf -f ||exit 1
+
+echo "Now you are ready to run ./configure"

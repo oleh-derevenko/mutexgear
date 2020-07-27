@@ -69,9 +69,6 @@
 #include <mutexgear/config.h>
 #include <mutexgear/completion.h>
 #include <mutexgear/constants.h>
-#if HAVE_PTHREAD_H
-#include <pthread.h>
-#endif // #if HAVE_PTHREAD_H
 
 
 _MUTEXGEAR_BEGIN_EXTERN_C();
@@ -330,6 +327,7 @@ typedef struct _mutexgear_rwlock
 	// Fields modified by readers
 	mutexgear_completion_drainablequeue_t waiting_reads;
 	mutexgear_dlraitem_prev_t    express_reads;
+	ptrdiff_t                    express_commits;
 	// Rarely modified fields for separation
 	mutexgear_completion_queue_t waiting_writes;
 	mutexgear_completion_drain_t read_wait_drain;

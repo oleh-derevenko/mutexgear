@@ -54,7 +54,7 @@ typedef ptrdiff_t mutexgear_dlraitem_prev_t;
 #define _MUTEXGEAR_LITEM_TRYSETPREV(p_item_instance, p_expected_prev_instance, new_prev_instance) (((_mutexgear_dlraitem_item_ptrdiff_union_t *)(p_expected_prev_instance))->diff_value = (uint8_t *)((_mutexgear_dlraitem_item_ptrdiff_union_t *)(p_expected_prev_instance))->item_value - (uint8_t *)(p_item_instance), _mg_atomic_cas_release_ptrdiff(_MG_PVA_PTRDIFF(&(p_item_instance)->p_prev_item), &((_mutexgear_dlraitem_item_ptrdiff_union_t *)(p_expected_prev_instance))->diff_value, (uint8_t *)(new_prev_instance) - (uint8_t *)(p_item_instance)) ? (((_mutexgear_dlraitem_item_ptrdiff_union_t *)(p_expected_prev_instance))->item_value = (_t_mutexgear_dlraitem_t *)(((_mutexgear_dlraitem_item_ptrdiff_union_t *)(p_expected_prev_instance))->diff_value + (uint8_t *)(p_item_instance)), true) : (((_mutexgear_dlraitem_item_ptrdiff_union_t *)(p_expected_prev_instance))->item_value = (_t_mutexgear_dlraitem_t *)(((_mutexgear_dlraitem_item_ptrdiff_union_t *)(p_expected_prev_instance))->diff_value + (uint8_t *)(p_item_instance)), false))
 #define _MUTEXGEAR_LITEM_SWAPPREV(p_item_instance, new_prev_instance) (_t_mutexgear_dlraitem_t *)(_mg_atomic_swap_release_ptrdiff(_MG_PVA_PTRDIFF(&(p_item_instance)->p_prev_item), (uint8_t *)(new_prev_instance) - (uint8_t *)(p_item_instance)) + (uint8_t *)(p_item_instance))
 
-#include <mutexgear/_llisttmpl.h>
+#include "_llisttmpl.h"
 
 struct _t__mutexgear_dlraitem;
 

@@ -1,0 +1,12 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+
+Name: mutexgear
+Description: The MutexGear Library
+Version: @MUTEXGEAR_VERSION@
+URL: https://mutexgear.com
+Libs: -L${libdir} -lmutexgear
+Libs.private: @MUTEXGEAR_PRIVATE_LIBS@
+Cflags: -I${includedir}

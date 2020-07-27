@@ -50,7 +50,7 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
 #define _MUTEXGEAR_LITEM_TRYSETPREV(p_item_instance, p_expected_prev_instance, new_prev_instance) ((p_item_instance)->p_prev_item == *(p_expected_prev_instance) ? ((p_item_instance)->p_prev_item = (new_prev_instance), true) : (*(p_expected_prev_instance) = (p_item_instance)->p_prev_item, false))
 #define _MUTEXGEAR_LITEM_SWAPPREV(p_item_instance, new_prev_instance) _mutexgear_dlpsitem_swap_items(&(p_item_instance)->p_prev_item, new_prev_instance)
 
-#include <mutexgear/_llisttmpl.h>
+#include "_llisttmpl.h"
 
 _MUTEXGEAR_DEFINE_LLIST_T(dlps, _t_mutexgear_dlpsitem_t *, _t_mutexgear_dlpsitem_t *);
 

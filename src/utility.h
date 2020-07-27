@@ -159,9 +159,9 @@ int _mutexgear_lock_release(_MUTEXGEAR_LOCK_T *__lock)
 #else // #ifndef _WIN32
 
 
-#if HAVE_PTHREAD_H
+#if defined(_MUTEXGEAR_HAVE_PTHREAD_H)
 #include <pthread.h>
-#endif // #if HAVE_PTHREAD_H
+#endif // #if defined(_MUTEXGEAR_HAVE_PTHREAD_H)
 
 
 #define _MUTEXGEAR_ERRNO__PSHARED_MISSING		EOK
@@ -228,7 +228,7 @@ _MUTEXGEAR_PURE_INLINE
 int _mutexgear_lockattr_getprioceiling(const _MUTEXGEAR_LOCKATTR_T *__attr, int *__out_prioceiling)
 {
 	int ret =
-#if HAVE_PTHREAD_MUTEXATTR_GETPRIOCEILING
+#if !defined(_MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPRIOCEILING)
 		pthread_mutexattr_getprioceiling(__attr, __out_prioceiling);
 #else
 		(*__out_prioceiling = -1, EOK);
@@ -240,7 +240,7 @@ _MUTEXGEAR_PURE_INLINE
 int _mutexgear_lockattr_setprioceiling(_MUTEXGEAR_LOCKATTR_T *__attr, int __prioceiling)
 {
 	int ret =
-#if HAVE_PTHREAD_MUTEXATTR_GETPRIOCEILING
+#if !defined(_MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPRIOCEILING)
 		pthread_mutexattr_setprioceiling(__attr, __prioceiling);
 #else
 		EOK;
@@ -252,7 +252,7 @@ int _mutexgear_lockattr_setprioceiling(_MUTEXGEAR_LOCKATTR_T *__attr, int __prio
 _MUTEXGEAR_PURE_INLINE
 int _mutexgear_lockattr_getprotocol(const _MUTEXGEAR_LOCKATTR_T *__attr, int *__out_protocol)
 {
-#if HAVE_PTHREAD_MUTEXATTR_GETPROTOCOL
+#if !defined(_MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL)
 	int protocol_value;
 	int ret = pthread_mutexattr_getprotocol(__attr, &protocol_value);
 	return ret == EOK
@@ -273,7 +273,7 @@ int _mutexgear_lockattr_getprotocol(const _MUTEXGEAR_LOCKATTR_T *__attr, int *__
 _MUTEXGEAR_PURE_INLINE
 int _mutexgear_lockattr_setprotocol(_MUTEXGEAR_LOCKATTR_T *__attr, int __protocol)
 {
-#if HAVE_PTHREAD_MUTEXATTR_GETPROTOCOL
+#if !defined(_MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL)
 	int ret;
 
 	do
