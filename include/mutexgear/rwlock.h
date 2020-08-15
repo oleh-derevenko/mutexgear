@@ -173,6 +173,9 @@ _MUTEXGEAR_API int mutexgear_rwlockattr_getprotocol(const mutexgear_rwlockattr_t
  *	the \c mutexgear_rwlockattr_t  structure.
  *
  *	Values of "pshared", "protocol" and "prioceiling" are copied.
+ *
+ *	Due to inability to clear previously assigned priority ceiling setting from attributes on some targets
+ *	it's recommended to call this function with freshly initialized \a __attr_instance only.
  *	\return EOK on success or a system error code on failure.
  */
 _MUTEXGEAR_API int mutexgear_rwlockattr_setmutexattr(mutexgear_rwlockattr_t *__attr_instance, const _MUTEXGEAR_LOCKATTR_T *__mutexattr_instance);

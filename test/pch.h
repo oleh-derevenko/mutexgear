@@ -29,7 +29,7 @@ using std::max;
 //////////////////////////////////////////////////////////////////////////
 // Additional atomics
 
-#ifdef _MUTEXGEAR_HAVE_CXX11
+#ifdef _MUTEXGEAR_HAVE_CXX11_ATOMICS
 
 #include <atomic>
 
@@ -42,7 +42,7 @@ using std::max;
 #define __MUTEGEAR_ATOMIC_FETCH_SUB_RELAXED_UINT(destination, value) ((destination)->fetch_sub((unsigned int)(value), std::memory_order_relaxed))
 
 
-#else // #ifndef _MUTEXGEAR_HAVE_CXX11
+#else // #ifndef _MUTEXGEAR_HAVE_CXX11_ATOMICS
 
 #ifndef __MUTEXGEAR_ATOMIC_UINT_T
 #error Please define __MUTEXGEAR_ATOMIC_UINT_T
@@ -65,15 +65,15 @@ using std::max;
 #endif
 
 
-#endif // #ifndef _MUTEXGEAR_HAVE_CXX11
+#endif // #ifndef _MUTEXGEAR_HAVE_CXX11_ATOMICS
 
 
 typedef __MUTEXGEAR_ATOMIC_UINT_T _mg_atomic_uint_t;
 
 _MUTEXGEAR_PURE_INLINE
-void _mg_atomic_init_uint(volatile _mg_atomic_uint_t *__destination, unsigned int __value)
+void _mg_atomic_init_uint(volatile _mg_atomic_uint_t *__destination, unsigned int __value1)
 {
-	__MUTEGEAR_ATOMIC_INIT_UINT(__destination, __value);
+	__MUTEGEAR_ATOMIC_INIT_UINT(__destination, __value1);
 }
 
 _MUTEXGEAR_PURE_INLINE
@@ -83,15 +83,15 @@ unsigned int _mg_atomic_load_relaxed_uint(const volatile _mg_atomic_uint_t *__so
 }
 
 _MUTEXGEAR_PURE_INLINE
-unsigned int _mg_atomic_fetch_add_relaxed_uint(volatile _mg_atomic_uint_t *__destination, unsigned int __value)
+unsigned int _mg_atomic_fetch_add_relaxed_uint(volatile _mg_atomic_uint_t *__destination, unsigned int __value1)
 {
-	return __MUTEGEAR_ATOMIC_FETCH_ADD_RELAXED_UINT(__destination, __value);
+	return __MUTEGEAR_ATOMIC_FETCH_ADD_RELAXED_UINT(__destination, __value1);
 }
 
 _MUTEXGEAR_PURE_INLINE
-unsigned int _mg_atomic_fetch_sub_relaxed_uint(volatile _mg_atomic_uint_t *__destination, unsigned int __value)
+unsigned int _mg_atomic_fetch_sub_relaxed_uint(volatile _mg_atomic_uint_t *__destination, unsigned int __value1)
 {
-	return __MUTEGEAR_ATOMIC_FETCH_SUB_RELAXED_UINT(__destination, __value);
+	return __MUTEGEAR_ATOMIC_FETCH_SUB_RELAXED_UINT(__destination, __value1);
 }
 
 
@@ -595,11 +595,28 @@ int _mutexgear_set_current_thread_high()
 
 //////////////////////////////////////////////////////////////////////////
 
-#ifndef __linux__
+#ifdef _MUTEXGEAR_HAVE_CXX11
+#ifndef _MGTEST_HAVE_CXX11
+#define _MGTEST_HAVE_CXX11 1
+#endif
+
+#ifdef _MUTEXGEAR_HAVE_STD__SHARED_MUTEX
 #ifndef _MGTEST_HAVE_STD__SHARED_MUTEX
 #define _MGTEST_HAVE_STD__SHARED_MUTEX 1
 #endif
 #endif
+
+#ifdef _MUTEXGEAR_HAVE_STD__SHARED_TIMED_MUTEX
+#ifndef _MGTEST_HAVE_STD__SHARED_TIMED_MUTEX
+#define _MGTEST_HAVE_STD__SHARED_TIMED_MUTEX 1
+#endif
+#endif
+
+#if _MGTEST_HAVE_STD__SHARED_MUTEX || _MGTEST_HAVE_STD__SHARED_TIMED_MUTEX
+#define _MGTEST_ANY_SHARED_MUTEX_AVAILABLE 1
+#endif
+
+#endif // #ifdef _MUTEXGEAR_HAVE_CXX11
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -665,6 +682,14 @@ public:
 	}
 };
 
+
+//////////////////////////////////////////////////////////////////////////
+
+#ifdef _MSC_VER
+#if _MSC_VER < 1900
+#define snprintf _snprintf
+#endif
+#endif
 
 
 #endif //PCH_H

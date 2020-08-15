@@ -57,12 +57,14 @@ typedef struct _mutexgear_toggleattr_t
 /**
  *	\fn int mutexgear_toggleattr_init(mutexgear_toggleattr_t *__attr)
  *	\brief A function to initialize a \c mutexgear_toggleattr_t instance.
+ *	\return EOK on success or a system error code on failure.
  */
 _MUTEXGEAR_API int mutexgear_toggleattr_init(mutexgear_toggleattr_t *__attr);
 /**
  *	\fn int mutexgear_toggleattr_destroy(mutexgear_toggleattr_t *__attr)
  *	\brief A function to destroy a previously initialized \c mutexgear_toggleattr_t
  *	instance and free any resources possibly allocated for it.
+ *	\return EOK on success or a system error code on failure.
  */
 _MUTEXGEAR_API int mutexgear_toggleattr_destroy(mutexgear_toggleattr_t *__attr);
 
@@ -70,12 +72,14 @@ _MUTEXGEAR_API int mutexgear_toggleattr_destroy(mutexgear_toggleattr_t *__attr);
  *	\fn int mutexgear_toggleattr_getpshared(const mutexgear_toggleattr_t *__attr, int *__pshared)
  *	\brief A function to get process shared attribute value stored in a \c mutexgear_toggleattr_t
  *	structure (similar to the \c pthread_mutexattr_getpshared).
+ *	\return EOK on success or a system error code on failure.
  */
 _MUTEXGEAR_API int mutexgear_toggleattr_getpshared(const mutexgear_toggleattr_t *__attr, int *__pshared);
 /**
  *	\fn int mutexgear_toggleattr_setpshared(mutexgear_toggleattr_t *__attr, int __pshared)
  *	\brief A function to assign process shared attribute value to a \c mutexgear_toggleattr_t
  *	structure (similar to the \c pthread_mutexattr_setpshared).
+ *	\return EOK on success or a system error code on failure.
  */
 _MUTEXGEAR_API int mutexgear_toggleattr_setpshared(mutexgear_toggleattr_t *__attr, int __pshared);
 
@@ -83,30 +87,40 @@ _MUTEXGEAR_API int mutexgear_toggleattr_setpshared(mutexgear_toggleattr_t *__att
  *	\fn int mutexgear_toggleattr_getprioceiling(const mutexgear_toggleattr_t *__attr, int *__prioceiling)
  *	\brief A function to query priority ceiling attribute value stored in a \c mutexgear_toggleattr_t
  *	structure (similar to the \c pthread_mutexattr_getprioceiling).
+ *	\return EOK on success or a system error code on failure.
  */
 _MUTEXGEAR_API int mutexgear_toggleattr_getprioceiling(const mutexgear_toggleattr_t *__attr, int *__prioceiling);
 /**
  *	\fn int mutexgear_toggleattr_getprotocol(const mutexgear_toggleattr_t *__attr, int *__protocol)
  *	\brief A function to retrieve lock protocol attribute value stored in a \c mutexgear_toggleattr_t
  *	structure (similar to the \c pthread_mutexattr_getprotocol).
+ *	\return EOK on success or a system error code on failure.
  */
 _MUTEXGEAR_API int mutexgear_toggleattr_getprotocol(const mutexgear_toggleattr_t *__attr, int *__protocol);
 /**
  *	\fn int mutexgear_toggleattr_setprioceiling(mutexgear_toggleattr_t *__attr, int __prioceiling)
  *	\brief A function to assign a priority ceiling value to a \c mutexgear_toggleattr_t
  *	structure (similar to the \c pthread_mutexattr_setprioceiling).
+ *	\return EOK on success or a system error code on failure.
  */
 _MUTEXGEAR_API int mutexgear_toggleattr_setprioceiling(mutexgear_toggleattr_t *__attr, int __prioceiling);
 /**
  *	\fn int mutexgear_toggleattr_setprotocol(mutexgear_toggleattr_t *__attr, int __protocol)
  *	\brief A function to set a lock protocol value to a \c mutexgear_toggleattr_t
  *	structure (similar to the \c pthread_mutexattr_setprotocol).
+ *	\return EOK on success or a system error code on failure.
  */
 _MUTEXGEAR_API int mutexgear_toggleattr_setprotocol(mutexgear_toggleattr_t *__attr, int __protocol);
 /**
  *	\fn int mutexgear_toggleattr_setmutexattr(mutexgear_toggleattr_t *__attr, const _MUTEXGEAR_LOCKATTR_T *__mutexattr)
  *	\brief A function to copy attributes from a mutex attributes structure to
  *	a \c mutexgear_toggleattr_t structure.
+ *
+ *	Values of "pshared", "protocol" and "prioceiling" are copied.
+ *
+ *	Due to inability to clear previously assigned priority ceiling setting from attributes on some targets
+ *	it's recommended to call this function with freshly initialized \a __attr_instance only.
+ *	\return EOK on success or a system error code on failure.
  */
 _MUTEXGEAR_API int mutexgear_toggleattr_setmutexattr(mutexgear_toggleattr_t *__attr, const _MUTEXGEAR_LOCKATTR_T *__mutexattr);
 

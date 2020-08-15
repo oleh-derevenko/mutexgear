@@ -908,7 +908,8 @@ int _mutexgear_completion_genattr_setmutexattr(mutexgear_completion_genattr_t *_
 			break;
 		}
 
-		if ((ret = _mutexgear_lockattr_setprioceiling(&__attr->lock_attr, prioceiling_value)) != EOK)
+		// The priority ceiling of 0 means that there is no priority ceiling defined (the default) and some targets fail with EINVAL when when attempting to assign the 0.
+		if (prioceiling_value != 0 && (ret = _mutexgear_lockattr_setprioceiling(&__attr->lock_attr, prioceiling_value)) != EOK)
 		{
 			break;
 		}

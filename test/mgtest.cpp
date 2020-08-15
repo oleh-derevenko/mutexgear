@@ -3,8 +3,19 @@
 #define _MGTEST_TEST_TWRL		1
 #define _MGTEST_TEST_TRDL		0
 
+
+#if _MGTEST_HAVE_CXX11
 #include <mutexgear/shared_mutex.hpp>
+#else
+#include <mutexgear/rwlock.h>
+#endif 
+
+#if _MGTEST_ANY_SHARED_MUTEX_AVAILABLE
 #include <shared_mutex>
+#endif
+
+
+#if _MGTEST_HAVE_CXX11
 
 #include <mutexgear/wheel.hpp>
 #include <mutexgear/toggle.hpp>
@@ -12,6 +23,14 @@
 
 #include <mutexgear/dlps_list.hpp>
 #include <mutexgear/parent_wrapper.hpp>
+
+using mg::dlps_info;
+using mg::dlps_list;
+using mg::parent_wrapper;
+
+
+#endif // #if _MGTEST_HAVE_CXX11
+
 
 #include <mutexgear/utility.h>
 
@@ -25,15 +44,11 @@
 #include <string.h>
 
 
-using mg::dlps_info;
-using mg::dlps_list;
-using mg::parent_wrapper;
 
-
-#if _MGTEST_HAVE_STD__SHARED_MUTEX // <--------------------------------------- Automate this !!!
+#if _MGTEST_HAVE_STD__SHARED_MUTEX
 #define SYSTEM_CPP_RWLOCK_VARIANT_T std::shared_mutex
-#else 
-#define SYSTEM_CPP_RWLOCK_VARIANT_T std::shared_timed_mutex // Ubuntu requires std::shared_timed_mutex rather than std::shared_mutex
+#elif _MGTEST_HAVE_STD__SHARED_TIMED_MUTEX
+#define SYSTEM_CPP_RWLOCK_VARIANT_T std::shared_timed_mutex
 #endif
 #if _MGTEST_TEST_TRDL
 #define MUTEXGEAR_CPP_RWLOCK_VARIANT_T mg::trdl::shared_mutex
@@ -298,6 +313,8 @@ private:
 	SYSTEM_C_RWLOCK_VARIANT_T	m_wlRWLock;
 };
 
+#if _MGTEST_ANY_SHARED_MUTEX_AVAILABLE
+
 template<>
 class CRWLockImplementation<LTO_SYSTEM, LTL_CPP>
 {
@@ -374,6 +391,59 @@ public:
 private:
 	SYSTEM_CPP_RWLOCK_VARIANT_T	m_wlRWLock;
 };
+
+
+#else  // #if !_MGTEST_ANY_SHARED_MUTEX_AVAILABLE
+
+template<>
+class CRWLockImplementation<LTO_SYSTEM, LTL_CPP>
+{
+public:
+	CRWLockImplementation() { }
+	~CRWLockImplementation() { }
+
+public:
+	class CLockWriteExtraObjects
+	{
+	public:
+	};
+
+	class CLockReadExtraObjects :
+		public CLockWriteExtraObjects
+	{
+	public:
+	};
+
+	void InitializeRWLockInstance()
+	{
+	}
+
+	void FinalizeRWLockInstance()
+	{
+	}
+
+	bool LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
+	{
+		return true;
+	}
+
+	void UnlockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
+	{
+	}
+
+	bool LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
+	{
+		return true;
+	}
+
+	void UnlockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
+	{
+	}
+};
+
+
+#endif // #if !_MGTEST_ANY_SHARED_MUTEX_AVAILABLE
+
 
 template<>
 class CRWLockImplementation<LTO_MUTEXGEAR, LTL_C>
@@ -507,6 +577,9 @@ private:
 	MUTEXGEAR_C_RWLOCK_VARIANT_T		m_wlRWLock;
 };
 
+
+#if _MGTEST_HAVE_CXX11
+
 template<>
 class CRWLockImplementation<LTO_MUTEXGEAR, LTL_CPP>
 {
@@ -607,6 +680,68 @@ private:
 private:
 	MUTEXGEAR_CPP_RWLOCK_VARIANT_T		m_wlRWLock;
 };
+
+
+#else // #if !_MGTEST_HAVE_CXX11
+
+template<>
+class CRWLockImplementation<LTO_MUTEXGEAR, LTL_CPP>
+{
+public:
+	CRWLockImplementation() { }
+	~CRWLockImplementation() { }
+
+public:
+	class CLockWriteExtraObjects
+	{
+	public:
+		CLockWriteExtraObjects()
+		{
+		}
+
+		~CLockWriteExtraObjects()
+		{
+		}
+	};
+
+	class CLockReadExtraObjects
+	{
+	public:
+		CLockReadExtraObjects()
+		{
+		}
+
+		~CLockReadExtraObjects()
+		{
+		}
+
+		operator CLockWriteExtraObjects &() { return m_eoWriteObjects; }
+
+		CLockWriteExtraObjects				m_eoWriteObjects;
+	};
+
+public:
+	bool LockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
+	{
+		return true;
+	}
+
+	void UnlockRWLockWrite(CLockWriteExtraObjects &eoRefExtraObjects)
+	{
+	}
+
+	bool LockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
+	{
+		return true;
+	}
+
+	void UnlockRWLockRead(CLockReadExtraObjects &eoRefExtraObjects)
+	{
+	}
+};
+
+
+#endif // #if !_MGTEST_HAVE_CXX11
 
 
 class CRWLockLockTestProgress;
@@ -977,53 +1112,71 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	{
 		const ERWLOCKLOCKTESTOBJECT toTestedObjectKind = LTO_SYSTEM;
 
-		CRWLockImplementation<toTestedObjectKind, ttlTestLanguage> liRWLock;
-		AllocateTestThreads<toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
+#if  !_MGTEST_ANY_SHARED_MUTEX_AVAILABLE
+		if (ttlTestLanguage == LTL_CPP)
+		{
+			atdObjectTestDurations[toTestedObjectKind] = 0;
+		}
+		else
+#endif
+		{
+			CRWLockImplementation<toTestedObjectKind, ttlTestLanguage> liRWLock;
+			AllocateTestThreads<toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
 
-		WaitTestThreadsReady(sbStartBarrier);
+			WaitTestThreadsReady(sbStartBarrier);
 
-		CTimeUtils::timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			CTimeUtils::timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
-		LaunchTheTest(sbStartBarrier);
-		WaitTheTestEnd(sbFinishBarrier);
+			LaunchTheTest(sbStartBarrier);
+			WaitTheTestEnd(sbFinishBarrier);
 
-		CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
-		CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[toTestedObjectKind] = tpTestEndTime - tpTestStartTime;
-		PublishTestResults(toTestedObjectKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
+			CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[toTestedObjectKind] = tpTestEndTime - tpTestStartTime;
+			PublishTestResults(toTestedObjectKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
 
-		FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
+			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
 
-		sbStartBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
-		sbFinishBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
-		sbExitBarrier.ResetInstance(0);
-		tpProgressInstance.ResetInstance();
+			sbStartBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
+			sbFinishBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
+			sbExitBarrier.ResetInstance(0);
+			tpProgressInstance.ResetInstance();
+		}
 	}
 
 	{
 		const ERWLOCKLOCKTESTOBJECT toTestedObjectKind = LTO_MUTEXGEAR;
 
-		CRWLockImplementation<toTestedObjectKind, ttlTestLanguage> liRWLock;
-		AllocateTestThreads<toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
+#if !_MGTEST_HAVE_CXX11
+		if (ttlTestLanguage == LTL_CPP)
+		{
+			atdObjectTestDurations[toTestedObjectKind] = 0;
+		}
+	else
+#endif
+		{
+			CRWLockImplementation<toTestedObjectKind, ttlTestLanguage> liRWLock;
+			AllocateTestThreads<toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
 
-		WaitTestThreadsReady(sbStartBarrier);
+			WaitTestThreadsReady(sbStartBarrier);
 
-		CTimeUtils::timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			CTimeUtils::timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
-		LaunchTheTest(sbStartBarrier);
-		WaitTheTestEnd(sbFinishBarrier);
+			LaunchTheTest(sbStartBarrier);
+			WaitTheTestEnd(sbFinishBarrier);
 
-		CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
-		CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[toTestedObjectKind] = tpTestEndTime - tpTestStartTime;
-		PublishTestResults(toTestedObjectKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
+			CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[toTestedObjectKind] = tpTestEndTime - tpTestStartTime;
+			PublishTestResults(toTestedObjectKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
 
-		FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
+			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
 
-		// sbStartBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
-		// sbFinishBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
-		// sbExitBarrier.ResetInstance(0);
-		// tpProgressInstance.ResetInstance();
+			// sbStartBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
+			// sbFinishBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
+			// sbExitBarrier.ResetInstance(0);
+			// tpProgressInstance.ResetInstance();
+		}
 	}
 	MG_STATIC_ASSERT(LTO__MAX == 2);
 
@@ -1191,8 +1344,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	int iFileOpenStatus;
 	char ascFileNameFormatBuffer[256];
 
-	const unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor;
-	const unsigned uiWritesPercent = uiReaderWriteDivisor != 0 ? 100 / uiReaderWriteDivisor : 0;
+	const volatile unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor; // The volatile is necessary to avoid a compile error in VS2013
+	const unsigned uiWritesPercent = uiReaderWriteDivisor != 0 ? (100 / uiReaderWriteDivisor) : 0;
 
 	for (ERWLOCKLOCKTESTOBJECT toTestedObjectKind = LTO__MIN; toTestedObjectKind != LTO__MAX; ++toTestedObjectKind)
 	{
@@ -1222,7 +1375,7 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 
 	if (IN_RANGE(flTestLevel, MGMFL__DUMP_MIN, MGMFL__DUMP_MAX))
 	{
-		const unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor;
+		const volatile unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor; // The volatile is necessary to avoid a compile error in VS2013
 		const unsigned uiWritesPercent = uiReaderWriteDivisor != 0 ? 100 / uiReaderWriteDivisor : 0;
 
 		FILE *psfDetailsFile = m_apsfOperationDetailFiles[toTestedObjectKind];
@@ -1610,6 +1763,8 @@ bool PerformParentWrapperGeneralTest()
 	
 	do
 	{
+#if _MGTEST_HAVE_CXX11
+
 		dlps_list slEmptyLists[2];
 		dlps_list &slEmptyList = slEmptyLists[0], &slAnotherEmptyList = slEmptyLists[1];
 		
@@ -1707,6 +1862,10 @@ bool PerformParentWrapperGeneralTest()
 			break;
 		}
 
+
+#endif // #if _MGTEST_HAVE_CXX11
+
+
 		bResult = true;
 	}
 	while (false);
@@ -1742,80 +1901,96 @@ enum EMGRWLOCKFEATURE
 	MGWLF_8TW_ND_C,
 	MGWLF_16TW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGWLF_1TW_ND_CPP,
 	MGWLF_4TW_ND_CPP,
 	MGWLF_8TW_ND_CPP,
 	MGWLF_16TW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGWLF_1TR_ND_C,
 	MGWLF_4TR_ND_C,
 	MGWLF_16TR_ND_C,
 	MGWLF_64TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGWLF_1TR_ND_CPP,
 	MGWLF_4TR_ND_CPP,
 	MGWLF_16TR_ND_CPP,
 	MGWLF_64TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGWLF_8T_12PW_ND_C,
 	MGWLF_16T_12PW_ND_C,
 	MGWLF_32T_12PW_ND_C,
 	MGWLF_64T_12PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGWLF_8T_12PW_ND_CPP,
 	MGWLF_16T_12PW_ND_CPP,
 	MGWLF_32T_12PW_ND_CPP,
 	MGWLF_64T_12PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGWLF_8T_25PW_ND_C,
 	MGWLF_16T_25PW_ND_C,
 	MGWLF_32T_25PW_ND_C,
 	MGWLF_64T_25PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGWLF_8T_25PW_ND_CPP,
 	MGWLF_16T_25PW_ND_CPP,
 	MGWLF_32T_25PW_ND_CPP,
 	MGWLF_64T_25PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGWLF_8T_50PW_ND_C,
 	MGWLF_16T_50PW_ND_C,
 	MGWLF_32T_50PW_ND_C,
 	MGWLF_64T_50PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGWLF_8T_50PW_ND_CPP,
 	MGWLF_16T_50PW_ND_CPP,
 	MGWLF_32T_50PW_ND_CPP,
 	MGWLF_64T_50PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGWLF_1TW_1TR_ND_C,
 	MGWLF_1TW_4TR_ND_C,
 	MGWLF_1TW_8TR_ND_C,
 	MGWLF_1TW_16TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGWLF_1TW_1TR_ND_CPP,
 	MGWLF_1TW_4TR_ND_CPP,
 	MGWLF_1TW_8TR_ND_CPP,
 	MGWLF_1TW_16TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGWLF_4TW_4TR_ND_C,
 	MGWLF_4TW_8TR_ND_C,
 	MGWLF_4TW_16TR_ND_C,
 	MGWLF_4TW_32TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGWLF_4TW_4TR_ND_CPP,
 	MGWLF_4TW_8TR_ND_CPP,
 	MGWLF_4TW_16TR_ND_CPP,
 	MGWLF_4TW_32TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGWLF_8TW_16TR_ND_C,
 	MGWLF_8TW_32TR_ND_C,
 	MGWLF_8TW_64TR_ND_C,
 	MGWLF_8TW_128TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGWLF_8TW_16TR_ND_CPP,
 	MGWLF_8TW_32TR_ND_CPP,
 	MGWLF_8TW_64TR_ND_CPP,
 	MGWLF_8TW_128TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGWLF__MAX,
 
@@ -1833,80 +2008,100 @@ static const EMGRWLOCKFEATLEVEL g_aflRWLockFeatureTestLevels[MGWLF__MAX] =
 	MGMFL_QUICK, // MGWLF_8TW_ND_C,
 	MGMFL_BASIC, // MGWLF_16TW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGMFL_EXTRA, // MGWLF_1TW_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_4TW_ND_CPP,
 	MGMFL_BASIC, // MGWLF_8TW_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_16TW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGMFL_BASIC, // MGWLF_1TR_ND_C,
 	MGMFL_BASIC, // MGWLF_4TR_ND_C,
 	MGMFL_QUICK, // MGWLF_16TR_ND_C,
 	MGMFL_BASIC, // MGWLF_64TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGMFL_EXTRA, // MGWLF_1TR_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_4TR_ND_CPP,
 	MGMFL_BASIC, // MGWLF_16TR_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_64TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGMFL_BASIC, // MGWLF_8T_12PW_ND_C,
 	MGMFL_BASIC, // MGWLF_16T_12PW_ND_C,
+#if _MGTEST_HAVE_CXX11
 	MGMFL_BASIC, // MGWLF_32T_12PW_ND_C,
+#else
+	MGMFL_QUICK, // MGWLF_32T_12PW_ND_C,
+#endif // #if _MGTEST_HAVE_CXX11
 	MGMFL_BASIC, // MGWLF_64T_12PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGMFL_EXTRA, // MGWLF_8T_12PW_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_16T_12PW_ND_CPP,
 	MGMFL_QUICK, // MGWLF_32T_12PW_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_64T_12PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGMFL_BASIC, // MGWLF_8T_25PW_ND_C,
 	MGMFL_BASIC, // MGWLF_16T_25PW_ND_C,
 	MGMFL_BASIC, // MGWLF_32T_25PW_ND_C,
 	MGMFL_BASIC, // MGWLF_64T_25PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGMFL_EXTRA, // MGWLF_8T_25PW_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_16T_25PW_ND_CPP,
 	MGMFL_BASIC, // MGWLF_32T_25PW_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_64T_25PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGMFL_BASIC, // MGWLF_8T_50PW_ND_C,
 	MGMFL_BASIC , // MGWLF_16T_50PW_ND_C,
 	MGMFL_BASIC, // MGWLF_32T_50PW_ND_C,
 	MGMFL_BASIC, // MGWLF_64T_50PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGMFL_EXTRA, // MGWLF_8T_50PW_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_16T_50PW_ND_CPP,
 	MGMFL_BASIC, // MGWLF_32T_50PW_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_64T_50PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGMFL_BASIC, // MGWLF_1TW_1TR_ND_C,
 	MGMFL_BASIC, // MGWLF_1TW_4TR_ND_C,
 	MGMFL_BASIC, // MGWLF_1TW_8TR_ND_C,
 	MGMFL_BASIC, // MGWLF_1TW_16TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGMFL_EXTRA, // MGWLF_1TW_1TR_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_1TW_4TR_ND_CPP,
 	MGMFL_BASIC, // MGWLF_1TW_8TR_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_1TW_16TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGMFL_BASIC, // MGWLF_4TW_4TR_ND_C,
 	MGMFL_BASIC, // MGWLF_4TW_8TR_ND_C,
 	MGMFL_BASIC, // MGWLF_4TW_16TR_ND_C,
 	MGMFL_BASIC, // MGWLF_4TW_32TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGMFL_EXTRA, // MGWLF_4TW_4TR_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_4TW_8TR_ND_CPP,
 	MGMFL_BASIC, // MGWLF_4TW_16TR_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_4TW_32TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	MGMFL_BASIC, // MGWLF_8TW_16TR_ND_C,
 	MGMFL_BASIC, // MGWLF_8TW_32TR_ND_C,
 	MGMFL_BASIC, // MGWLF_8TW_64TR_ND_C,
 	MGMFL_BASIC, // MGWLF_8TW_128TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	MGMFL_EXTRA, // MGWLF_8TW_16TR_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_8TW_32TR_ND_CPP,
 	MGMFL_BASIC, // MGWLF_8TW_64TR_ND_CPP,
 	MGMFL_EXTRA, // MGWLF_8TW_128TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 };
 
 static const CFeatureTestProcedure g_afnRWLockFeatureTestProcedures[MGWLF__MAX] =
@@ -1916,80 +2111,96 @@ static const CFeatureTestProcedure g_afnRWLockFeatureTestProcedures[MGWLF__MAX] 
 	&TestRWLockLocks<8, 0, LTL_C>, // MGWLF_8TW_ND_C,
 	&TestRWLockLocks<16, 0, LTL_C>, // MGWLF_16TW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	&TestRWLockLocks<1, 0, LTL_CPP>, // MGWLF_1TW_ND_CPP,
 	&TestRWLockLocks<4, 0, LTL_CPP>, // MGWLF_4TW_ND_CPP,
 	&TestRWLockLocks<8, 0, LTL_CPP>, // MGWLF_8TW_ND_CPP,
 	&TestRWLockLocks<16, 0, LTL_CPP>, // MGWLF_16TW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	&TestRWLockLocks<0, 1, LTL_C>, // MGWLF_1TR_ND_C,
 	&TestRWLockLocks<0, 4, LTL_C>, // MGWLF_4TR_ND_C,
 	&TestRWLockLocks<0, 16, LTL_C>, // MGWLF_16TR_ND_C,
 	&TestRWLockLocks<0, 64, LTL_C>, // MGWLF_64TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	&TestRWLockLocks<0, 1, LTL_CPP>, // MGWLF_1TR_ND_CPP,
 	&TestRWLockLocks<0, 4, LTL_CPP>, // MGWLF_4TR_ND_CPP,
 	&TestRWLockLocks<0, 16, LTL_CPP>, // MGWLF_16TR_ND_CPP,
 	&TestRWLockLocks<0, 64, LTL_CPP>, // MGWLF_64TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	&TestRWLockMixed<8, 8, LTL_C>, // MGWLF_8T_12PW_ND_C,
 	&TestRWLockMixed<16, 8, LTL_C>, // MGWLF_16T_12PW_ND_C,
 	&TestRWLockMixed<32, 8, LTL_C>, // MGWLF_32T_12PW_ND_C,
 	&TestRWLockMixed<64, 8, LTL_C>, // MGWLF_64T_12PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	&TestRWLockMixed<8, 8, LTL_CPP>, // MGWLF_8T_12PW_ND_CPP,
 	&TestRWLockMixed<16, 8, LTL_CPP>, // MGWLF_16T_12PW_ND_CPP,
 	&TestRWLockMixed<32, 8, LTL_CPP>, // MGWLF_32T_12PW_ND_CPP,
 	&TestRWLockMixed<64, 8, LTL_CPP>, // MGWLF_64T_12PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	&TestRWLockMixed<8, 4, LTL_C>, // MGWLF_8T_25PW_ND_C,
 	&TestRWLockMixed<16, 4, LTL_C>, // MGWLF_16T_25PW_ND_C,
 	&TestRWLockMixed<32, 4, LTL_C>, // MGWLF_32T_25PW_ND_C,
 	&TestRWLockMixed<64, 4, LTL_C>, // MGWLF_64T_25PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	&TestRWLockMixed<8, 4, LTL_CPP>, // MGWLF_8T_25PW_ND_CPP,
 	&TestRWLockMixed<16, 4, LTL_CPP>, // MGWLF_16T_25PW_ND_CPP,
 	&TestRWLockMixed<32, 4, LTL_CPP>, // MGWLF_32T_25PW_ND_CPP,
 	&TestRWLockMixed<64, 4, LTL_CPP>, // MGWLF_64T_25PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	&TestRWLockMixed<8, 2, LTL_C>, // MGWLF_8T_50PW_ND_C,
 	&TestRWLockMixed<16, 2, LTL_C>, // MGWLF_16T_50PW_ND_C,
 	&TestRWLockMixed<32, 2, LTL_C>, // MGWLF_32T_50PW_ND_C,
 	&TestRWLockMixed<64, 2, LTL_C>, // MGWLF_64T_50PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	&TestRWLockMixed<8, 2, LTL_CPP>, // MGWLF_8T_50PW_ND_CPP,
 	&TestRWLockMixed<16, 2, LTL_CPP>, // MGWLF_16T_50PW_ND_CPP,
 	&TestRWLockMixed<32, 2, LTL_CPP>, // MGWLF_32T_50PW_ND_CPP,
 	&TestRWLockMixed<64, 2, LTL_CPP>, // MGWLF_64T_50PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	&TestRWLockLocks<1, 1, LTL_C>, // MGWLF_1TW_1TR_ND_C,
 	&TestRWLockLocks<1, 4, LTL_C>, // MGWLF_1TW_4TR_ND_C,
 	&TestRWLockLocks<1, 8, LTL_C>, // MGWLF_1TW_8TR_ND_C,
 	&TestRWLockLocks<1, 16, LTL_C>, // MGWLF_1TW_16TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	&TestRWLockLocks<1, 1, LTL_CPP>, // MGWLF_1TW_1TR_ND_CPP,
 	&TestRWLockLocks<1, 4, LTL_CPP>, // MGWLF_1TW_4TR_ND_CPP,
 	&TestRWLockLocks<1, 8, LTL_CPP>, // MGWLF_1TW_8TR_ND_CPP,
 	&TestRWLockLocks<1, 16, LTL_CPP>, // MGWLF_1TW_16TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	&TestRWLockLocks<4, 4, LTL_C>, // MGWLF_4TW_4TR_ND_C,
 	&TestRWLockLocks<4, 8, LTL_C>, // MGWLF_4TW_8TR_ND_C,
 	&TestRWLockLocks<4, 16, LTL_C>, // MGWLF_4TW_16TR_ND_C,
 	&TestRWLockLocks<4, 32, LTL_C>, // MGWLF_4TW_32TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	&TestRWLockLocks<4, 4, LTL_CPP>, // MGWLF_4TW_4TR_ND_CPP,
 	&TestRWLockLocks<4, 8, LTL_CPP>, // MGWLF_4TW_8TR_ND_CPP,
 	&TestRWLockLocks<4, 16, LTL_CPP>, // MGWLF_4TW_16TR_ND_CPP,
 	&TestRWLockLocks<4, 32, LTL_CPP>, // MGWLF_4TW_32TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	&TestRWLockLocks<8, 16, LTL_C>, // MGWLF_8TW_16TR_ND_C,
 	&TestRWLockLocks<8, 32, LTL_C>, // MGWLF_8TW_32TR_ND_C,
 	&TestRWLockLocks<8, 64, LTL_C>, // MGWLF_8TW_64TR_ND_C,
 	&TestRWLockLocks<8, 128, LTL_C>, // MGWLF_8TW_128TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	&TestRWLockLocks<8, 16, LTL_CPP>, // MGWLF_8TW_16TR_ND_CPP,
 	&TestRWLockLocks<8, 32, LTL_CPP>, // MGWLF_8TW_32TR_ND_CPP,
 	&TestRWLockLocks<8, 64, LTL_CPP>, // MGWLF_8TW_64TR_ND_CPP,
 	&TestRWLockLocks<8, 128, LTL_CPP>, // MGWLF_8TW_128TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 };
 
 static const char *const g_aszRWLockFeatureTestNames[MGWLF__MAX] =
@@ -1999,80 +2210,96 @@ static const char *const g_aszRWLockFeatureTestNames[MGWLF__MAX] =
 	"8 Writers, C", // MGWLF_8TW_ND_C,
 	"16 Writers, C", // MGWLF_16TW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	"1 Writer, C++", // MGWLF_1TW_ND_CPP,
 	"4 Writers, C++", // MGWLF_4TW_ND_CPP,
 	"8 Writers, C++", // MGWLF_8TW_ND_CPP,
 	"16 Writers, C++", // MGWLF_16TW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	"1 Reader, C", // MGWLF_1TR_ND_C,
 	"4 Readers, C", // MGWLF_4TR_ND_C,
 	"16 Readers, C", // MGWLF_16TR_ND_C,
 	"64 Readers, C", // MGWLF_64TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	"1 Reader, C++", // MGWLF_1TR_ND_CPP,
 	"4 Readers, C++", // MGWLF_4TR_ND_CPP,
 	"16 Readers, C++", // MGWLF_16TR_ND_CPP,
 	"64 Readers, C++", // MGWLF_64TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	"12% writes, 8 threads, C", // MGWLF_8T_12PW_ND_C,
 	"12% writes, 16 threads, C", // MGWLF_16T_12PW_ND_C,
 	"12% writes, 32 threads, C", // MGWLF_32T_12PW_ND_C,
 	"12% writes, 64 threads, C", // MGWLF_64T_12PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	"12% writes, 8 threads, C++", // MGWLF_8T_12PW_ND_CPP,
 	"12% writes, 16 threads, C++", // MGWLF_16T_12PW_ND_CPP,
 	"12% writes, 32 threads, C++", // MGWLF_32T_12PW_ND_CPP,
 	"12% writes, 64 threads, C++", // MGWLF_64T_12PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	"25% writes, 8 threads, C", // MGWLF_8T_25PW_ND_C,
 	"25% writes, 16 threads, C", // MGWLF_16T_25PW_ND_C,
 	"25% writes, 32 threads, C", // MGWLF_32T_25PW_ND_C,
 	"25% writes, 64 threads, C", // MGWLF_64T_25PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	"25% writes, 8 threads, C++", // MGWLF_8T_25PW_ND_CPP,
 	"25% writes, 16 threads, C++", // MGWLF_16T_25PW_ND_CPP,
 	"25% writes, 32 threads, C++", // MGWLF_32T_25PW_ND_CPP,
 	"25% writes, 64 threads, C++", // MGWLF_64T_25PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	"50% writes, 8 threads, C",  // MGWLF_8T_50PW_ND_C,
 	"50% writes, 16 threads, C", // MGWLF_16T_50PW_ND_C,
 	"50% writes, 32 threads, C", // MGWLF_32T_50PW_ND_C,
 	"50% writes, 64 threads, C", // MGWLF_64T_50PW_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	"50% writes, 8 threads, C++",  // MGWLF_8T_50PW_ND_CPP,
 	"50% writes, 16 threads, C++", // MGWLF_16T_50PW_ND_CPP,
 	"50% writes, 32 threads, C++", // MGWLF_32T_50PW_ND_CPP,
 	"50% writes, 64 threads, C++", // MGWLF_64T_50PW_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	"1 Writer, 1 Reader, C", // MGWLF_1TW_1TR_ND_C,
 	"1 Writer, 4 Readers, C", // MGWLF_1TW_4TR_ND_C,
 	"1 Writer, 8 Readers, C", // MGWLF_1TW_8TR_ND_C,
 	"1 Writer, 16 Readers, C", // MGWLF_1TW_16TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	"1 Writer, 1 Reader, C++", // MGWLF_1TW_1TR_ND_CPP,
 	"1 Writer, 4 Readers, C++", // MGWLF_1TW_4TR_ND_CPP,
 	"1 Writer, 8 Readers, C++", // MGWLF_1TW_8TR_ND_CPP,
 	"1 Writer, 16 Readers, C++", // MGWLF_1TW_16TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	"4 Writers, 4 Readers, C", // MGWLF_4TW_4TR_ND_C,
 	"4 Writers, 8 Readers, C", // MGWLF_4TW_8TR_ND_C,
 	"4 Writers, 16 Readers, C", // MGWLF_4TW_16TR_ND_C,
 	"4 Writers, 32 Readers, C", // MGWLF_4TW_32TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	"4 Writers, 4 Readers, C++", // MGWLF_4TW_4TR_ND_CPP,
 	"4 Writers, 8 Readers, C++", // MGWLF_4TW_8TR_ND_CPP,
 	"4 Writers, 16 Readers, C++", // MGWLF_4TW_16TR_ND_CPP,
 	"4 Writers, 32 Readers, C++", // MGWLF_4TW_32TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 
 	"8 Writers, 16 Readers, C", // MGWLF_8TW_16TR_ND_C,
 	"8 Writers, 32 Readers, C", // MGWLF_8TW_32TR_ND_C,
 	"8 Writers, 64 Readers, C", // MGWLF_8TW_64TR_ND_C,
 	"8 Writers, 128 Readers, C", // MGWLF_8TW_128TR_ND_C,
 
+#if _MGTEST_HAVE_CXX11
 	"8 Writers, 16 Readers, C++", // MGWLF_8TW_16TR_ND_CPP,
 	"8 Writers, 32 Readers, C++", // MGWLF_8TW_32TR_ND_CPP,
 	"8 Writers, 64 Readers, C++", // MGWLF_8TW_64TR_ND_CPP,
 	"8 Writers, 128 Readers, C++", // MGWLF_8TW_128TR_ND_CPP,
+#endif // #if _MGTEST_HAVE_CXX11
 };
 
 

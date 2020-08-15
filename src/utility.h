@@ -32,6 +32,22 @@
 
 
 //////////////////////////////////////////////////////////////////////////
+// Compiler warning avoidance
+
+#ifdef _MUTEXGEAR_USE_FAKE_INITIALIZE
+
+#define MG_FAKE_INITIALIZE(variable, value) ((variable) = (value))
+
+
+#else // #ifndef _MUTEXGEAR_USE_FAKE_INITIALIZE
+
+#define MG_FAKE_INITIALIZE(variable, value) MG_DO_NOTHING(0)
+
+
+#endif // #ifndef _MUTEXGEAR_USE_FAKE_INITIALIZE
+
+
+//////////////////////////////////////////////////////////////////////////
 // Lock Function Definitions
 
 #ifdef _WIN32

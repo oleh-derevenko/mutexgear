@@ -279,7 +279,7 @@ bool CBMPGenProgram::CConversionContext::ReadNextSourceLine(const char *&szOutNe
 
 			if (siBytesRead == 0)
 			{
-				bOutEOFReached = feof(m_psfSourceFile);
+				bOutEOFReached = feof(m_psfSourceFile) != 0;
 				break;
 			}
 

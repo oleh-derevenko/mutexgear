@@ -162,7 +162,8 @@ int _mutexgear_wheelattr_setmutexattr(mutexgear_wheelattr_t *__attr, const _MUTE
 			break;
 		}
 
-		if ((ret = _mutexgear_lockattr_setprioceiling(&__attr->mutexattr, prioceiling_value)) != EOK)
+		// The priority ceiling of 0 means that there is no priority ceiling defined (the default) and some targets fail with EINVAL when when attempting to assign the 0.
+		if (prioceiling_value != 0 && (ret = _mutexgear_lockattr_setprioceiling(&__attr->mutexattr, prioceiling_value)) != EOK)
 		{
 			break;
 		}

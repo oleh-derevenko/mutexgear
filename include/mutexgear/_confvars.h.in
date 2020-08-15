@@ -32,10 +32,40 @@
 
 #if defined(_MSC_VER)
   #if !defined(_MUTEXGEAR_HAVE_NO_CXX11)
-    #define _MUTEXGEAR_HAVE_CXX11
+    #if _MSC_VER >= 1900
+      #define _MUTEXGEAR_HAVE_CXX11
+    #else
+      #define _MUTEXGEAR_HAVE_NO_CXX11
+    #endif
   #endif
+  #if !defined(_MUTEXGEAR_HAVE_NO_CXX11_ATOMICS) && _MSC_VER >= 1800
+    #if _MSC_VER >= 1800
+      #define _MUTEXGEAR_HAVE_CXX11_ATOMICS
+    #else
+      #define _MUTEXGEAR_HAVE_NO_CXX11_ATOMICS
+    #endif
+  #endif
+  #if !defined(_MUTEXGEAR_HAVE_NO_STD__SHARED_MUTEX)
+    #if _MSC_VER >= 1900
+      #define _MUTEXGEAR_HAVE_STD__SHARED_MUTEX
+    #else
+      #define _MUTEXGEAR_HAVE_NO_STD__SHARED_MUTEX
+    #endif
+  #endif
+  #if !defined(_MUTEXGEAR_HAVE_NO_STD__SHARED_TIMED_MUTEX)
+    #if _MSC_VER >= 1800
+      #define _MUTEXGEAR_HAVE_STD__SHARED_TIMED_MUTEX
+    #else
+      #define _MUTEXGEAR_HAVE_NO_STD__SHARED_TIMED_MUTEX
+    #endif
+  #endif
+
   #if !defined(_MUTEXGEAR_HAVE_NO_C11)
-    #define _MUTEXGEAR_HAVE_C11
+    #if _MSC_VER >= 1910
+      #define _MUTEXGEAR_HAVE_C11
+    #else
+      #define _MUTEXGEAR_HAVE_NO_C11
+    #endif
   #endif
   #if !defined(_MUTEXGEAR_HAVE_PTHREAD_H)
     #define _MUTEXGEAR_HAVE_NO_PTHREAD_H
@@ -63,6 +93,35 @@
 #elif !defined(_MUTEXGEAR_HAVE_CXX11)
 #if @MUTEXGEAR_HAVE_CXX11@ == 1
   #define _MUTEXGEAR_HAVE_CXX11
+#endif
+#endif
+
+#if defined(_MUTEXGEAR_HAVE_CXX11)
+  #undef _MUTEXGEAR_HAVE_CXX11_ATOMICS
+  #define _MUTEXGEAR_HAVE_CXX11_ATOMICS
+#else
+#if defined(_MUTEXGEAR_HAVE_NO_CXX11_ATOMICS)
+  #undef _MUTEXGEAR_HAVE_CXX11_ATOMICS
+#elif !defined(_MUTEXGEAR_HAVE_CXX11_ATOMICS)
+#if @MUTEXGEAR_HAVE_CXX11_ATOMICS@ == 1
+  #define _MUTEXGEAR_HAVE_CXX11_ATOMICS
+#endif
+#endif
+#endif
+
+#if defined(_MUTEXGEAR_HAVE_NO_STD__SHARED_MUTEX)
+  #undef _MUTEXGEAR_HAVE_STD__SHARED_MUTEX
+#elif !defined(_MUTEXGEAR_HAVE_STD__SHARED_MUTEX)
+#if @MUTEXGEAR_HAVE_STD__SHARED_MUTEX@ == 1
+  #define _MUTEXGEAR_HAVE_STD__SHARED_MUTEX
+#endif
+#endif
+
+#if defined(_MUTEXGEAR_HAVE_NO_STD__SHARED_TIMED_MUTEX)
+  #undef _MUTEXGEAR_HAVE_STD__SHARED_TIMED_MUTEX
+#elif !defined(_MUTEXGEAR_HAVE_STD__SHARED_TIMED_MUTEX)
+#if @MUTEXGEAR_HAVE_STD__SHARED_TIMED_MUTEX@ == 1
+  #define _MUTEXGEAR_HAVE_STD__SHARED_TIMED_MUTEX
 #endif
 #endif
 

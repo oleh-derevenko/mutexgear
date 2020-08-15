@@ -71,23 +71,23 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <TargetName>mutexgear</TargetName>
-    <OutDir>$(SolutionDir)..\..\Bin\$(Configuration)\</OutDir>
-    <IntDir>..\..\Intermediate\mutexgear\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)..\..\Bin\vs2017\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\..\Intermediate\vs2017\mutexgear\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <TargetName>mutexgear</TargetName>
-    <OutDir>$(SolutionDir)..\..\Bin\$(Configuration)\</OutDir>
-    <IntDir>..\..\Intermediate\mutexgear\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)..\..\Bin\vs2017\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\..\Intermediate\vs2017\mutexgear\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <TargetName>mutexgear</TargetName>
-    <OutDir>$(SolutionDir)..\..\Bin\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>..\..\Intermediate\mutexgear\$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)..\..\Bin\vs2017\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\..\Intermediate\vs2017\mutexgear\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <TargetName>mutexgear</TargetName>
-    <OutDir>$(SolutionDir)..\..\Bin\$(Platform)\$(Configuration)\</OutDir>
-    <IntDir>..\..\Intermediate\mutexgear\$(Platform)\$(Configuration)\</IntDir>
+    <OutDir>$(SolutionDir)..\..\Bin\vs2017\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\..\Intermediate\vs2017\mutexgear\$(Platform)\$(Configuration)\</IntDir>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -117,7 +117,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)/../../include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;_WINDLL;_MUTEXGEAR_DLL;_MUTEXGEAR_WITH_C11;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -141,7 +141,7 @@
       <Optimization>MaxSpeed</Optimization>
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
-      <SDLCheck>true</SDLCheck>
+      <SDLCheck>false</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)/../../include</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;_WINDLL;_MUTEXGEAR_DLL;_MUTEXGEAR_WITH_C11;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -149,6 +149,7 @@
       <StringPooling>true</StringPooling>
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <BufferSecurityCheck>false</BufferSecurityCheck>
+      <RuntimeTypeInfo>false</RuntimeTypeInfo>
     </ClCompile>
     <Link>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>

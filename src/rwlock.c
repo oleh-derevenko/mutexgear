@@ -165,7 +165,8 @@ int mutexgear_rwlockattr_setmutexattr(mutexgear_rwlockattr_t *__attr, const _MUT
 			break;
 		}
 
-		if ((ret = _mutexgear_lockattr_setprioceiling(&__attr->lock_attr, prioceiling_value)) != EOK)
+		// The priority ceiling of 0 means that there is no priority ceiling defined (the default) and some targets fail with EINVAL when when attempting to assign the 0.
+		if (prioceiling_value != 0 && (ret = _mutexgear_lockattr_setprioceiling(&__attr->lock_attr, prioceiling_value)) != EOK)
 		{
 			break;
 		}
@@ -996,7 +997,8 @@ bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mut
 	int ret, mutex_unlock_status;
 
 	const unsigned int lock_index_mask = (__rwlock->fl_un.mode_flags & _MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_MASK) >> _MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_SHIFT;
-	unsigned int starting_push_lock_index = _MUTEXGEAR_RWLOCK_MAKE_READER_PUSH_SELECTOR(__waiter);
+	unsigned int starting_push_lock_index = (unsigned int)_MUTEXGEAR_RWLOCK_MAKE_READER_PUSH_SELECTOR(__waiter); // OK to truncate, the mask is smaller anyway
+	MG_STATIC_ASSERT(_MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_MASK <= UINT_MAX);
 
 	ptrdiff_t known_express_commits = 0;
 	unsigned int push_lock_index = starting_push_lock_index;
@@ -1993,6 +1995,8 @@ void rwlock_rdunlock_queued_commit_express_reads(mutexgear_rwlock_t *__rwlock, m
 
 	mutexgear_dlraitem_t *const express_reads = _mutexgear_dlraitem_getfromprevious(&__rwlock->express_reads);
 	mutexgear_dlraitem_t *first_express_read, *last_express_read = _mutexgear_dlraitem_swapprevious(express_reads, express_reads);
+	MG_FAKE_INITIALIZE(first_express_read, 0);
+
 	// __item has not been removed from express_reads yet, so the list cannot be empty
 	MG_ASSERT(last_express_read != express_reads);
 
