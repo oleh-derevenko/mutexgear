@@ -1,0 +1,23 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: bootstrap
+      run: ./bootstrap
+    - name: configure
+      run: ./configure CXXFLAGS="-std=c++14 -O3 -g"
+    - name: make
+      run: make
+    - name: make check
+      run: make check
