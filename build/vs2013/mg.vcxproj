@@ -194,7 +194,9 @@
     <ClInclude Include="..\..\src\wheel.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\include\mutexgear\_confvars.h.in" />
+    <ClInclude Include="..\..\include\mutexgear\_confvars.h.in">
+      <FileType>Document</FileType>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\completion.c" />
