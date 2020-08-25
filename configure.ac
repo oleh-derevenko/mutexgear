@@ -51,7 +51,7 @@ AM_INIT_AUTOMAKE([1.10 foreign])
 AM_CONDITIONAL([SAME_HOST_BUILD], [test x$build = x$host])
 
 AC_PROG_MAKE_SET
-${CFLAGS="-O3"}
+CFLAGS=${CFLAGS:--O3}
 AC_PROG_CC
 AM_PROG_CC_C_O
 AC_PROG_CXX
@@ -83,26 +83,28 @@ AC_CHECK_TYPES([ptrdiff_t])
 
 AC_CHECK_LIB([pthread], [pthread_mutex_init], [MUTEXGEAR_LIBPTHREAD=-lpthread], [MUTEXGEAR_LIBPTHREAD=])
 AC_CHECK_LIB([stdc++], [main], [MUTEXGEAR_LIBSTDCXX=-lstdc++], [MUTEXGEAR_LIBSTDCXX=])
-AC_CHECK_FUNCS([clock_gettime gettimeofday])
-AC_CHECK_FUNC([pthread_mutexattr_getprioceiling], [],AC_CHECK_LIB([pthread], [pthread_mutexattr_getprioceiling]))
+AC_CHECK_FUNCS([clock_gettime gettimeofday sched_setscheduler])
+AC_CHECK_FUNC([pthread_mutexattr_getprioceiling], [], AC_CHECK_LIB([pthread], [pthread_mutexattr_getprioceiling]))
 AC_CHECK_FUNC([pthread_mutexattr_getprotocol], [], AC_CHECK_LIB([pthread], [pthread_mutexattr_getprotocol]))
 
 AC_SUBST([MUTEXGEAR_PRIVATE_LIBS], $MUTEXGEAR_LIBPTHREAD)
 AC_SUBST([MUTEXGEAR_TEST_LIBS], $MUTEXGEAR_LIBSTDCXX)
 
 MUTEXGEAR_D__EXT=
-if test $ac_cv_header_pthread_h = yes; then
+if test x$ac_cv_header_pthread_h = xyes; then
   AC_LANG_PUSH(C++)
-  AC_CHECK_TYPE([pthread_rwlock_t], [],
+  AC_CHECK_TYPE([pthread_rwlock_t], [MUTEXGEAR_D__EXT_POSSIBLE=], [MUTEXGEAR_D__EXT_POSSIBLE=1], 
+      [[#include <pthread.h>]])
+  if test x$MUTEXGEAR_D__EXT_POSSIBLE != x; then
     AC_CHECK_TYPE([pthread_rwlock_t], [MUTEXGEAR_D__EXT=-D__EXT], [],
-      [[#define __EXT
-        #include <pthread.h>]]),
-    [[#include <pthread.h>]])
+        [[#define __EXT
+          #include <pthread.h>]])
+  fi
   AC_LANG_POP()
 fi
 AC_SUBST([MUTEXGEAR_D__EXT])
 
-if test $ac_cv_header_shared_mutex = yes; then
+if test x$ac_cv_header_shared_mutex = xyes; then
   AC_LANG_PUSH(C++)
   AC_CHECK_TYPE([std::shared_mutex], [], [], [[#include <shared_mutex>]])
   AC_CHECK_TYPE([std::shared_timed_mutex], [], [], [[#include <shared_mutex>]])
@@ -111,9 +113,9 @@ fi
 
 MUTEXGEAR_HAVE_C11=0
 MUTEXGEAR_HAVE_ATOMIC_INSTEADOF_STDATOMIC=0
-if test $ac_cv_header_atomic_h$ac_cv_header_stdatomic_h != nono; then
+if test x$ac_cv_header_atomic_h$ac_cv_header_stdatomic_h != xnono; then
   MUTEXGEAR_HAVE_C11=1
-  if test $ac_cv_header_atomic_h$ac_cv_header_stdatomic_h = yesno; then
+  if test x$ac_cv_header_atomic_h$ac_cv_header_stdatomic_h = xyesno; then
     MUTEXGEAR_HAVE_ATOMIC_INSTEADOF_STDATOMIC=1
   fi
 fi
@@ -122,9 +124,9 @@ AC_SUBST([MUTEXGEAR_HAVE_ATOMIC_INSTEADOF_STDATOMIC])
 
 MUTEXGEAR_HAVE_CXX11=0
 MUTEXGEAR_HAVE_CXX11_ATOMICS=0
-if test $ac_cv_header_atomic = yes; then
+if test x$ac_cv_header_atomic = xyes; then
   MUTEXGEAR_HAVE_CXX11_ATOMICS=1
-  if test $ac_cv_header_system_error = yes; then
+  if test x$ac_cv_header_system_error = xyes; then
     MUTEXGEAR_HAVE_CXX11=1
   fi
 fi
@@ -132,43 +134,49 @@ AC_SUBST([MUTEXGEAR_HAVE_CXX11])
 AC_SUBST([MUTEXGEAR_HAVE_CXX11_ATOMICS])
 
 MUTEXGEAR_HAVE_PTHREAD_H=0
-if test $ac_cv_header_pthread_h = yes; then
+if test x$ac_cv_header_pthread_h = xyes; then
   MUTEXGEAR_HAVE_PTHREAD_H=1
 fi
 AC_SUBST([MUTEXGEAR_HAVE_PTHREAD_H])
 
 MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPRIOCEILING=0
-if test $ac_cv_func_pthread_mutexattr_getprioceiling$ac_cv_lib_pthread_pthread_mutexattr_getprioceiling = nono; then
+if test x$ac_cv_func_pthread_mutexattr_getprioceiling$ac_cv_lib_pthread_pthread_mutexattr_getprioceiling = xnono; then
   MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPRIOCEILING=1
 fi
 AC_SUBST([MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPRIOCEILING])
 
 MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL=0
-if test $ac_cv_func_pthread_mutexattr_getprotocol$ac_cv_lib_pthread_pthread_mutexattr_getprotocol = nono; then
+if test x$ac_cv_func_pthread_mutexattr_getprotocol$ac_cv_lib_pthread_pthread_mutexattr_getprotocol = xnono; then
   MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL=1
 fi
 AC_SUBST([MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL])
 
 MUTEXGEAR_HAVE_CLOCK_GETTIME=0
-if test $ac_cv_func_clock_gettime = yes; then
+if test x$ac_cv_func_clock_gettime = xyes; then
   MUTEXGEAR_HAVE_CLOCK_GETTIME=1
 fi
 AC_SUBST([MUTEXGEAR_HAVE_CLOCK_GETTIME])
 
 MUTEXGEAR_HAVE_GETTIMEOFDAY=0
-if test $ac_cv_func_gettimeofday = yes; then
+if test x$ac_cv_func_gettimeofday = xyes; then
   MUTEXGEAR_HAVE_GETTIMEOFDAY=1
 fi
 AC_SUBST([MUTEXGEAR_HAVE_GETTIMEOFDAY])
 
+MUTEXGEAR_HAVE_SCHED_SETSCHEDULER=0
+if test x$ac_cv_func_sched_setscheduler = xyes; then
+  MUTEXGEAR_HAVE_SCHED_SETSCHEDULER=1
+fi
+AC_SUBST([MUTEXGEAR_HAVE_SCHED_SETSCHEDULER])
+
 MUTEXGEAR_HAVE_STD__SHARED_MUTEX=0
-if test $ac_cv_type_std__shared_mutex = yes; then
+if test x$ac_cv_type_std__shared_mutex = xyes; then
   MUTEXGEAR_HAVE_STD__SHARED_MUTEX=1
 fi
 AC_SUBST([MUTEXGEAR_HAVE_STD__SHARED_MUTEX])
 
 MUTEXGEAR_HAVE_STD__SHARED_TIMED_MUTEX=0
-if test $ac_cv_type_std__shared_timed_mutex = yes; then
+if test x$ac_cv_type_std__shared_timed_mutex = xyes; then
   MUTEXGEAR_HAVE_STD__SHARED_TIMED_MUTEX=1
 fi
 AC_SUBST([MUTEXGEAR_HAVE_STD__SHARED_TIMED_MUTEX])

@@ -534,14 +534,13 @@ int _mutexgear_monotonic_clock_time(uint64_t *__out_timepoint)
 
 #ifndef _WIN32
 
-#include <unistd.h>
-#ifdef _POSIX_PRIORITY_SCHEDULING
+#ifdef _MUTEXGEAR_HAVE_SCHED_SETSCHEDULER
 
 #include <sched.h>
 #define _MGTEST_POSIX_ADJUST_SCHED
 
 
-#endif // #ifdef _POSIX_PRIORITY_SCHEDULING
+#endif // #ifdef _MUTEXGEAR_HAVE_SCHED_SETSCHEDULER
 
 #endif // #ifndef _WIN32
 
