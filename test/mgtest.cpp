@@ -1069,7 +1069,8 @@ public:
 
 	void ReleaseLock(COperationExtraObjects &eoRefExtraObjects)
 	{
-		if (tuiReaderWriteDivisor == 0 || m_ciLockIndex % tuiReaderWriteDivisor != 0)
+		volatile unsigned uiReaderWriteDivisor; // The volatile is necessary to avoid compiler warnings with some compilers
+		if (tuiReaderWriteDivisor == 0 || (uiReaderWriteDivisor = tuiReaderWriteDivisor, m_ciLockIndex % uiReaderWriteDivisor != 0))
 		{
 			CRWLockValidator::DecrementReads();
 			m_liRWLockInstance.UnlockRWLockRead(eoRefExtraObjects);
