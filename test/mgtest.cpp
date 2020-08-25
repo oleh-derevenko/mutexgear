@@ -1052,7 +1052,8 @@ public:
 	{
 		bool bLockedWithTryVariant;
 
-		if (tuiReaderWriteDivisor == 0 || ++m_ciLockIndex % tuiReaderWriteDivisor != 0)
+		volatile unsigned uiReaderWriteDivisor; // The volatile is necessary to avoid compiler warnings with some compilers
+		if (tuiReaderWriteDivisor == 0 || (uiReaderWriteDivisor = tuiReaderWriteDivisor, ++m_ciLockIndex % uiReaderWriteDivisor != 0))
 		{
 			bLockedWithTryVariant = m_liRWLockInstance.LockRWLockRead(eoRefExtraObjects);
 			CRWLockValidator::IncrementReads();
@@ -1344,8 +1345,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	int iFileOpenStatus;
 	char ascFileNameFormatBuffer[256];
 
-	const volatile unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor; // The volatile is necessary to avoid a compile error in VS2013
-	const unsigned uiWritesPercent = uiReaderWriteDivisor != 0 ? (100 / uiReaderWriteDivisor) : 0;
+	volatile unsigned uiReaderWriteDivisor; // The volatile is necessary to avoid a compile error in VS2013
+	const unsigned uiWritesPercent = tuiReaderWriteDivisor != 0 ? (uiReaderWriteDivisor = tuiReaderWriteDivisor, 100 / uiReaderWriteDivisor) : 0;
 
 	for (ERWLOCKLOCKTESTOBJECT toTestedObjectKind = LTO__MIN; toTestedObjectKind != LTO__MAX; ++toTestedObjectKind)
 	{
@@ -1375,8 +1376,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 
 	if (IN_RANGE(flTestLevel, MGMFL__DUMP_MIN, MGMFL__DUMP_MAX))
 	{
-		const volatile unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor; // The volatile is necessary to avoid a compile error in VS2013
-		const unsigned uiWritesPercent = uiReaderWriteDivisor != 0 ? 100 / uiReaderWriteDivisor : 0;
+		volatile unsigned uiReaderWriteDivisor; // The volatile is necessary to avoid a compile error in VS2013
+		const unsigned uiWritesPercent = tuiReaderWriteDivisor != 0 ? (uiReaderWriteDivisor = tuiReaderWriteDivisor, 100 / uiReaderWriteDivisor) : 0;
 
 		FILE *psfDetailsFile = m_apsfOperationDetailFiles[toTestedObjectKind];
 		int iPrintResult = fprintf(psfDetailsFile, "Lock-unlock test for %s with %zu%s write%s%s, %zu %s%s\nTime taken: %lu sec %lu nsec\n\nOperation sequence map:\n",
@@ -1467,11 +1468,11 @@ typename CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteD
 
 		std::copy(ascThreadMapChars, ascThreadMapChars + LOCK_THREAD_NAME_LENGTH, ascMergeBuffer + siNameInsertOffset);
 
-		const unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor;
-		if (uiReaderWriteDivisor != 0 && ascThreadMapChars[0] >= g_cReaderMapFirstChar)
+		if (tuiReaderWriteDivisor != 0 && ascThreadMapChars[0] >= g_cReaderMapFirstChar)
 		{
 			operationidxint iiThreadReducedOperationIndex = iiThreadCurrentOperationIndex / uiPerIndexOperationKindCount;
 			
+			volatile unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor; // The volatile is necessary to avoid compiler warnings with some compilers
 			if ((iiThreadReducedOperationIndex + 1) % uiReaderWriteDivisor == 0)
 			{
 				ascMergeBuffer[siNameInsertOffset] -= g_cReaderMapFirstChar - g_cWriterMapFirstChar;
