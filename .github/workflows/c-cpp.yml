@@ -29,7 +29,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: packages
-      run: sudo apt-get install -y autoconf automake libtool pkgconf
+      run: brew install libtool
     - name: bootstrap
       run: ./bootstrap
     - name: configure
