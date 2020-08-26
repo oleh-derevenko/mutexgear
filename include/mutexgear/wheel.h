@@ -144,7 +144,7 @@ enum
 
 /**
  *	\typedef mutexgear_wheel_t
- *	\brief A wheel object structure.
+ *	\brief The wheel object structure.
  */
 typedef struct _mutexgear_wheel_t
 {
@@ -176,7 +176,7 @@ _MUTEXGEAR_API int mutexgear_wheel_destroy(mutexgear_wheel_t *__wheel);
 
 /**
  *	\fn int mutexgear_wheel_lockslave(mutexgear_wheel_t *__wheel)
- *	\brief A function to attach to the toggle to be called by the signaler (the S) thread
+ *	\brief A function to attach to the wheel to be called by the signaler (the S) thread
  *	to accomplish the independent operation Precondition 1.
  */
 _MUTEXGEAR_API int mutexgear_wheel_lockslave(mutexgear_wheel_t *__wheel);
@@ -223,7 +223,7 @@ _MUTEXGEAR_API int mutexgear_wheel_release(mutexgear_wheel_t *__wheel);
 /**
  *	\fn int mutexgear_wheel_pushon(mutexgear_wheel_t *__wheel)
  *	\brief A compatibility function to use a \c wheel object in coordinated mode
- *	replicating a \c toggle object’s functionality. The synchronization effects
+ *	replicating a \c toggle object's functionality. The synchronization effects
  *	this function achieves with the \c wheel object are the same as
  *	the \c mutexgear_toggle_pushon function with a \c toggle object would do.
  */

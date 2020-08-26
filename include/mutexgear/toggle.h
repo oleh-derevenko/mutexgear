@@ -141,7 +141,7 @@ enum
 
 /**
  *	\typedef mutexgear_toggle_t
- *	\brief A \c toggle object structure.
+ *	\brief The toggle object structure.
  */
 typedef struct _mutexgear_toggle_t
 {
