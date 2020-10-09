@@ -30,21 +30,26 @@
  *	and atomic operations. No polling, freewheeling or similar iterative techniques
  *	are explicitly used.
  *
- *	The implementation does not provide "try-lock" operations. The author 
- *	considers them being of little use and not deserving extra complication
- *	of the object's internal structure and other operation implementations.
+ *	Author considers "try-lock" operations being of little practical value. 
+ *	Therefore, the base implementation only provides "write" try-lock option
+ *	which could be implemented without adding extra internal components.
+ *	If try-read lock operation is required there is a separate more heavy-weight 
+ *	object version in this header to support it.
  *
- *	On the other hand, the implementation features write lock priority. That is,
- *	whenever there are write lock attempts waiting for the object to be released by
- *	current read locks any additional read lock attempts will be blocked and 
- *	will wait until all the write locks (the ones that were there before the read lock 
- *	attempts and any that might have been added after) complete and release the object.
- *	That is the read locks are allowed on the object only when there are no write locks 
- *	waiting. This helps to resolve issue with multiple readers constantly sharing object
- *	locked for read and not allowing a write lock that needs the object exclusively.
+ *	Also, the implementation features write lock priority. That is, whenever there are 
+ *	write lock attempts waiting for the object to be released by current read locks, all 
+ *	additional read lock attempts will be blocked and will wait until all the write locks 
+ *	(the ones that were there before the read lock attempts and all that might have been 
+ *	added after) complete and release the object. The read locks are allowed on the object 
+ *	only when there are no write locks waiting. This helps to resolve an issue with multiple 
+ *	readers constantly sharing object locked for read and not allowing a write lock that 
+ *	needs the object exclusively. On the other hand, this may increase lock acquisition times
+ *	for read threads that will be more often forced into kernel for blocking when greater
+ *	number of readers are frequently and regularly interrupted for short durations by 
+ *	smaller number of writers.
  *
- *	Also, the implementation allows write lock multi-channel waiting for read locks to 
- *	release object. This means that several read locks may be waited by several 
+ *	Additionally, the implementation allows write lock multi-channel waiting for read locks to 
+ *	release the object. This means that several read locks may be waited by several 
  *	write locks attempts in parallel and thus, since the waiting is performed on muteces,
  *	the system may apply priority inheritance on multiple execution cores that would be
  *	running those read lock acquired threads. Currently, 1, 2 or 4 channels are supported.
