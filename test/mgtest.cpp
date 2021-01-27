@@ -1,7 +1,11 @@
 #include "pch.h"
 
-#warning The test may require admin rights for raising thread priorities.
-#warning Also, it takes quite some time. Be patient.
+#ifdef _MSC_VER
+#pragma message("warning: The test takes quite some time - be patient")
+#else
+#warning The test may require admin rights for raising thread priorities
+#warning Also, it takes quite some time - be patient
+#endif
 
 
 #define _MGTEST_TEST_TWRL		1
