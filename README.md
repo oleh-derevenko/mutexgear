@@ -24,10 +24,10 @@ Also, the library provides header-only C++11 wrapper classes for its features:
 * mg::completion::waitable_queue and mg::completion::cancelable_queue — wrappers for 
 mutexgear_completion_queue_t and mutexgear_completion_cancelablequeue_t respectively.
 
-All the library features mentioned above depend on signaling of event type synchronization 
+**All the library features mentioned above depend on signaling of event type synchronization 
 by means of serializing synchronization objects. 
 The signaling of event type synchronization by means of serializing synchronization objects (the muteces or alike) 
-is protected with the U.S. Patent #9983913.
+is protected with the U.S. Patent #9983913.**
 
 ---
 
