@@ -84,8 +84,8 @@
  *	static
  *	void WorkerThread_ThreadRoutine(worker_context_t *context)
  *	{
- *		// Initially attach the toggle
- *		mutexgear_toggle_lockslave(&context->m_completion_toggle);
+ *		// Initially, make the toggle engaged
+ *		mutexgear_toggle_engaged(&context->m_completion_toggle);
  *
  *		// Let the upper level know the worked has been started
  *		// and is ready to serve requests (the toggle has been attached)
@@ -99,12 +99,12 @@
  *			// Handle the work item extracted
  *			HandleWorkItem(item, &exit_requested); // This is to mark the work item completed
  *
- *			// Switch the toggle each time after an item has been handled
- *			mutexgear_toggle_slaveswitch(&context->m_completion_toggle);
+ *			// Flip the toggle each time after an item has been handled
+ *			mutexgear_toggle_flipped(&context->m_completion_toggle);
  *		}
  *
- *		// Finally detach the toggle on exit
- *		mutexgear_toggle_unlockslave(&context->m_completion_toggle);
+ *		// Finally, make the toggle disengaged on exit
+ *		mutexgear_toggle_disengaged(&context->m_completion_toggle);
  *	}
  *
  *	static
@@ -152,8 +152,8 @@
  *	static
  *	void WorkerThread_ThreadRoutine(worker_context_t *context)
  *	{
- *		// Initially attach the wheel as the slave
- *		mutexgear_wheel_lockslave(&context->m_item_extraction_wheel);
+ *		// Initially, make the wheel engaged
+ *		mutexgear_wheel_engaged(&context->m_item_extraction_wheel);
  *
  *		// Let the upper level know the worked has been started
  *		// and is ready to serve requests (the toggle has been attached)
@@ -164,15 +164,15 @@
  *		{
  *			// Extract a next item to handle. Block if there are no items queued.
  *			work_item_t *item = ExtractPendingWorkItem(context);
- *			// Roll the wheel to let the other side know there is some room in queue
- *			mutexgear_wheel_slaveroll(&context->m_item_extraction_wheel);
+ *			// Advance the wheel to let the other side know there is some room in the queue
+ *			mutexgear_wheel_advanced(&context->m_item_extraction_wheel);
  *
  *			// Handle the work item extracted
  *			HandleAndDeleteWorkItem(item, &exit_requested);
  *		}
  *
- *		// Finally detach the wheel on exit
- *		mutexgear_wheel_unlockslave(&context->m_item_extraction_wheel);
+ *		// Finally, make the wheel disengaged on exit
+ *		mutexgear_wheel_disengaged(&context->m_item_extraction_wheel);
  *	}
  *
  *	static
@@ -271,8 +271,8 @@
  *	static
  *	void WorkerThread_ThreadRoutine(worker_context_t *context)
  *	{
- *		// Initially attach the wheel as the slave
- *		mutexgear_wheel_lockslave(&context->m_item_completion_wheel);
+ *		// Initially, make the wheel engaged
+ *		mutexgear_wheel_engaged(&context->m_item_completion_wheel);
  *
  *		pool_context_t *pool = context->m_pool;
  *
@@ -294,8 +294,8 @@
  *				// that the item is being canceled and is going to be deleted by the canceling thread.
  *				int unlinked = UnlinkItemFromRelatedObjectList(item);
  *
- *				// Roll the wheel to let the other party know that the item processing is completed.
- *				mutexgear_wheel_slaveroll(&context->m_item_completion_wheel);
+ *				// Advance the wheel to let the other party know that the item processing is completed.
+ *				mutexgear_wheel_advanced(&context->m_item_completion_wheel);
  *
  *				// If this thread was to break the item-object relation...
  *				if (unlinked)
@@ -306,8 +306,8 @@
  *			}
  *		}
  *
- *		// Finally detach the wheel on exit
- *		mutexgear_wheel_unlockslave(&context->m_item_completion_wheel);
+ *		// Finally, make the wheel disengaged on exit
+ *		mutexgear_wheel_disengaged(&context->m_item_completion_wheel);
  *	}
  *
  *	

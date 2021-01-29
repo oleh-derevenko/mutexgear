@@ -166,7 +166,7 @@ _MUTEXGEAR_API int mutexgear_completion_genattr_setmutexattr(mutexgear_completio
  *	\struct mutexgear_completion_worker_t
  *	\brief A structure to represent a side performing an operation.
  *
- *	The structure contains a Wheel to be "slave-rolled" whenever
+ *	The structure contains a Wheel to be advanced whenever
  *	operation progress is made.
  */
 typedef struct _mutexgear_completion_worker

@@ -224,7 +224,7 @@ int mutexgear_toggle_destroy(mutexgear_toggle_t *__toggle)
 
 
 /*extern */
-int mutexgear_toggle_lockslave(mutexgear_toggle_t *__toggle)
+int mutexgear_toggle_engaged(mutexgear_toggle_t *__toggle)
 {
 	int ret;
 
@@ -264,7 +264,7 @@ int mutexgear_toggle_lockslave(mutexgear_toggle_t *__toggle)
 }
 
 /*extern */
-int mutexgear_toggle_slaveswitch(mutexgear_toggle_t *__toggle)
+int mutexgear_toggle_flipped(mutexgear_toggle_t *__toggle)
 {
 	int ret;
 
@@ -313,7 +313,7 @@ int mutexgear_toggle_slaveswitch(mutexgear_toggle_t *__toggle)
 }
 
 /*extern */
-int mutexgear_toggle_unlockslave(mutexgear_toggle_t *__toggle)
+int mutexgear_toggle_disengaged(mutexgear_toggle_t *__toggle)
 {
 	int ret;
 

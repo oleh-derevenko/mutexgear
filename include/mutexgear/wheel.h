@@ -149,8 +149,8 @@ enum
 typedef struct _mutexgear_wheel_t
 {
 	_MUTEXGEAR_LOCK_T	muteces[MUTEXGEAR_WHEEL_NUMELEMENTS];
-	int					slave_index;
-	int					master_index;
+	int					wheel_side_index;
+	int					client_side_index;
 
 } mutexgear_wheel_t;
 
@@ -175,25 +175,25 @@ _MUTEXGEAR_API int mutexgear_wheel_destroy(mutexgear_wheel_t *__wheel);
 
 
 /**
- *	\fn int mutexgear_wheel_lockslave(mutexgear_wheel_t *__wheel)
+ *	\fn int mutexgear_wheel_engaged(mutexgear_wheel_t *__wheel)
  *	\brief A function to attach to the wheel to be called by the signaler (the S) thread
  *	to accomplish the independent operation Precondition 1.
  */
-_MUTEXGEAR_API int mutexgear_wheel_lockslave(mutexgear_wheel_t *__wheel);
+_MUTEXGEAR_API int mutexgear_wheel_engaged(mutexgear_wheel_t *__wheel);
 /**
- *	\fn int mutexgear_wheel_slaveroll(mutexgear_wheel_t *__wheel)
+ *	\fn int mutexgear_wheel_advanced(mutexgear_wheel_t *__wheel)
  *	\brief A function to be called by the signaler (the S) thread
  *	to notify a potential waiter of an event. This corresponds to
  *	the step 2.-Option_2 of the "Event Signaling" section
  *	(to be called after changing the V predicate to an "event happened" meaning).
  */
-_MUTEXGEAR_API int mutexgear_wheel_slaveroll(mutexgear_wheel_t *__wheel);
+_MUTEXGEAR_API int mutexgear_wheel_advanced(mutexgear_wheel_t *__wheel);
 /**
- *	\fn int mutexgear_wheel_unlockslave(mutexgear_wheel_t *__wheel)
+ *	\fn int mutexgear_wheel_disengaged(mutexgear_wheel_t *__wheel)
  *	\brief A function to be called by the signaler (the S) thread
  *	to release the \c wheel object whenever it is not going to be used any more.
  */
-_MUTEXGEAR_API int mutexgear_wheel_unlockslave(mutexgear_wheel_t *__wheel);
+_MUTEXGEAR_API int mutexgear_wheel_disengaged(mutexgear_wheel_t *__wheel);
 
 /**
  *	\fn int mutexgear_wheel_gripon(mutexgear_wheel_t *__wheel)

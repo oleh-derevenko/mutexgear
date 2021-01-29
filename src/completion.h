@@ -1012,14 +1012,14 @@ int _mutexgear_completion_worker_destroy(mutexgear_completion_worker_t *__worker
 /*_MUTEXGEAR_PURE_INLINE */
 int _mutexgear_completion_worker_lock(mutexgear_completion_worker_t *__worker_instance)
 {
-	int ret = _mutexgear_wheel_lockslave(&__worker_instance->progress_wheel);
+	int ret = _mutexgear_wheel_engaged(&__worker_instance->progress_wheel);
 	return ret;
 }
 
 /*_MUTEXGEAR_PURE_INLINE */
 int _mutexgear_completion_worker_unlock(mutexgear_completion_worker_t *__worker_instance)
 {
-	int ret = _mutexgear_wheel_unlockslave(&__worker_instance->progress_wheel);
+	int ret = _mutexgear_wheel_disengaged(&__worker_instance->progress_wheel);
 	return ret;
 }
 
@@ -1197,15 +1197,15 @@ void _mutexgear_completion_queue_unpreparedestroy(mutexgear_completion_queue_t *
 void _mutexgear_completion_queueditem_commcompletiontowaiter(mutexgear_completion_queue_t *__queue_instance, mutexgear_completion_item_t *__item_instance,
 	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_waiter_t *__item_waiter)
 {
-	int mutex_lock_status, mutex_unlock_status, wheel_roll_status;
+	int mutex_lock_status, mutex_unlock_status, wheel_advance_status;
 
 	// Acquire the worker detach lock to allow the waiter to know when this thread finishes its access to the item_waiter
 	MG_CHECK(mutex_lock_status, (mutex_lock_status = _mutexgear_lock_acquire(&__queue_instance->worker_detach_lock)) == EOK); // No way to handle -- must succeed
 
 	// Assign NULL pointer to the shared variable to let the waiter know the work is completed
 	_mutexgear_completion_item_setwow(__item_instance, __item_instance); // = NULL
-	// Roll the worker wheel to notify the waiter about progress
-	MG_CHECK(wheel_roll_status, (wheel_roll_status = _mutexgear_wheel_slaveroll(&__worker_instance->progress_wheel)) == EOK); // No way to handle -- must succeed
+	// Advance the worker wheel to notify the waiter about progress
+	MG_CHECK(wheel_advance_status, (wheel_advance_status = _mutexgear_wheel_advanced(&__worker_instance->progress_wheel)) == EOK); // No way to handle -- must succeed
 
 	// Acquire and immediately release the wait detach lock to know the waiter finished accessing the worker pointer it had
 	MG_CHECK(mutex_lock_status, (mutex_lock_status = _mutexgear_lock_acquire(&__item_waiter->wait_detach_lock)) == EOK); // No way to handle -- must succeed
