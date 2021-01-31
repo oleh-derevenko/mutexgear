@@ -32,28 +32,25 @@
 #include "wheel.h"
 
 
-static int _mutexgear_wheel_pushon(mutexgear_wheel_t *__wheel);
-
-
-/*extern */
+static
 int _mutexgear_wheel_pushon(mutexgear_wheel_t *__wheel)
 {
-	// NOTE: Pushons start with the same index as the mutexgear_wheel_lockslave() does, to come in agreement with it
+	// NOTE: Pushons start with the same index as the mutexgear_wheel_engaged() does, to come in agreement with it
 	int ret;
 
 	bool fault = false;
 	int mutex_unlock_status;
 
-	if ((unsigned int)DECODE_WHEEL_PUSHON_INDEX(__wheel->master_index) < (unsigned int)MUTEXGEAR_WHEEL_NUMELEMENTS)
+	if ((unsigned int)DECODE_WHEEL_PUSHON_INDEX(__wheel->client_side_index) < (unsigned int)MUTEXGEAR_WHEEL_NUMELEMENTS)
 	{
 		// OK to proceed
-		int pushon_index = DECODE_WHEEL_PUSHON_INDEX(__wheel->master_index);
+		int pushon_index = DECODE_WHEEL_PUSHON_INDEX(__wheel->client_side_index);
 
 		if ((ret = _mutexgear_lock_acquire(__wheel->muteces + pushon_index)) == EOK)
 		{
 			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_lock_release(__wheel->muteces + pushon_index)) == EOK); // Should succeed normally
 
-			__wheel->master_index = pushon_index != MUTEXGEAR_WHEEL_NUMELEMENTS - 1
+			__wheel->client_side_index = pushon_index != MUTEXGEAR_WHEEL_NUMELEMENTS - 1
 				? ENCODE_WHEEL_PUSHON_INDEX(pushon_index + 1) : ENCODE_WHEEL_PUSHON_INDEX(0);
 		}
 		else
@@ -61,7 +58,7 @@ int _mutexgear_wheel_pushon(mutexgear_wheel_t *__wheel)
 			fault = true;
 		}
 	}
-	else if ((unsigned int)__wheel->master_index >= (unsigned int)MUTEXGEAR_WHEEL_NUMELEMENTS)
+	else if ((unsigned int)__wheel->client_side_index >= (unsigned int)MUTEXGEAR_WHEEL_NUMELEMENTS)
 	{
 		// The object is in an invalid state
 		ret = EINVAL;
@@ -152,21 +149,21 @@ int mutexgear_wheel_destroy(mutexgear_wheel_t *__wheel)
 
 
 /*_MUTEXGEAR_API */
-int mutexgear_wheel_lockslave(mutexgear_wheel_t *__wheel)
+int mutexgear_wheel_engaged(mutexgear_wheel_t *__wheel)
 {
-	return _mutexgear_wheel_lockslave(__wheel);
+	return _mutexgear_wheel_engaged(__wheel);
 }
 
 /*_MUTEXGEAR_API */
-int mutexgear_wheel_slaveroll(mutexgear_wheel_t *__wheel)
+int mutexgear_wheel_advanced(mutexgear_wheel_t *__wheel)
 {
-	return _mutexgear_wheel_slaveroll(__wheel);
+	return _mutexgear_wheel_advanced(__wheel);
 }
 
 /*_MUTEXGEAR_API */
-int mutexgear_wheel_unlockslave(mutexgear_wheel_t *__wheel)
+int mutexgear_wheel_disengaged(mutexgear_wheel_t *__wheel)
 {
-	return _mutexgear_wheel_unlockslave(__wheel);
+	return _mutexgear_wheel_disengaged(__wheel);
 }
 
 

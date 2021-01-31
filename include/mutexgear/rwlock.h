@@ -660,7 +660,7 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
  *	the same parameters must not be used for enclosed read or write locks of other RWLock objects). 
  *	The \p __worker_instance must be locked with a \c mutexgear_completion_worker_lock call after initialization. 
  *	The \p __waiter_instance may be reused for nested acquisitions of other RWLock objects.
- *	It is recommended that the objects are allocated with a calling thread for its lifetime. 
+ *	It is recommended that the objects are allocated with calling thread for its lifetime. 
  *	If a thread may call to acquire both read and write locks during its execution 
  *	the same set of objects may be used in all the calls.
  *

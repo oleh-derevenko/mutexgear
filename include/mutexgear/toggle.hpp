@@ -68,37 +68,37 @@ public:
 
 public:
 	//////////////////////////////////////////////////////////////////////////
-	// Slave Side
+	// Wheel Side
 
-	void lock_slave()
+	void engaged()
 	{
-		int iLockResult = mutexgear_toggle_lockslave(&m_tToggleInstance);
+		int iEngageResult = mutexgear_toggle_engaged(&m_tToggleInstance);
 
-		if (iLockResult != EOK)
+		if (iEngageResult != EOK)
 		{
-			throw std::system_error(std::error_code(iLockResult, std::system_category()));
+			throw std::system_error(std::error_code(iEngageResult, std::system_category()));
 		}
 	}
 
-	void slaveswitch()
+	void flipped()
 	{
-		int iSwitchResult = mutexgear_toggle_slaveswitch(&m_tToggleInstance);
+		int iFlipResult = mutexgear_toggle_flipped(&m_tToggleInstance);
 
-		if (iSwitchResult != EOK)
+		if (iFlipResult != EOK)
 		{
-			throw std::system_error(std::error_code(iSwitchResult, std::system_category()));
+			throw std::system_error(std::error_code(iFlipResult, std::system_category()));
 		}
 	}
 
-	void unlock_slave() noexcept
+	void disengaged() noexcept
 	{
-		int iMutexToggleUnlockSlaveResult;
-		MG_CHECK(iMutexToggleUnlockSlaveResult, (iMutexToggleUnlockSlaveResult = mutexgear_toggle_unlockslave(&m_tToggleInstance)) == EOK);
+		int iMutexToggleDisengageResult;
+		MG_CHECK(iMutexToggleDisengageResult, (iMutexToggleDisengageResult = mutexgear_toggle_disengaged(&m_tToggleInstance)) == EOK);
 	}
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// Master Side
+	// Client Side
 
 	void push_on()
 	{

@@ -208,7 +208,7 @@ void _t__mutexgear_##t_prefix##item_naive_swap(_t_mutexgear_##t_prefix##item_t *
 	_t__mutexgear_##t_prefix##item_setnext(p_item_instance, _t_mutexgear_##t_prefix##item_getnext(p_another_item)); \
 	_t__mutexgear_##t_prefix##item_setnext(p_another_item, p_next_item); \
  \
-	/* Note: The function is not intended to be invoked concurrently with mutexgear_is_dlitem_linked and thus, */ \
+	/* Note: The function is not intended to be invoked concurrently with mutexgear_dl??item_islinked and thus, */ \
 	/* the atomic assignment/retrieval is not necessary here. */ \
 	_t_mutexgear_##t_prefix##item_t *p_prev_item = _t_mutexgear_##t_prefix##item_getprevious(p_item_instance); \
 	_t__mutexgear_##t_prefix##item_setunsafeprevious(p_item_instance, _t_mutexgear_##t_prefix##item_getprevious(p_another_item)); \

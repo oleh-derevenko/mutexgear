@@ -68,37 +68,37 @@ public:
 
 public:
 	//////////////////////////////////////////////////////////////////////////
-	// Slave Side
+	// Wheel Side
 
-	void lock_slave()
+	void engaged()
 	{
-		int iLockResult = mutexgear_wheel_lockslave(&m_wWheelInstance);
+		int iEngageResult = mutexgear_wheel_engaged(&m_wWheelInstance);
 
-		if (iLockResult != EOK)
+		if (iEngageResult != EOK)
 		{
-			throw std::system_error(std::error_code(iLockResult, std::system_category()));
+			throw std::system_error(std::error_code(iEngageResult, std::system_category()));
 		}
 	}
 
-	void slaveroll()
+	void advanced()
 	{
-		int iRollResult = mutexgear_wheel_slaveroll(&m_wWheelInstance);
+		int iAdvanceResult = mutexgear_wheel_advanced(&m_wWheelInstance);
 
-		if (iRollResult != EOK)
+		if (iAdvanceResult != EOK)
 		{
-			throw std::system_error(std::error_code(iRollResult, std::system_category()));
+			throw std::system_error(std::error_code(iAdvanceResult, std::system_category()));
 		}
 	}
 
-	void unlock_slave() noexcept
+	void disengaged() noexcept
 	{
-		int iMutexWheelUnlockSlaveResult;
-		MG_CHECK(iMutexWheelUnlockSlaveResult, (iMutexWheelUnlockSlaveResult = mutexgear_wheel_unlockslave(&m_wWheelInstance)) == EOK);
+		int iMutexWheelDisengageResult;
+		MG_CHECK(iMutexWheelDisengageResult, (iMutexWheelDisengageResult = mutexgear_wheel_disengaged(&m_wWheelInstance)) == EOK);
 	}
 
 
 	//////////////////////////////////////////////////////////////////////////
-	// Master Side
+	// Client Side
 
 	void grip_on()
 	{
