@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -23,7 +23,7 @@
  *	\file
  *	\brief MutexGear RWLock API definitions
  *
- *	The header defines a "read-write lock" (RWLock) object.
+ *	The header defines a "read-write lock" (\c rwlock) object.
  *	A read-write lock is an object that can be locked by single thread at a time 
  *	(exclusively) for "write" or be locked by multiple threads simultaneously 
  *	(shared) for "read". This particular implementation is based solely on muteces 
@@ -107,7 +107,7 @@ typedef struct _mutexgear_rwlockattr
  */
 _MUTEXGEAR_API int mutexgear_rwlockattr_init(mutexgear_rwlockattr_t *__attr_instance);
 
-/*
+/**
  *	\fn int mutexgear_rwlockattr_destroy(mutexgear_rwlockattr_t *__attr_instance)
  *	\brief A function to destroy a previously initialized \c mutexgear_rwlockattr_t 
  *	instance and free any resources possibly allocated for it.
@@ -116,7 +116,7 @@ _MUTEXGEAR_API int mutexgear_rwlockattr_init(mutexgear_rwlockattr_t *__attr_inst
 _MUTEXGEAR_API int mutexgear_rwlockattr_destroy(mutexgear_rwlockattr_t *__attr_instance);
 
 
-/*
+/**
  *	\fn int mutexgear_rwlockattr_setpshared(mutexgear_rwlockattr_t *__attr_instance, int __pshared_value)
  *	\brief A function to assign process shared attribute value to
  *	a \c mutexgear_rwlockattr_t  structure (similar to \c the pthread_mutexattr_setpshared).
@@ -232,9 +232,9 @@ _MUTEXGEAR_API int mutexgear_rwlockattr_getwritechannels(mutexgear_rwlockattr_t 
 
 /**
  *	\struct mutexgear_rwlock_t
- *	\brief An opaque structure to represent a read-write lock (RWLock) object without tryrdlock operation
+ *	\brief An opaque structure to represent a read-write lock (\c rwlock) object without tryrdlock operation support
  *
- *	This is a basic RWLock class with wrlock, wrunlock, rdlock, rdunlock, and with trywrlock 
+ *	This is a basic \c rwlock class with wrlock, wrunlock, rdlock, rdunlock, and with trywrlock 
  *	but without tryrdlock operation support. For additional tryrdlock, use 
  *	\c mutexgear_trdl_rwlock_t object instead.
  *
@@ -356,13 +356,14 @@ typedef struct _mutexgear_rwlock
 
 /**
  *	\struct mutexgear_trdl_rwlock_t
- *	\brief An opaque structure to represent a read-write lock (RWLock) object with tryrdlock operation
+ *	\brief An opaque structure to represent a read-write lock (\c rwlock) object with tryrdlock operation support
  *
- *	This is an enhanced RWLock class with the full operation set support, namely wrlock, wrunlock, rdlock, rdunlock, 
+ *	This is an enhanced \c rwlock class with the full operation set support, namely wrlock, wrunlock, rdlock, rdunlock, 
  *	trywrlock, and tryrdlock. However, it allocates an extra atomic counter, an extra mutex, and a \c _mutexgear_completion_itemdata_t structure 
  *	thus requiring more memory and kernel objects. Also, wrlock and trywrlock operations perform an extra lock-unlock sequence 
- *	on the extra mutex to guard against potential tryrdlock's. If you don't intend using tryrdlock restrain from 
- *	using this object and create basic \c mutexgear_rwlock_t objects instead.
+ *	on the extra mutex to guard against potential tryrdlock's.
+ *
+ *	If you don't intend using tryrdlock restrain from using this object and create basic \c mutexgear_rwlock_t objects instead.
  *
  *	The operation pseudo-codes are provided below.
  *
@@ -460,7 +461,7 @@ typedef struct _mutexgear_trdl_rwlock
 
 /**
  *	\fn int mutexgear_rwlock_init(mutexgear_rwlock_t *__rwlock_instance, mutexgear_rwlockattr_t *__attr_instance=NULL)
- *	\brief Creates an RWLock object
+ *	\brief Creates a \c rwlock object
  *
  *	The function can also be called for \c mutexgear_trdl_rwlock_t objects.
  *
@@ -494,7 +495,7 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
 
 /**
  *	\fn int mutexgear_rwlock_destroy(mutexgear_rwlock_t *__rwlock_instance)
- *	\brief Destroys the RWLock object
+ *	\brief Destroys the \c rwlock object
  *
  *	The function can also be called for \c mutexgear_trdl_rwlock_t objects.
  *
@@ -536,7 +537,7 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
  *	The \p __worker_instance must be locked with a \c mutexgear_completion_worker_lock call after initialization.
  *
  *	The \p __item_instance needs to be passed (an initialized object is to be passed) 
- *	only if the RWLock is used for inter-process synchronization. It can also be disposed 
+ *	only if the \c rwlock is used for inter-process synchronization. It can also be disposed 
  *	immediately after the call returns. It is recommended to keep the parameters allocated with 
  *	calling thread for reuse, however.
  *
@@ -544,7 +545,7 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
  *	a single instance of \c mutexgear_completion_item_t may be used for the both.
  *
  *	In case of inter-process synchronization all the parameters must be allocated in the same 
- *	shared section as the RWLock object.
+ *	shared section as the \c rwlock object.
  *
  *	The object must not be locked for write by a single thread recursively.
  *
@@ -657,15 +658,15 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
  *	\p __item_instance objects that must be allocated per calling thread (e.g. on stack).
  *	The \p __worker_instance and \p __item_instance must remain valid and not reused for other purposes 
  *	until the read lock is released with a call to \c mutexgear_rwlock_rdunlock (in particular, 
- *	the same parameters must not be used for enclosed read or write locks of other RWLock objects). 
+ *	the same parameters must not be used for enclosed read or write locks of other \c rwlock objects). 
  *	The \p __worker_instance must be locked with a \c mutexgear_completion_worker_lock call after initialization. 
- *	The \p __waiter_instance may be reused for nested acquisitions of other RWLock objects.
+ *	The \p __waiter_instance may be reused for nested acquisitions of other \c rwlock objects.
  *	It is recommended that the objects are allocated with calling thread for its lifetime. 
  *	If a thread may call to acquire both read and write locks during its execution 
  *	the same set of objects may be used in all the calls.
  *
  *	In case of inter-process synchronization all the parameters must be allocated in the same
- *	shared section as the RWLock object.
+ *	shared section as the \c rwlock object.
  *
  *	\return EOK on success or a system error code on failure.
  *	\see mutexgear_rwlock_rdunlock
@@ -699,7 +700,7 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
 
 
 /**
- *	\fn int mutexgear_rwlock_tryrdlock(mutexgear_trdl_rwlock_t *__rwlock_instance,	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_item_t *__item_instance)
+ *	\fn int mutexgear_rwlock_tryrdlock(mutexgear_trdl_rwlock_t *__rwlock_instance, mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_item_t *__item_instance)
  *	\brief Tries to acquire the object read (shared) lock without blocking
  *
  *	The function is available for \c mutexgear_trdl_rwlock_t objects only.
@@ -713,15 +714,20 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
  *	\p __item_instance objects match those for \c mutexgear_rwlock_rdlock call.
  *
  *	In case of inter-process synchronization all the parameters must be allocated in the same
- *	shared section as the RWLock object.
+ *	shared section as the \c rwlock object.
  *
  *	\return EOK on success, EBUSY if the object is already write-locked by another thread, or a system error code on failure.
  *	\see mutexgear_rwlock_rdunlock
  *	\see mutexgear_rwlock_rdlock
  *	\see mutexgear_completion_worker_lock
  */
+#ifdef __MUTEXGEAR_DOXYGEN__
+_MUTEXGEAR_API int mutexgear_rwlock_tryrdlock(mutexgear_trdl_rwlock_t *__rwlock_instance,
+	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_item_t *__item_instance);
+#endif
 _MUTEXGEAR_API int mutexgear_trdl_rwlock_tryrdlock(mutexgear_trdl_rwlock_t *__rwlock_instance,
 	mutexgear_completion_worker_t *__worker_instance, mutexgear_completion_item_t *__item_instance);
+
 
 #if defined(__cplusplus)
 _MUTEXGEAR_END_EXTERN_C();
@@ -749,7 +755,7 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
  *	The function can also be called for \c mutexgear_trdl_rwlock_t objects.
  *
  *	The \p __worker_instance and \p __item_instance must be the same objects that were used in the previous call
- *	to \c mutexgear_rwlock_rdlock on the RWLock.
+ *	to \c mutexgear_rwlock_rdlock on the \c rwlock.
  *	\return EOK on success or a system error code on failure.
  *	\see mutexgear_rwlock_rdlock
  */

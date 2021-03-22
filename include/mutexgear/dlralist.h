@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -25,7 +25,7 @@
  *
  *	The header defines a double-linked list object to be embedded within
  *	other memory structures. The list uses relative offsets instead of
- *	direct pointers to be possible used to be used in shared memory sections.
+ *	direct pointers to be possible to be used in shared memory sections.
  *	Previous element link is accessed with atomic functions to make some
  *	operations directly available in multi-threaded environment.
  */

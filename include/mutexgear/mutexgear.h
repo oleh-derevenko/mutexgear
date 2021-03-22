@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -23,7 +23,7 @@
  *	\file
  *	\brief MutexGear API definitions
  * 
- *	The header includes all the library exported APIs.
+ *	The header includes all the library exported APIs except for the embeddable lists.
  */
 
 
@@ -34,12 +34,12 @@
 // Note: lists are not included here
 
 
-/*
+/**
+ *	\file
  *	Some usage examples:
  *	
  *	1. Scheduling a task in a worker thread an waiting for it to complete
  *	(a coordinated execution mode example)
- *  
  *	\code
  *	
  *	typedef struct worker_context
@@ -118,10 +118,7 @@
  *	}
  *
  *	\endcode
- *
- *
  *	2. Waiting for room in a limited size work queue to push work item into
- *
  *	\code
  *	
  *	typedef struct worker_context
@@ -178,7 +175,7 @@
  *	static
  *	void ClientThread_ScheduleWorkItem(worker_context_t *worker, work_item_t *item)
  *	{
- *		// The function can only be called after the worker initialization phase ends
+ *		// The function can be called only after the worker initialization phase ends
  *		assert(IsHostNotifiedOfWorkerThreadBeingReady(worker));
  *
  *		// Push the item into the work queue. Wake the worker up if the queue was empty.
@@ -201,10 +198,7 @@
  *	}
  *	
  *	\endcode
- *
- *
  *	3. Canceling all work items scheduled into a thread pool by relation to a particular object.
- *	
  *	\code
  *	
  *	typedef struct pool_context
@@ -328,7 +322,7 @@
  *				// that might have been already assigned by a worker there.
  *				mutexgear_wheel_t *assigned_completion_wheel = (mutexgear_wheel_t *)AtomicSwapPointer(&item->m_worker_wheel_ptr, item);
  *
- *				// If the current thread was the first to assign the value, it is safe to proceed with deletion immediately
+ *				// If the current thread was the first to assign the value it is safe to proceed with deletion immediately
  *				if (assigned_completion_wheel != NULL
  *					// Otherwise it may be necessary to wait until the item's handling is over.
  *					&& !IsWorkItemMarkedCompleted(item))

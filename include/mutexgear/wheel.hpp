@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -41,6 +41,14 @@
 _MUTEXGEAR_BEGIN_NAMESPACE()
 
 
+/**
+ *	\class mutex_wheel
+ *	\brief A wrapper for \c mutexgear_wheel_t and its related functions.
+ *
+ *	The class implements a mutex wheel with default initialization attributes.
+ *
+ *	\see mutexgear_wheel_t
+ */
 class mutex_wheel
 {
 public:

@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -47,9 +47,23 @@
 
 _MUTEXGEAR_BEGIN_NAMESPACE()
 
+/**
+ *	\namespace completion
+ *	\brief A namespace to group completion queues and related classes.
+ */
 _MUTEXGEAR_BEGIN_COMPLETION_NAMESPACE()
 
 
+/**
+ *	\class worker
+ *	\brief A wrapper for \c mutexgear_completion_worker_t and its related functions.
+ *
+ *	The class is a helper for active side handling items in a completion queue like \c waitable_queue or \c cancelable_queue.
+ *
+ *	\see mutexgear_completion_worker_t
+ *	\see waitable_queue
+ *	\see cancelable_queue
+ */
 class worker:
 	private mutexgear_completion_worker_t
 {
@@ -99,6 +113,15 @@ public:
 	operator pointer() noexcept { return static_cast<pointer>(this); }
 };
 
+/**
+ *	\class worker_view
+ *	\brief A wrapper for \c worker data pointer.
+ *
+ *	The class wraps a reference for accessing and handling a \worker data structure.
+ *
+ *	\see worker
+ *	\see mutexgear_completion_worker_t
+ */
 class worker_view
 {
 public:
@@ -127,6 +150,16 @@ private:
 };
 
 
+/**
+ *	\class waiter
+ *	\brief A wrapper for \c mutexgear_completion_waiter_t and its related functions.
+ *
+ *	The class is a helper for client side scheduling items into a completion queue, like \c waitable_queue or \c cancelable_queue, and waiting for them to be processed there.
+ *
+ *	\see mutexgear_completion_waiter_t
+ *	\see waitable_queue
+ *	\see cancelable_queue
+ */
 class waiter:
 	private mutexgear_completion_waiter_t
 {
@@ -159,6 +192,17 @@ public:
 };
 
 
+/**
+ *	\class item
+ *	\brief A wrapper for \c mutexgear_completion_item_t and its related functions.
+ *
+ *	The class is an item that can be inserted into a completion queue, like \c waitable_queue or \c cancelable_queue, 
+ *	to act as a reference for accessing the item's host object for processing.
+ *
+ *	\see mutexgear_completion_item_t
+ *	\see waitable_queue
+ *	\see cancelable_queue
+ */
 class item:
 	private mutexgear_completion_item_t
 {
@@ -184,6 +228,15 @@ public:
 	operator pointer() noexcept { return static_cast<pointer>(this); }
 };
 
+/**
+ *	\class item_view
+ *	\brief A wrapper for \c item data pointer.
+ *
+ *	The class wraps a reference for accessing and handling an \c item data structure.
+ *
+ *	\see item
+ *	\see mutexgear_completion_item_t
+ */
 class item_view
 {
 public:
@@ -218,6 +271,16 @@ private:
 };
 
 
+/**
+ *	\class waitable_queue
+ *	\brief A wrapper for \c mutexgear_completion_queue_t and its related functions.
+ *
+ *	The class implements a threading-aware queue that can be used for scheduling work
+ *	items and letting them to be handled asynchronously with threads while allowing the clients 
+ *	to request waits for particular item handling completions.
+ *
+ *	\see mutexgear_completion_queue_t
+ */
 class waitable_queue
 {
 public:
@@ -425,6 +488,17 @@ waitable_queue::const_iterator &waitable_queue::const_iterator::operator =(const
 }
 
 
+/**
+ *	\class cancelable_queue
+ *	\brief A wrapper for \c mutexgear_completion_cancelablequeue_t and its related functions.
+ *
+ *	The class implements a threading-aware queue that can be used for scheduling work
+ *	items and letting them to be handled asynchronously with threads while allowing the clients
+ *	to request waits for particular item handling completions and request canceling and safe removal
+ *	of the items that no longer need the processing.
+ *
+ *	\see mutexgear_completion_queue_t
+ */
 class cancelable_queue
 {
 public:
