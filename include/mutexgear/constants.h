@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -53,7 +53,7 @@
  */
 #define MUTEXGEAR_PRIO_INHERIT				0x0000
 /**
- *	\def MUTEXGEAR_PRIO_INHERIT
+ *	\def MUTEXGEAR_PRIO_PROTECT
  *	\brief A lock protocol value that requires priority ceiling to be used
  */
 #define MUTEXGEAR_PRIO_PROTECT				0x0001

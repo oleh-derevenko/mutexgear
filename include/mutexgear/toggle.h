@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -108,6 +108,7 @@
 
 
 #include <mutexgear/config.h>
+#include <mutexgear/utility.h>
 #include <limits.h>
 
 
@@ -116,8 +117,8 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
 //////////////////////////////////////////////////////////////////////////
 
 /**
- *	\typedef mutexgear_toggleattr_t
- *	\brief An attributes structure used to define the attributes of a \c toggle object on creation
+ *	\struct mutexgear_toggleattr_t
+ *	\brief An attributes structure used to define the attributes of a \c mutexgear_toggle_t object on creation
  */
 typedef struct _mutexgear_toggleattr_t
 {
@@ -230,8 +231,8 @@ enum
 };
 
 /**
- *	\typedef mutexgear_toggle_t
- *	\brief The toggle object structure.
+ *	\struct mutexgear_toggle_t
+ *	\brief The \c toggle object structure.
  */
 typedef struct _mutexgear_toggle_t
 {
@@ -246,6 +247,7 @@ typedef struct _mutexgear_toggle_t
  *	\brief A \c toggle object in-place static initializer (similar to \c PTHREAD_MUTEX_INITIALIZER).
  */
 #define MUTEXGEAR_TOGGLE_INITIALIZER	{ { PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER }, MUTEXGEAR_TOGGLEELEMENT_INVALID }
+MG_STATIC_ASSERT(MUTEXGEAR_TOGGLE_NUMELEMENTS == 2); // Fix MUTEXGEAR_TOGGLE_INITIALIZER to match the actual number of elements, then update the assertion check
 
 
 /**

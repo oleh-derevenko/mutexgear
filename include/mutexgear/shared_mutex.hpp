@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -53,6 +53,16 @@ using _MUTEXGEAR_COMPLETION_NAMESPACE::item;
 _MUTEXGEAR_END_SHMTX_HELPERS_NAMESPACE();
 
 
+/**
+ *	\class shared_mutex
+ *	\brief A wrapper for \c mutexgear_rwlock_t and its related functions.
+ *
+ *	The class implements a read-write lock without try-read lock support and with default initialization attributes.
+ *
+ *	The class method names are compatible with those of \c std::shared_mutex.
+ *
+ *	\see mutexgear_rwlock_t
+ */
 class shared_mutex
 {
 public:
@@ -129,8 +139,22 @@ private:
 };
 
 
+/**
+ *	\namespace trdl
+ *	\brief A namespace for the try-read lock enabled \c trdl::shared_mutex variant
+ */
 _MUTEXGEAR_BEGIN_TRDL_NAMESPACE()
 
+/**
+ *	\class trdl::shared_mutex
+ *	\brief A wrapper for \c mutexgear_trdl_rwlock_t and its related functions.
+ *
+ *	The class implements a read-write lock with try-read lock support and with default initialization attributes.
+ *
+ *	The class method names are compatible with those of \c std::shared_mutex.
+ *
+ *	\see mutexgear_trdl_rwlock_t
+ */
 class shared_mutex
 {
 public:

@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -21,7 +21,7 @@
 
 /**
  *	\file
- *	\brief Double-Linked Pointed Simple List class definitions
+ *	\brief Double-Linked Pointed Simple List class definitions.
  *
  *	\note "Simple" means "without atomics" here.
  *
@@ -29,6 +29,11 @@
  *	list to connect these items with plain pointers. These classes are C++ counterparts
  *	for \c mutexgear_dlpsitem_* and \c mutexgear_dlpslist_* set of functions defined in
  *	mutexgear/dlpslist.h.
+ *
+ *	The classes are not related to synchronization on their own. However, variants of them are used in the library internally
+ *	and this header-only C++ equivalent is a mean to make the library's public C++ interface complete with respect to 
+ *	the C counterpart. Also, author's hope is this class could serve as a great educational idea for some library users
+ *	and will help to improve efficiency and robustness of their future programs.
  */
 
 
@@ -39,6 +44,19 @@
 _MUTEXGEAR_BEGIN_NAMESPACE()
 
 
+/**
+ *	\class dlps_info
+ *	\brief An embeddable list item class.
+ *
+ *	The class is to be used as a parent, possibly for multi-inheritance via \c parent_wrapper, to allow linking the host object
+ *	into one or more \c dlps_list double-linked lists.
+ *
+ *	Even though the same result could be achieved via including \c dlps_info objects as member fields, using inheritance is preferable 
+ *	as it allows transition from the info objects to the host with static casts rather than using field offsets and pointer arithmetic.
+ *
+ *	\see parent_wrapper
+ *	\see dlps_list
+ */
 class dlps_info
 {
 public:
@@ -80,6 +98,95 @@ private:
 	dlps_info			*m_psiPreviousItem;
 };
 
+
+/**
+ *	\class dlps_list
+ *	\brief An embeddable double-linked list with interface similar to STL lists
+ *
+ *	The class implements a double-linked list with items embedded as parent classes of user objects
+ *	rather than been allocated. The list is handy for temporarily or permanently gathering objects already 
+ *	organized in some way (e.g., being kept in a STL container) into another ordered collection without 
+ *	memory allocations. A single object can be linked into several lists like this. The object lifetime
+ *	is not affected by linking or unlinking from the lists.
+ *	
+ *	Another perk is that the element unlink method is static and the list object pointer is not needed for the operation.
+ *	I.e., an element can determine if it's linked and unlink itself without having the list pointer available.
+ *	Also, having a list object permits iterating and unlinking objects with just their embedded \c dlps_info structures
+ *	without examining the host objects themselves.
+ *
+ *	There is a restriction though, that an object being a member of the list is not copyable/movable in memory.
+ *	However, when it's not linked in lists, the object can be copied or moved, provided that would be possible originally.
+ *
+ *	Here follow some usage demonstration code snippets.
+ *	\code
+ *	class CSomeClass:
+		// In multi-inheritance case with several dlps_info structures used as parents,
+		// each should be wrapped with a parent_wrapper with unique tuiInstanceTag parameter
+		// to create distinct types that would be possible to be used as the multi-inheritance ancestors.
+ *		private parent_wrapper<dlps_info, 0x21032119>
+ *	{
+ *		typedef parent_wrapper<dlps_info, 0x21032119> CSomeClass_SampleLinkParent;
+ *
+ *	public:
+ *		void LinkIntoSampleList(dlps_list &dlListInstance)
+ *		{
+ *			dlListInstance.link_back(static_cast<CSomeClass_SampleLinkParent *>(this));
+ *		}
+ *
+ *		bool IsLinkedInSampleList() const
+ *		{
+ *			return static_cast<const CSomeClass_SampleLinkParent *>(this)->linked();
+ *		}
+ *
+ *		void UnlinkFromSampleList()
+ *		{
+ *			if (IsLinkedInSampleList())
+ *			{
+ *				dlps_list::unlink(dlps_list::make_iterator(static_cast<CSomeClass_SampleLinkParent *>(this)));
+ *			}
+ *		}
+ *
+ *		static CSomeClass *GetInstanceFromSampleLink(const dlps_info *pdiSampleLink)
+ *		{
+ *			// This approach with explicit casting via CSomeClass_SampleLinkParent allows having more than one parent like this with different typedef-ed names
+ *			// and thus, allows being able to include the object into several lists at once.
+ *			return static_cast<CSomeClass *>(const_cast<CSomeClass_SampleLinkParent *>(static_cast<const CSomeClass_SampleLinkParent *>(pdiSampleLink)));
+ *		}
+ *	};
+ *
+ *	class CMajorClass
+ *	{
+ *	public:
+ *		void ProcessAndKeepSampleList()
+ *		{
+ *			const dlps_list::const_iterator itListEnd = m_dlSampleList.end();
+ *			for (dlps_list::const_iterator itCurrentItem = m_dlSampleList.begin(); itCurrentItem != itListEnd; ++itCurrentItem)
+ *			{
+ *				CSomeClass *pscCurrentObject = CSomeClass::GetInstanceFromSampleLink(&*itCurrentItem);
+ *
+ *				// work with pscCurrentObject
+ *			}
+ *		};
+ *
+ *		void ProcessAndUnlinkSampleList()
+ *		{
+ *			while (!m_dlSampleList.empty())
+ *			{
+ *				CSomeClass *pscCurrentObject = CSomeClass::GetInstanceFromSampleLink(&m_dlSampleList.front());
+ *				m_dlSampleList.unlink_front(); // Could have also been pscCurrentObject->UnlinkFromSampleList();
+ *
+ *				// work with pscCurrentObject
+ *			}
+ *		};
+ *
+ *	private:
+ *		dlps_list		m_dlSampleList;
+ *	};
+ *	\endcode
+ *
+ *	\see dlps_info
+ *	\see parent_wrapper
+ */
 class dlps_list
 {
 public:
@@ -93,6 +200,7 @@ public:
 	}
 
 	void detach() noexcept { m_siEndInfo.ResetToSelflinked(); }
+	void unlink_all() { while (!empty()) { unlink_front(); } }
 	bool empty() const noexcept { return !m_siEndInfo.linked(); }
 
 	dlps_list &operator =(const dlps_list &slAnotherInstance) noexcept { MG_ASSERT(empty()); MG_ASSERT(slAnotherInstance.empty()); return *this; }

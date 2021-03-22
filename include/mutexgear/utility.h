@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -85,6 +85,12 @@
 #include <assert.h>
 #include <stdlib.h>
 
+/**
+ *	\var volatile intmax_t mg_failed_check_status
+ *	\brief A global variable to contain 'v' expression evaluation result of the failed \c MG_CHECK
+ *
+ *	Read this variable in a debugger to find out what was the 'v' expression value the last \c MG_CHECK has failed with.
+ */
 extern volatile intmax_t mg_failed_check_status;
 
 #ifndef NDEBUG

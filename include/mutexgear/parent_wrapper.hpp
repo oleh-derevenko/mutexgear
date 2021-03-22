@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -26,7 +26,7 @@
 *	The header defines a wrapper class to be used for disambiguation between
 *	matching parent types in multiple inheritance by adding an integer tag 
 *	that can make the type declarations distinct. In particular, this allows
-*	deriving from multiple parent list info structures (such as \c mg::dlps_info)
+*	deriving from multiple parent list info structures (such as \c dlps_info)
 *	and linking the class object into multiple embedded lists simultaneously.
 */
 
@@ -40,6 +40,18 @@
 _MUTEXGEAR_BEGIN_NAMESPACE()
 
 
+/**
+ *	\class parent_wrapper
+ *	\brief A wrapper class for parent disambiguation.
+ *
+ *	The class uses \p tuiInstanceTag template parameter to make distinct types from the same class 
+ *	and allow using the class for multiple inheritance.
+ *
+ *	Within the MutexGear library, for example, this can allow linking a single object into several embeddable lists at once.
+ *
+ *	\see dlps_info
+ *	\see dlps_list
+ */
 template<class TParentType, std::uint32_t tuiInstanceTag=0>
 class parent_wrapper:
 	public TParentType
@@ -47,7 +59,6 @@ class parent_wrapper:
 public:
 	typedef TParentType parent_type;
 	typedef typename std::add_const<TParentType>::type const_parent_type;
-	typedef parent_wrapper<TParentType, tuiInstanceTag> this_type;
 
 	template<typename=typename std::enable_if<std::is_default_constructible<TParentType>::value>::type>
 	parent_wrapper() noexcept(std::is_nothrow_default_constructible<TParentType>::value): parent_type() {}
@@ -63,10 +74,10 @@ public:
 
 
 	template<class TArgumentParentType, std::uint32_t tuiArgumentInstanceTag, typename=typename std::enable_if<std::is_assignable<TParentType, TArgumentParentType>::value>::type>
-	this_type &operator =(const parent_wrapper<TArgumentParentType, tuiArgumentInstanceTag> &pwAnotherWrapper) noexcept(std::is_nothrow_assignable<TParentType, TArgumentParentType>::value) { parent_type::operator =(static_cast<const TArgumentParentType &>(pwAnotherWrapper)); return *this; }
+	parent_wrapper &operator =(const parent_wrapper<TArgumentParentType, tuiArgumentInstanceTag> &pwAnotherWrapper) noexcept(std::is_nothrow_assignable<TParentType, TArgumentParentType>::value) { parent_type::operator =(static_cast<const TArgumentParentType &>(pwAnotherWrapper)); return *this; }
 
 	template<std::uint32_t tuiArgumentInstanceTag, typename=typename std::enable_if<std::is_move_assignable<TParentType>::value>::type>
-	this_type &operator =(parent_wrapper<TParentType, tuiArgumentInstanceTag> &&pwRefAnotherWrapper) noexcept(std::is_nothrow_move_assignable<TParentType>::value) { parent_type::operator =(std::move(static_cast<TParentType &&>(pwRefAnotherWrapper))); return *this; }
+	parent_wrapper &operator =(parent_wrapper<TParentType, tuiArgumentInstanceTag> &&pwRefAnotherWrapper) noexcept(std::is_nothrow_move_assignable<TParentType>::value) { parent_type::operator =(std::move(static_cast<TParentType &&>(pwRefAnotherWrapper))); return *this; }
 
 
 	template<std::uint32_t tuiArgumentInstanceTag, typename=typename std::enable_if<std::is_move_constructible<TParentType>::value && std::is_move_assignable<TParentType>::value>::type>

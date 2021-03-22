@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2020 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -120,6 +120,7 @@
 
 
 #include <mutexgear/config.h>
+#include <mutexgear/utility.h>
 #include <limits.h>
 
 
@@ -128,8 +129,8 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
 //////////////////////////////////////////////////////////////////////////
 
 /**
- *	\typedef mutexgear_wheelattr_t
- *	\brief An attributes structure used to define the attributes of a \c wheel object on creation.
+ *	\struct mutexgear_wheelattr_t
+ *	\brief An attributes structure used to define the attributes of a \c mutexgear_wheel_t object on creation.
  */
 typedef struct _mutexgear_wheelattr_t
 {
@@ -172,7 +173,7 @@ _MUTEXGEAR_API int mutexgear_wheelattr_destroy(mutexgear_wheelattr_t *__attr);
  *	\see mutexgear_wheelattr_init
  */
 _MUTEXGEAR_API int mutexgear_wheelattr_getpshared(const mutexgear_wheelattr_t *__attr, int *__pshared);
-/*
+/**
 *	\fn int mutexgear_wheelattr_setpshared(mutexgear_wheelattr_t *__attr, int __pshared)
 *	\brief A function to assign process shared attribute value to
 *	a \c mutexgear_wheelattr_t structure (similar to \c the pthread_mutexattr_setpshared).
@@ -245,8 +246,8 @@ enum
 };
 
 /**
- *	\typedef mutexgear_wheel_t
- *	\brief The wheel object structure.
+ *	\struct mutexgear_wheel_t
+ *	\brief The \c wheel object structure.
  */
 typedef struct _mutexgear_wheel_t
 {
@@ -261,6 +262,7 @@ typedef struct _mutexgear_wheel_t
  *	\brief A \c wheel object in-place static initializer (similar to \c PTHREAD_MUTEX_INITIALIZER).
  */
 #define MUTEXGEAR_WHEEL_INITIALIZER	{ { PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER }, MUTEXGEAR_WHEELELEMENT_INVALID, MUTEXGEAR_WHEELELEMENT_INVALID }
+MG_STATIC_ASSERT(MUTEXGEAR_WHEEL_NUMELEMENTS == 3); // Fix MUTEXGEAR_WHEEL_INITIALIZER to match the actual number of elements, then update the assertion check
 
 
 /**
