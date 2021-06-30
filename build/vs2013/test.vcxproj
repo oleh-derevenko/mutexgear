@@ -30,9 +30,14 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">pch.h</PrecompiledHeaderFile>
     </ClCompile>
+    <ClCompile Include="..\..\test\pwtest.cpp" />
+    <ClCompile Include="..\..\test\rwltest.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\test\mgtest_common.h" />
     <ClInclude Include="..\..\test\pch.h" />
+    <ClInclude Include="..\..\test\pwtest.h" />
+    <ClInclude Include="..\..\test\rwltest.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{4B6096C4-BF35-455A-8AE5-E71636B17B80}</ProjectGuid>

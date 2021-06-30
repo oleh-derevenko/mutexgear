@@ -150,9 +150,15 @@ int mutexgear_rwlockattr_setmutexattr(mutexgear_rwlockattr_t *__attr, const _MUT
 			pshared_missing = true;
 		}
 
+		bool prioceiling_missing = false;
 		if ((ret = _mutexgear_lockattr_getprioceiling(__mutexattr, &prioceiling_value)) != EOK)
 		{
-			break;
+			if (ret != _MUTEXGEAR_ERRNO__PRIOCEILING_MISSING)
+			{
+				break;
+			}
+
+			prioceiling_missing = true;
 		}
 
 		if ((ret = _mutexgear_lockattr_getprotocol(__mutexattr, &protocol_value)) != EOK)
@@ -166,7 +172,7 @@ int mutexgear_rwlockattr_setmutexattr(mutexgear_rwlockattr_t *__attr, const _MUT
 		}
 
 		// The priority ceiling of 0 means that there is no priority ceiling defined (the default) and some targets fail with EINVAL when when attempting to assign the 0.
-		if (prioceiling_value != 0 && (ret = _mutexgear_lockattr_setprioceiling(&__attr->lock_attr, prioceiling_value)) != EOK)
+		if (!prioceiling_missing && prioceiling_value != 0 && (ret = _mutexgear_lockattr_setprioceiling(&__attr->lock_attr, prioceiling_value)) != EOK)
 		{
 			break;
 		}

@@ -1,4 +1,13 @@
-// pch.cpp: source file corresponding to pre-compiled header; necessary for compilation to succeed
+/************************************************************************/
+/* The MutexGear Library                                                */
+/* The library test application precompiled header related source       */
+/*                                                                      */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
+/*                                                                      */
+/* E-mail: oleh.derevenko@gmail.com                                     */
+/* Skype: oleh_derevenko                                                */
+/************************************************************************/
+
 
 #include "pch.h"
 

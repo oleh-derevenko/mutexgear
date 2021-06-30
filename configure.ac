@@ -3,7 +3,7 @@ AC_INIT([mutexgear],[0.1],[oleh.derevenko@gmail.com])
 AC_LANG(C)
 
 AC_COPYRIGHT([Copyright (C) 2020-2021, Oleh Derevenko <oleh.derevenko@gmail.com>])
-AC_REVISION([$Revision: 1.00 $])
+AC_REVISION([$Revision: 1.01 $])
 
 MUTEXGEAR_VERSION=0.1
 AC_SUBST(MUTEXGEAR_VERSION)
@@ -87,6 +87,15 @@ AC_CHECK_FUNCS([clock_gettime gettimeofday sched_setscheduler])
 AC_CHECK_FUNC([pthread_mutexattr_getprioceiling], [], AC_CHECK_LIB([pthread], [pthread_mutexattr_getprioceiling]))
 AC_CHECK_FUNC([pthread_mutexattr_getprotocol], [], AC_CHECK_LIB([pthread], [pthread_mutexattr_getprotocol]))
 
+# Cygwin can have pthread_mutexattr_getprotocol() available but the related constants missing -- check for them too
+AC_CHECK_TYPE([enum _mgtest_enum_PTHREAD_PRIO_], [MUTEXGEAR_CPTHREAD_PRIO_FOUND=1], [MUTEXGEAR_CPTHREAD_PRIO_FOUND=], 
+      [[enum _mgtest_enum_PTHREAD_PRIO_ { _mgtest_enum_a=PTHREAD_PRIO_INHERIT, _mgtest_enum_b=PTHREAD_PRIO_PROTECT, _mgtest_enum_c=PTHREAD_PRIO_NONE };]])
+if test x$ac_cv_header_pthread_h$MUTEXGEAR_CPTHREAD_PRIO_FOUND = xyes; then
+AC_CHECK_TYPE([enum _mgtest_pthread_enum_PTHREAD_PRIO_], [MUTEXGEAR_CPTHREAD_PRIO_FOUND=1], [], 
+      [[#include <pthread.h>
+        enum _mgtest_pthread_enum_PTHREAD_PRIO_ { _mgtest_enum_a=PTHREAD_PRIO_INHERIT, _mgtest_enum_b=PTHREAD_PRIO_PROTECT, _mgtest_enum_c=PTHREAD_PRIO_NONE };]])
+fi
+
 AC_SUBST([MUTEXGEAR_PRIVATE_LIBS], $MUTEXGEAR_LIBPTHREAD)
 AC_SUBST([MUTEXGEAR_TEST_LIBS], $MUTEXGEAR_LIBSTDCXX)
 
@@ -146,7 +155,7 @@ fi
 AC_SUBST([MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPRIOCEILING])
 
 MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL=0
-if test x$ac_cv_func_pthread_mutexattr_getprotocol$ac_cv_lib_pthread_pthread_mutexattr_getprotocol = xnono; then
+if test x$ac_cv_func_pthread_mutexattr_getprotocol$ac_cv_lib_pthread_pthread_mutexattr_getprotocol = xnono -o x$MUTEXGEAR_CPTHREAD_PRIO_FOUND = x; then
   MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL=1
 fi
 AC_SUBST([MUTEXGEAR_HAVE_NO_PTHREAD_MUTEXATTR_GETPROTOCOL])

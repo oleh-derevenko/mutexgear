@@ -1,6 +1,16 @@
 #ifndef PCH_H
 #define PCH_H
 
+/************************************************************************/
+/* The MutexGear Library                                                */
+/* The library test application precompiled header file                 */
+/*                                                                      */
+/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
+/*                                                                      */
+/* E-mail: oleh.derevenko@gmail.com                                     */
+/* Skype: oleh_derevenko                                                */
+/************************************************************************/
+
 
 #ifdef _WIN32
 #define _WIN32_WINNT 0x0600
@@ -14,6 +24,9 @@
 #include <algorithm>
 using std::min;
 using std::max;
+
+#include <stdio.h>
+#include <string.h>
 
 
 //////////////////////////////////////////////////////////////////////////
