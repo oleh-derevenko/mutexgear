@@ -134,11 +134,14 @@ public:
 	worker_view(worker &wRefWorkerInstance) noexcept : m_pwpWorkerPointer(static_cast<worker::pointer>(wRefWorkerInstance)) {}
 	worker_view(const worker_view &wvAnotherInstance) = default;
 
-	worker_view &operator =(worker::pointer pwpPointerInstance) noexcept { m_pwpWorkerPointer = pwpPointerInstance; return *this; }
-	worker_view &operator =(const worker_view &wvAnotherInstance) = default;
+	bool is_null() const noexcept { return m_pwpWorkerPointer == nullptr; }
+	bool operator !() const noexcept { return is_null(); }
 
 	void detach() noexcept { m_pwpWorkerPointer = nullptr; } // to be used for debug purposes
 
+	worker_view &operator =(worker::pointer pwpPointerInstance) noexcept { m_pwpWorkerPointer = pwpPointerInstance; return *this; }
+	worker_view &operator =(worker &wRefWorkerInstance) noexcept { m_pwpWorkerPointer = static_cast<worker::pointer>(wRefWorkerInstance); return *this; }
+	worker_view &operator =(const worker_view &wvAnotherInstance) = default;
 	void swap(worker_view &wvRefAnotherInstance) noexcept { std::swap(m_pwpWorkerPointer, wvRefAnotherInstance.m_pwpWorkerPointer); }
 
 	bool operator ==(const worker_view &wvAnotherInstance) const noexcept { return m_pwpWorkerPointer == wvAnotherInstance.m_pwpWorkerPointer; }
@@ -1285,12 +1288,12 @@ public:
 		{
 			m_psiItemInstance = nullptr;
 
-			wvOutEngagedWorker = m_pswEngagedWorker;
+			wvOutEngagedWorker = *m_pswEngagedWorker;
 			bOutLockedFinishWasExecuted = m_bLockedFinishPartExecuted;
 		}
 		else
 		{
-			wvOutEngagedWorker = (worker *)nullptr;
+			wvOutEngagedWorker = (worker::pointer)nullptr;
 			bOutLockedFinishWasExecuted = false;
 		}
 
