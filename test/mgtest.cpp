@@ -1,6 +1,6 @@
 /************************************************************************/
 /* The MutexGear Library                                                */
-/* The library test application main file                               */
+/* The Library Test Application Main File                               */
 /*                                                                      */
 /* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
@@ -11,6 +11,7 @@
 #include "pch.h"
 #include "pwtest.h"
 #include "rwltest.h"
+#include "cqtest.h"
 #include "mgtest_common.h"
 
 
@@ -22,14 +23,14 @@ static const char g_aszFeatureTestLevel_Basic[] = "basic";
 static const char g_aszFeatureTestLevel_Extra[] = "extra";
 
 static inline 
-EMGRWLOCKFEATLEVEL DecodeMGRWLockFeatLevel(const char *szLevelName)
+EMGTESTFEATURELEVEL DecodeMGTestFeatLevel(const char *szLevelName)
 {
-	EMGRWLOCKFEATLEVEL flResult = 
-		strcmp(szLevelName, g_aszFeatureTestLevel_Quick) == 0 ? MGMFL_QUICK :
-		strcmp(szLevelName, g_aszFeatureTestLevel_Basic) == 0 ? MGMFL_BASIC :
-		strcmp(szLevelName, g_aszFeatureTestLevel_Extra) == 0 ? MGMFL_EXTRA :
-		MGMFL__MAX;
-	MG_STATIC_ASSERT(MGMFL__MAX == 3);
+	EMGTESTFEATURELEVEL flResult = 
+		strcmp(szLevelName, g_aszFeatureTestLevel_Quick) == 0 ? MGTFL_QUICK :
+		strcmp(szLevelName, g_aszFeatureTestLevel_Basic) == 0 ? MGTFL_BASIC :
+		strcmp(szLevelName, g_aszFeatureTestLevel_Extra) == 0 ? MGTFL_EXTRA :
+		MGTFL__MAX;
+	MG_STATIC_ASSERT(MGTFL__MAX == 3);
 	
 	return flResult;
 }
@@ -40,6 +41,7 @@ enum EMUTEXGEARSUBSYSTEMTEST
 	MGST__MIN,
 
 	MGST_PARENT_WRAPPER = MGST__MIN,
+	MGST_COMPLETION_QUEUES,
 	MGST_RWLOCK,
 	MGST_TRDL_RWLOCK,
 
@@ -52,28 +54,30 @@ typedef bool (*CMGSubsystemTestProcedure)(unsigned int &nOutSuccessCount, unsign
 static const CMGSubsystemTestProcedure g_afnMGSubsystemTestProcedures[MGST__MAX] =
 {
 	&CParentWrapperTest::RunTheTest, // MGST_PARENT_WRAPPER,
-	&CRWLockTest::RunTheBasicImplementationTest, // MGST_RWLOCK,
-	&CRWLockTest::RunTheTRDLImplementationTest, // MGST_TRDL_RWLOCK,
+	&CCompletionQueueTest::RunTheTest, // MGST_COMPLETION_QUEUES,
+	&CRWLockTest::RunBasicImplementationTest, // MGST_RWLOCK,
+	&CRWLockTest::RunTRDLImplementationTest, // MGST_TRDL_RWLOCK,
 };
 
 static const char *const g_aszMGSubsystemNames[MGST__MAX] =
 {
 	"parent_wrapper", // MGST_PARENT_WRAPPER,
+	"Completion Queues", // MGST_COMPLETION_QUEUES,
 	"RWLock ("
-#if _MGTEST_TEST_TWRL
+#if MGTEST_RWLOCK_TEST_TRYWRLOCK
 	"with"
 #else
 	"w/o"
 #endif
 	" try-write, " MAKE_STRING_LITERAL(MGTEST_RWLOCK_ITERATION_COUNT) " cycles/thr)", // MGST_RWLOCK,
 	"TRDL-RWLock ("
-#if _MGTEST_TEST_TWRL
+#if MGTEST_RWLOCK_TEST_TRYWRLOCK
 	"with"
 #else
 	"w/o"
 #endif
 	" try-write, "
-#if _MGTEST_TEST_TRDL
+#if MGTEST_RWLOCK_TEST_TRYRDLOCK
 	"with"
 #else
 	"w/o"
@@ -142,14 +146,15 @@ bool ParseCommandLineArguments(unsigned int uiArgCount, char *pszArgValues[])
 				break;
 			}
 
-			EMGRWLOCKFEATLEVEL flLevelValue = DecodeMGRWLockFeatLevel(szCurrentValue);
-			if (flLevelValue == MGMFL__MAX)
+			EMGTESTFEATURELEVEL flLevelValue = DecodeMGTestFeatLevel(szCurrentValue);
+			if (flLevelValue == MGTFL__MAX)
 			{
 				fprintf(stderr, "Feature test level value is invalid: %s\n", szCurrentValue);
 				bAnyFault = true;
 				break;
 			}
 
+			CCompletionQueueTest::AssignSelectedFeatureTestLevel(flLevelValue);
 			CRWLockTest::AssignSelectedFeatureTestLevel(flLevelValue);
 		}
 		else

@@ -3,7 +3,7 @@
 
 /************************************************************************/
 /* The MutexGear Library                                                */
-/* The library RWLock implementation test header                        */
+/* The Library RWLock Implementation Test Header                        */
 /*                                                                      */
 /* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
@@ -12,41 +12,28 @@
 /************************************************************************/
 
 
+#include "mgtest_common.h"
+
+
+#define MGTEST_RWLOCK_TEST_TRYWRLOCK	1
+#define MGTEST_RWLOCK_TEST_TRYRDLOCK	1
+
 #define MGTEST_RWLOCK_ITERATION_COUNT	1000000
 #define MGTEST_RWLOCK_WRITE_CHANNELS	4
-
-
-enum EMGRWLOCKFEATLEVEL
-{
-	MGMFL__MIN,
-
-	MGMFL_QUICK = MGMFL__MIN,
-
-	MGMFL__DUMP_MIN,
-
-	MGMFL_BASIC = MGMFL__DUMP_MIN,
-	MGMFL_EXTRA,
-
-	MGMFL__DUMP_MAX,
-
-	MGMFL__MAX = MGMFL__DUMP_MAX,
-
-	MGMFL__DEFAULT = MGMFL_QUICK,
-};
 
 
 class CRWLockTest
 {
 public:
-	static bool RunTheBasicImplementationTest(unsigned int &nOutSuccessCount, unsigned int &nOutTestCount);
-	static bool RunTheTRDLImplementationTest(unsigned int &nOutSuccessCount, unsigned int &nOutTestCount);
+	static bool RunBasicImplementationTest(unsigned int &nOutSuccessCount, unsigned int &nOutTestCount);
+	static bool RunTRDLImplementationTest(unsigned int &nOutSuccessCount, unsigned int &nOutTestCount);
 
 public:
-	static void AssignSelectedFeatureTestLevel(EMGRWLOCKFEATLEVEL flLevelValue) { m_flSelectedFeatureRestLevel = flLevelValue; }
-	static EMGRWLOCKFEATLEVEL RetrieveSelectedFeatureTestLevel() { return m_flSelectedFeatureRestLevel; }
+	static void AssignSelectedFeatureTestLevel(EMGTESTFEATURELEVEL flLevelValue) { m_flSelectedFeatureTestLevel = flLevelValue; }
+	static EMGTESTFEATURELEVEL RetrieveSelectedFeatureTestLevel() { return m_flSelectedFeatureTestLevel; }
 
 private:
-	static EMGRWLOCKFEATLEVEL	m_flSelectedFeatureRestLevel;
+	static EMGTESTFEATURELEVEL	m_flSelectedFeatureTestLevel;
 };
 
 

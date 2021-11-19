@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="..\..\test\cqtest.cpp" />
     <ClCompile Include="..\..\test\mgtest.cpp" />
     <ClCompile Include="..\..\test\pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>
@@ -34,6 +35,7 @@
     <ClCompile Include="..\..\test\rwltest.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\test\cqtest.h" />
     <ClInclude Include="..\..\test\mgtest_common.h" />
     <ClInclude Include="..\..\test\pch.h" />
     <ClInclude Include="..\..\test\pwtest.h" />

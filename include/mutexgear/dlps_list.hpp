@@ -39,6 +39,7 @@
 
 #include <mutexgear/utility.h>
 #include <iterator>
+#include <type_traits>
 
 
 _MUTEXGEAR_BEGIN_NAMESPACE()

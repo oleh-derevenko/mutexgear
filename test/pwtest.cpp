@@ -1,6 +1,6 @@
 /************************************************************************/
 /* The MutexGear Library                                                */
-/* The library parent_wrapper implementation test file                  */
+/* The Library Parent Wrapper Implementation Test File                  */
 /*                                                                      */
 /* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
@@ -33,7 +33,7 @@ enum EMGPARENTWRAPPERFEATURE
 {
 	MGPWF__MIN,
 
-	MGPWF_GENERAL = MGPWF__MIN,
+	MGPWF_CLASSFEATURES = MGPWF__MIN,
 
 	MGPWF__MAX,
 
@@ -44,16 +44,18 @@ enum EMGPARENTWRAPPERFEATURE
 MG_STATIC_ASSERT(MGPWF__TESTBEGIN <= MGPWF__TESTEND);
 
 
-static bool PerformParentWrapperGeneralTest();
+typedef bool (*CParentWrapperFeatureTestProcedure)(bool &bOutTestSkipped);
 
-static const CFeatureTestProcedure g_afnParentWrapperFeatureTestProcedures[MGPWF__MAX] =
+static bool PerformParentWrapperClassFeatureTest(bool &bOutTestSkipped);
+
+static const CParentWrapperFeatureTestProcedure g_afnParentWrapperFeatureTestProcedures[MGPWF__MAX] =
 {
-	&PerformParentWrapperGeneralTest, // MGPWF_GENERAL,
+	&PerformParentWrapperClassFeatureTest, // MGPWF_CLASSFEATURES,
 };
 
 static const char *const g_aszParentWrapperFeatureTestNames[MGPWF__MAX] =
 {
-	"Class features", // MGPWF_GENERAL,
+	"Class Features", // MGPWF_CLASSFEATURES,
 };
 
 
@@ -67,9 +69,11 @@ bool CParentWrapperTest::RunTheTest(unsigned int &nOutSuccessCount, unsigned int
 		const char *szFeatureName = g_aszParentWrapperFeatureTestNames[wfParentWrapperFeature];
 		printf("Testing %29s: ", szFeatureName);
 
-		CFeatureTestProcedure fnTestProcedure = g_afnParentWrapperFeatureTestProcedures[wfParentWrapperFeature];
-		bool bTestResult = fnTestProcedure();
-		printf("%s\n", bTestResult ? "success" : "failure");
+		CParentWrapperFeatureTestProcedure fnTestProcedure = g_afnParentWrapperFeatureTestProcedures[wfParentWrapperFeature];
+		
+		bool bTestWasSkipped;
+		bool bTestResult = fnTestProcedure(bTestWasSkipped);
+		printf("%s\n", bTestResult ? bTestWasSkipped ? "skipped" : "success" : "failure");
 
 		if (bTestResult)
 		{
@@ -81,6 +85,9 @@ bool CParentWrapperTest::RunTheTest(unsigned int &nOutSuccessCount, unsigned int
 	nOutTestCount = MGPWF__TESTCOUNT;
 	return nSuccessCount == MGPWF__TESTCOUNT;
 }
+
+
+#if _MGTEST_HAVE_CXX11
 
 class CLogicallyNegableIntWrapper
 {
@@ -97,15 +104,13 @@ private:
 };
 
 
-static
-bool PerformParentWrapperGeneralTest()
+static 
+bool TestParentWrapperClassFeatures()
 {
 	bool bResult = false;
 
 	do
 	{
-#if _MGTEST_HAVE_CXX11
-
 		dlps_list slEmptyLists[2];
 		dlps_list &slEmptyList = slEmptyLists[0], &slAnotherEmptyList = slEmptyLists[1];
 
@@ -203,13 +208,35 @@ bool PerformParentWrapperGeneralTest()
 			break;
 		}
 
+		bResult = true;
+	}
+	while (false);
+
+	return bResult;
+}
+
 
 #endif // #if _MGTEST_HAVE_CXX11
 
 
-		bResult = true;
-	}
-	while (false);
+static
+bool PerformParentWrapperClassFeatureTest(bool &bOutTestSkipped)
+{
+	bool bResult;
+
+#if _MGTEST_HAVE_CXX11
+
+	bResult = TestParentWrapperClassFeatures();
+	bOutTestSkipped = false;
+
+
+#else // #if !_MGTEST_HAVE_CXX11
+
+	bResult = true;
+	bOutTestSkipped = true;
+
+
+#endif // #if !_MGTEST_HAVE_CXX11
 
 	return bResult;
 }

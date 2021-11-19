@@ -13,6 +13,7 @@ release: dist-gzip dist-bzip2
 	@echo Release packages for ${PACKAGE}-${VERSION} have been created.
 
 EXTRA_DIST = \
+  build \
   bmpgen \
   License-MutexGear.txt \
   README.md

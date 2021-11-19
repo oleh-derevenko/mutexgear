@@ -3,7 +3,7 @@
 
 /************************************************************************/
 /* The MutexGear Library                                                */
-/* The library test application precompiled header file                 */
+/* The Library Test Application Precompiled Header File                 */
 /*                                                                      */
 /* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */

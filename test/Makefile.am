@@ -15,6 +15,7 @@ endif
 
 mgtest_SOURCES = \
   mgtest.cpp \
+  cqtest.cpp cqtest.h \
   pwtest.cpp pwtest.h \
   rwltest.cpp rwltest.h \
   mgtest_common.h \
