@@ -41,8 +41,10 @@
 
 #include <mutexgear/completion.h>
 #include <iterator>
+#include <mutex>
 #include <functional>
 #include <system_error>
+// #include <assert.h>
 
 
 _MUTEXGEAR_BEGIN_NAMESPACE()
@@ -221,6 +223,7 @@ public:
 public:
 	void prestart(worker &wRefWorkerToBeEngaged) noexcept { mutexgear_completion_item_prestart(this, static_cast<worker::pointer>(wRefWorkerToBeEngaged)); }
 	bool is_started() const noexcept { return mutexgear_completion_item_isstarted(this); }
+	worker_view get_worker() const noexcept { return worker_view(mutexgear_completion_item_getworker(this)); }
 
 	bool is_canceled(worker &wRefEngagedWorker) const noexcept { return mutexgear_completion_cancelablequeueditem_iscanceled(this, static_cast<worker::pointer>(wRefEngagedWorker)); }
 
@@ -243,7 +246,7 @@ public:
 	typedef item::pointer pointer;
 
 	item_view() noexcept {}
-	item_view(item::pointer pipPointerInstance) noexcept : m_pipItemPointer(pipPointerInstance) {}
+	item_view(pointer pipPointerInstance) noexcept : m_pipItemPointer(pipPointerInstance) {}
 	item_view(item &iRefItemInstance) noexcept : m_pipItemPointer(static_cast<item::pointer>(iRefItemInstance)) {}
 	item_view(const item_view &ivAnotherInstance) = default;
 
@@ -252,7 +255,7 @@ public:
 
 	void detach() noexcept { m_pipItemPointer = nullptr; } // to be used for debug purposes
 
-	item_view &operator =(item::pointer pipPointerInstance) noexcept { m_pipItemPointer = pipPointerInstance; return *this; }
+	item_view &operator =(pointer pipPointerInstance) noexcept { m_pipItemPointer = pipPointerInstance; return *this; }
 	item_view &operator =(item &iRefItemInstance) noexcept { m_pipItemPointer = static_cast<item::pointer>(iRefItemInstance); return *this; }
 	item_view &operator =(const item_view &ivAnotherInstance) = default;
 	void swap(item_view &ivRefAnotherInstance) noexcept { std::swap(m_pipItemPointer, ivRefAnotherInstance.m_pipItemPointer); }
@@ -261,6 +264,9 @@ public:
 	bool operator !=(const item_view &ivAnotherInstance) const noexcept { return !operator ==(ivAnotherInstance); }
 
 public:
+	bool is_started() const noexcept { return mutexgear_completion_item_isstarted(m_pipItemPointer); }
+	worker_view get_worker() const noexcept { return worker_view(mutexgear_completion_item_getworker(m_pipItemPointer)); }
+
 	bool is_canceled(worker &wRefEngagedWorker) const noexcept { return mutexgear_completion_cancelablequeueditem_iscanceled(m_pipItemPointer, static_cast<worker::pointer>(wRefEngagedWorker)); }
 
 public:
@@ -404,8 +410,8 @@ public:
 		return const_reverse_iterator(const_iterator(pciHeadItem));
 	}
 
-	const item_view &front() const noexcept { return *begin(); }
-	const item_view &back() const noexcept { return *rbegin(); }
+	item_view front() const noexcept { return *begin(); }
+	item_view back() const noexcept { return *rbegin(); }
 
 	void unlock_and_wait(const item_view &ivRefItemToBeWaited, waiter &wRefWaiterToBeEngaged)
 	{
@@ -439,9 +445,9 @@ public:
 	}
 
 	static 
-	void dequeue(item &iRefItemInstance) noexcept
+	void dequeue(const item_view &ivItemInstance) noexcept
 	{
-		mutexgear_completion_queue_unsafedequeue(static_cast<item::pointer>(iRefItemInstance));
+		mutexgear_completion_queue_unsafedequeue(static_cast<item_view::pointer>(ivItemInstance));
 	}
 
 	void start(item &iRefItemInstance, worker &wRefWorkerToBeEngaged) noexcept
@@ -622,8 +628,8 @@ public:
 		return const_reverse_iterator(const_iterator(pciHeadItem));
 	}
 
-	const item_view &front() const noexcept { return *begin(); }
-	const item_view &back() const noexcept { return *rbegin(); }
+	item_view front() const noexcept { return *begin(); }
+	item_view back() const noexcept { return *rbegin(); }
 
 	void unlock_and_wait(const item_view &ivRefItemToBeWaited, waiter &wRefWaiterToBeEngaged)
 	{
@@ -636,7 +642,7 @@ public:
 		}
 	}
 
-	enum ownership_type
+	enum class ownership_type
 	{
 		ownership__min,
 
@@ -695,9 +701,9 @@ public:
 	}
 
 	static
-	void dequeue(item &iRefItemInstance) noexcept
+	void dequeue(const item_view &ivItemInstance) noexcept
 	{
-		mutexgear_completion_cancelablequeue_unsafedequeue(static_cast<item::pointer>(iRefItemInstance));
+		mutexgear_completion_cancelablequeue_unsafedequeue(static_cast<item_view::pointer>(ivItemInstance));
 	}
 
 // 	item_view start_any(worker &wRefWorkerToBeEngaged, lock_token_type ltLockToken) noexcept
@@ -755,10 +761,10 @@ public:
 private:
 	static ownership_type ConvertMutexgearCompletionOwnershipToOwnershipType(mutexgear_completion_ownership_t coItemOwnership) noexcept
 	{
-		MG_STATIC_ASSERT(mg_completion_ownership__max + 0 == ownership__max);
+		MG_STATIC_ASSERT(mg_completion_ownership__max == static_cast<int>(ownership_type::ownership__max));
 		MG_STATIC_ASSERT(mg_completion_ownership__max == 2);
-		MG_STATIC_ASSERT(mg_completion_not_owner + 0 == not_owner);
-		MG_STATIC_ASSERT(mg_completion_owner + 0 == owner);
+		MG_STATIC_ASSERT(mg_completion_not_owner == static_cast<int>(ownership_type::not_owner));
+		MG_STATIC_ASSERT(mg_completion_owner == static_cast<int>(ownership_type::owner));
 
 		return static_cast<ownership_type>(coItemOwnership);
 	}
@@ -800,6 +806,534 @@ cancelable_queue::const_iterator &cancelable_queue::const_iterator::operator =(c
 	m_ivIteratorInfo = *itOtherIterator;
 	return *this;
 }
+
+
+struct acquire_tocken_t { explicit acquire_tocken_t() noexcept = default; };
+
+/**
+ *	\template queue_lock_helper
+ *	\brief A template class to aid safe locking of completion queues
+ *
+ *	\see waitable_queue
+ *	\see cancelable_queue
+ */
+template<class TQueueType, bool tsbCancelAvailability=std::is_same<TQueueType, cancelable_queue>::value>
+class queue_lock_helper;
+
+template<class TQueueType>
+class queue_lock_helper<TQueueType, false>
+{
+public:
+	typedef TQueueType queue_type;
+	typedef typename queue_type::lock_token_type lock_token_type;
+	
+	explicit queue_lock_helper(queue_type &qQueueInstance):
+		m_psqQueueInstance(&qQueueInstance),
+		m_bQueueIsLocked(true),
+		m_bTokenIsAvailable(false),
+		m_ltLockToken()
+	{
+		qQueueInstance.lock();
+	}
+
+	explicit queue_lock_helper(queue_type &qQueueInstance, acquire_tocken_t):
+		m_psqQueueInstance(&qQueueInstance),
+		m_bQueueIsLocked(true), 
+		m_bTokenIsAvailable(true)
+	{
+		qQueueInstance.lock(&m_ltLockToken);
+	}
+
+	queue_lock_helper(queue_type &qQueueInstance, std::defer_lock_t) noexcept:
+		m_psqQueueInstance(&qQueueInstance),
+		m_bQueueIsLocked(false),
+		m_bTokenIsAvailable(false),
+		m_ltLockToken()
+	{
+		// The queue is assumed to be already locked
+	}
+
+
+	queue_lock_helper(queue_type &qQueueInstance, std::adopt_lock_t) noexcept: 
+		m_psqQueueInstance(&qQueueInstance),
+		m_bQueueIsLocked(true),
+		m_bTokenIsAvailable(false),
+		m_ltLockToken()
+	{
+		// The queue is assumed to be already locked
+	}
+
+	queue_lock_helper(queue_type &qQueueInstance, std::adopt_lock_t, lock_token_type ltTokenInstance) noexcept:
+		m_psqQueueInstance(&qQueueInstance),
+		m_bQueueIsLocked(true),
+		m_bTokenIsAvailable(true),
+		m_ltLockToken(ltTokenInstance)
+	{
+		// The queue is assumed to be already locked
+	}
+
+	~queue_lock_helper() noexcept
+	{
+		_finalize();
+	}
+
+	queue_lock_helper(const queue_lock_helper &) = delete;
+	queue_lock_helper &operator=(const queue_lock_helper &) = delete;
+
+	queue_lock_helper(queue_lock_helper &&lhAnotherInstance) noexcept:
+		m_psqQueueInstance(lhAnotherInstance.m_psqQueueInstance),
+		m_bQueueIsLocked(lhAnotherInstance.m_bQueueIsLocked),
+		m_bTokenIsAvailable(lhAnotherInstance.m_bTokenIsAvailable),
+		m_ltLockToken(std::move(lhAnotherInstance.m_ltLockToken))
+	{
+		lhAnotherInstance.m_psqQueueInstance = nullptr;
+		lhAnotherInstance.m_bQueueIsLocked = false;
+	}
+
+	queue_lock_helper &operator =(queue_lock_helper &&lhAnotherInstance)
+	{
+		_finalize();
+
+		queue_lock_helper(std::move(lhAnotherInstance)).swap(*this);
+		lhAnotherInstance.m_psqQueueInstance = nullptr;
+		lhAnotherInstance.m_bQueueIsLocked = false;
+
+		return *this;
+	}
+
+	void lock()
+	{
+		if (!m_psqQueueInstance)
+		{
+			throw std::system_error(std::make_error_code(std::errc::operation_not_permitted));
+		}
+		else if (m_bQueueIsLocked)
+		{
+			throw std::system_error(std::make_error_code(std::errc::resource_deadlock_would_occur));
+		}
+		else
+		{
+			m_psqQueueInstance->lock();
+			m_bQueueIsLocked = true;
+			// assert(!m_bTokenIsAvailable);
+		}
+	}
+
+	void lock(acquire_tocken_t)
+	{
+		if (!m_psqQueueInstance)
+		{
+			throw std::system_error(std::make_error_code(std::errc::operation_not_permitted));
+		}
+		else if (m_bQueueIsLocked)
+		{
+			throw std::system_error(std::make_error_code(std::errc::resource_deadlock_would_occur));
+		}
+		else
+		{
+			m_psqQueueInstance->lock(&m_ltLockToken);
+			m_bQueueIsLocked = true;
+			m_bTokenIsAvailable = true;
+		}
+	}
+
+	void unlock()
+	{
+		if (!m_bQueueIsLocked)
+		{
+			throw std::system_error(std::make_error_code(std::errc::operation_not_permitted));
+		}
+		else
+		{
+			m_psqQueueInstance->unlock();
+			_set_unlocked_status();
+		}
+	}
+
+	void unlock_and_wait(const item_view &ivRefItemToBeWaited, waiter &wRefWaiterToBeEngaged)
+	{
+		if (!m_bQueueIsLocked)
+		{
+			throw std::system_error(std::make_error_code(std::errc::operation_not_permitted));
+		}
+		else
+		{
+			m_psqQueueInstance->unlock_and_wait(ivRefItemToBeWaited, wRefWaiterToBeEngaged);
+			_set_unlocked_status();
+		}
+	}
+
+	void swap(queue_lock_helper &lhAnotherInstance) noexcept
+	{
+		std::swap(m_psqQueueInstance, lhAnotherInstance.m_psqQueueInstance);
+		std::swap(m_bQueueIsLocked, lhAnotherInstance.m_bQueueIsLocked);
+		std::swap(m_bTokenIsAvailable, lhAnotherInstance.m_bTokenIsAvailable);
+		std::swap(m_ltLockToken, lhAnotherInstance.m_ltLockToken);
+	}
+
+	queue_type *release(lock_token_type *pltOutLockToken=nullptr)
+	{
+		if (pltOutLockToken != nullptr && !m_bTokenIsAvailable)
+		{
+			throw std::system_error(std::make_error_code(std::errc::operation_not_permitted));
+		}
+
+		queue_type *psqQueueInstance = m_psqQueueInstance;
+		
+		if (pltOutLockToken != nullptr)
+		{
+			*pltOutLockToken = std::move(m_ltLockToken);
+		}
+
+		m_psqQueueInstance = nullptr;
+		m_bQueueIsLocked = false;
+		m_bTokenIsAvailable = false;
+		
+		return psqQueueInstance;
+	}
+
+	bool owns_lock() const noexcept
+	{
+		return m_bQueueIsLocked;
+	}
+
+	bool has_token() const noexcept
+	{
+		return m_bTokenIsAvailable;
+	}
+
+	queue_type *queue() const noexcept
+	{
+		return m_psqQueueInstance;
+	}
+
+	lock_token_type token() const
+	{
+		if (!m_bTokenIsAvailable)
+		{
+			throw std::system_error(std::make_error_code(std::errc::operation_not_permitted));
+		}
+
+		return m_ltLockToken;
+	}
+
+protected:
+	void _set_unlocked_status() noexcept
+	{
+		m_bQueueIsLocked = false;
+		m_bTokenIsAvailable = false;
+	}
+
+private:
+	void _finalize() noexcept
+	{
+		if (m_bQueueIsLocked)
+		{
+			m_psqQueueInstance->unlock();
+		}
+	}
+
+private:
+	queue_type		*m_psqQueueInstance;
+	bool			m_bQueueIsLocked;
+	bool			m_bTokenIsAvailable;
+	lock_token_type	m_ltLockToken;
+};
+
+template<class TQueueType>
+class queue_lock_helper<TQueueType, true> :
+	public queue_lock_helper<TQueueType, false>
+{
+public:
+	using parent_type = queue_lock_helper<TQueueType, false>;
+	using typename parent_type::queue_type;
+	using typename parent_type::lock_token_type;
+
+	explicit queue_lock_helper(queue_type &qQueueInstance) :
+		parent_type(qQueueInstance)
+	{
+	}
+
+	explicit queue_lock_helper(queue_type &qQueueInstance, acquire_tocken_t atAcquireTokenRequest) :
+		parent_type(qQueueInstance, atAcquireTokenRequest)
+	{
+	}
+
+	queue_lock_helper(queue_type &qQueueInstance, std::defer_lock_t dlDeferLockRequest) noexcept :
+		parent_type(qQueueInstance, dlDeferLockRequest)
+	{
+	}
+
+
+	queue_lock_helper(queue_type &qQueueInstance, std::adopt_lock_t alAdoptLockRequest) noexcept :
+		parent_type(qQueueInstance, alAdoptLockRequest)
+	{
+	}
+
+	queue_lock_helper(queue_type &qQueueInstance, std::adopt_lock_t alAdoptLockRequest, lock_token_type ltTokenInstance) noexcept :
+		parent_type(qQueueInstance, alAdoptLockRequest, ltTokenInstance)
+	{
+	}
+
+	~queue_lock_helper() noexcept = default;
+
+	queue_lock_helper(queue_lock_helper &&lhAnotherInstance) noexcept :
+		parent_type(std::move(static_cast<parent_type &>(lhAnotherInstance)))
+	{
+	}
+
+	queue_lock_helper &operator =(queue_lock_helper &&lhAnotherInstance)
+	{
+		parent_type::operator =(std::move(static_cast<parent_type &>(lhAnotherInstance)));
+		return *this;
+	}
+
+	using parent_type::lock;
+	using parent_type::unlock;
+	using parent_type::unlock_and_wait;
+
+	void unlock_and_cancel(const item_view &ivRefItemToBeWaited, waiter &wRefWaiterToBeEngaged, typename queue_type::ownership_type &oOutResultingItemOwnership,
+		const typename queue_type::cancel_callback_type &fnCancelCallback = nullptr) noexcept(false)
+	{
+		if (!owns_lock())
+		{
+			throw std::system_error(std::make_error_code(std::errc::operation_not_permitted));
+		}
+		else
+		{
+			try
+			{
+				queue()->unlock_and_cancel(ivRefItemToBeWaited, wRefWaiterToBeEngaged, oOutResultingItemOwnership, fnCancelCallback);
+				_set_unlocked_status();
+			}
+			catch (...)
+			{
+				_set_unlocked_status();
+				throw;
+			}
+		}
+	}
+
+	using parent_type::swap;
+	using parent_type::release;
+
+	using parent_type::owns_lock;
+	using parent_type::has_token;
+	using parent_type::queue;
+	using parent_type::token;
+
+protected:
+	using parent_type::_set_unlocked_status;
+};
+
+
+
+struct adopt_work_t { explicit adopt_work_t() noexcept = default; };
+
+
+/**
+ *	\template queue_work_helper
+ *	\brief A template class to aid safe starting and finishing work on queue items
+ *
+ *	\see waitable_queue
+ *	\see cancelable_queue
+ */
+template<class TQueueType>
+class queue_work_helper
+{
+public:
+	typedef TQueueType queue_type;
+
+	explicit queue_work_helper(queue_type &qQueueInstance) noexcept :
+		m_psqQueueInstance(&qQueueInstance),
+		m_psiItemInstance(nullptr)
+	{
+	}
+
+	queue_work_helper(queue_type &qQueueInstance, adopt_work_t, item &iWorkStartedItem) noexcept :
+		m_psqQueueInstance(&qQueueInstance),
+		m_psiItemInstance(m_psiItemInstance = &iWorkStartedItem),
+		m_pswEngagedWorker(&worker::instance_from_pointer(iWorkStartedItem.get_worker())),
+		m_bLockedFinishPartExecuted(false)
+	{
+	}
+
+	~queue_work_helper()
+	{
+		_finalize();
+	}
+
+	queue_work_helper(const queue_work_helper &) = delete;
+	queue_work_helper &operator =(const queue_work_helper &) = delete;
+
+	queue_work_helper(queue_work_helper &&whAnotherInstance) noexcept :
+		m_psqQueueInstance(whAnotherInstance.m_psqQueueInstance),
+		m_psiItemInstance(whAnotherInstance.m_psiItemInstance)
+	{
+		if (whAnotherInstance.m_psiItemInstance != nullptr)
+		{
+			whAnotherInstance.m_psiItemInstance == nullptr;
+			m_pswEngagedWorker = whAnotherInstance.m_pswEngagedWorker;
+			m_bLockedFinishPartExecuted = whAnotherInstance.m_bLockedFinishPartExecuted;
+		}
+	}
+	
+	queue_work_helper &operator =(queue_work_helper &&whAnotherInstance)
+	{
+		_finalize();
+
+		m_psqQueueInstance = whAnotherInstance.m_psqQueueInstance;
+		m_psiItemInstance = whAnotherInstance.m_psiItemInstance;
+
+		if (whAnotherInstance.m_psiItemInstance != nullptr)
+		{
+			whAnotherInstance.m_psiItemInstance == nullptr;
+			m_pswEngagedWorker = whAnotherInstance.m_pswEngagedWorker;
+			m_bLockedFinishPartExecuted = whAnotherInstance.m_bLockedFinishPartExecuted;
+		}
+
+		return *this;
+	}
+
+	void start(item &iRefItemInstance, worker &wRefWorkerToBeEngaged) noexcept
+	{
+		m_psqQueueInstance->start(iRefItemInstance, wRefWorkerToBeEngaged);
+
+		// Assign after calling the method to let it bail out on exceptions
+		m_psiItemInstance = &iRefItemInstance;
+		m_pswEngagedWorker = &wRefWorkerToBeEngaged;
+		m_bLockedFinishPartExecuted = false;
+	}
+
+	void unsafefinish__locked()
+	{
+		if (m_psiItemInstance == nullptr || m_bLockedFinishPartExecuted)
+		{
+			throw std::system_error(std::make_error_code(std::errc::operation_not_permitted));
+		}
+		else
+		{
+			m_psqQueueInstance->unsafefinish__locked(*m_psiItemInstance);
+			m_bLockedFinishPartExecuted = true;
+		}
+	}
+
+	void unsafefinish__unlocked()
+	{
+		if (m_psiItemInstance == nullptr || !m_bLockedFinishPartExecuted)
+		{
+			throw std::system_error(std::make_error_code(std::errc::operation_not_permitted));
+		}
+		else
+		{
+			m_psqQueueInstance->unsafefinish__unlocked(*m_psiItemInstance, *m_pswEngagedWorker);
+			m_psiItemInstance = nullptr;
+		}
+	}
+
+	void safefinish()
+	{
+		if (m_psiItemInstance == nullptr || m_bLockedFinishPartExecuted)
+		{
+			throw std::system_error(std::make_error_code(std::errc::operation_not_permitted));
+		}
+		else
+		{
+			m_psqQueueInstance->safefinish(*m_psiItemInstance, *m_pswEngagedWorker);
+			m_psiItemInstance = nullptr;
+		}
+	}
+
+	void swap(queue_work_helper &whAnotherInstance) noexcept
+	{
+		std::swap(m_psqQueueInstance, whAnotherInstance.m_psqQueueInstance);
+
+		if (m_psiItemInstance != nullptr)
+		{
+			if (whAnotherInstance.m_psiItemInstance != nullptr)
+			{
+				std::swap(m_psiItemInstance, whAnotherInstance.m_psiItemInstance);
+				std::swap(m_pswEngagedWorker, whAnotherInstance.m_pswEngagedWorker);
+				std::swap(m_bLockedFinishPartExecuted, whAnotherInstance.m_bLockedFinishPartExecuted);
+			}
+			else
+			{
+				whAnotherInstance.m_psiItemInstance = m_psiItemInstance;
+				m_psiItemInstance = nullptr;
+
+				whAnotherInstance.m_pswEngagedWorker = m_pswEngagedWorker;
+				whAnotherInstance.m_bLockedFinishPartExecuted = m_bLockedFinishPartExecuted;
+			}
+		}
+		else if (whAnotherInstance.m_psiItemInstance != nullptr)
+		{
+			m_psiItemInstance = whAnotherInstance.m_psiItemInstance;
+			whAnotherInstance.m_psiItemInstance = nullptr;
+
+			m_pswEngagedWorker = whAnotherInstance.m_pswEngagedWorker;
+			m_bLockedFinishPartExecuted = whAnotherInstance.m_bLockedFinishPartExecuted;
+		}
+	}
+
+	queue_type *release(item_view &ivOutStartedItem, worker_view &wvOutEngagedWorker, bool &bOutLockedFinishWasExecuted) noexcept
+	{
+		queue_type *psqQueueInstance = m_psqQueueInstance;
+
+		ivOutStartedItem = m_psiItemInstance;
+
+		if (m_psiItemInstance != nullptr)
+		{
+			m_psiItemInstance = nullptr;
+
+			wvOutEngagedWorker = m_pswEngagedWorker;
+			bOutLockedFinishWasExecuted = m_bLockedFinishPartExecuted;
+		}
+		else
+		{
+			wvOutEngagedWorker = (worker *)nullptr;
+			bOutLockedFinishWasExecuted = false;
+		}
+
+		return psqQueueInstance;
+	}
+
+	bool is_started() const noexcept
+	{
+		return m_psiItemInstance != nullptr;
+	}
+
+	bool is_finished__locked() const noexcept
+	{
+		return m_psiItemInstance != nullptr && m_bLockedFinishPartExecuted;
+	}
+
+	queue_type *queue() const noexcept
+	{
+		return m_psqQueueInstance;
+	}
+
+private:
+	void _finalize()
+	{
+		if (m_psiItemInstance != nullptr)
+		{
+			if (m_bLockedFinishPartExecuted)
+			{
+				m_psqQueueInstance->unsafefinish__unlocked(*m_psiItemInstance, *m_pswEngagedWorker);
+			}
+			else
+			{
+				m_psqQueueInstance->safefinish(*m_psiItemInstance, *m_pswEngagedWorker);
+			}
+		}
+	}
+
+private:
+	queue_type		*m_psqQueueInstance;
+	item			*m_psiItemInstance;
+	worker			*m_pswEngagedWorker;
+	bool			m_bLockedFinishPartExecuted;
+};
 
 
 _MUTEXGEAR_END_COMPLETION_NAMESPACE();

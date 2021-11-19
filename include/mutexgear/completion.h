@@ -1840,6 +1840,13 @@ bool mutexgear_completion_item_isstarted(const mutexgear_completion_item_t *__it
 	return _mutexgear_completion_item_getwow(__item_instance) != (void *)__item_instance; // != NULL
 }
 
+_MUTEXGEAR_PURE_INLINE
+mutexgear_completion_worker_t *mutexgear_completion_item_getworker(const mutexgear_completion_item_t *__item_instance)
+{
+	void *worker_instance = _mutexgear_completion_item_getwow(__item_instance);
+	return worker_instance != (void *)__item_instance/* != NULL */ ? (mutexgear_completion_worker_t *)worker_instance : NULL;
+}
+
 
 _MUTEXGEAR_PURE_INLINE
 bool mutexgear_completion_queue_lodisempty(const mutexgear_completion_queue_t *__queue_instance)
