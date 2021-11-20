@@ -12,20 +12,20 @@
  *	\file
  *	\brief RWLock Test
  *
- *	The file implements a test for both the C language \c mutexgear_rwlock_t and \c mutexgear_trdl_rwlock_t operations,
- *	as well as their C++ wrappers \c mg::shared_mutex and \c mg::trld::shared_mutex.
+ *	The file implements a test for both the C language \c mutexgear_rwlock_t and \c mutexgear_trdl_rwlock_t operations
+ *	and their C++ wrappers \c mg::shared_mutex and \c mg::trdl::shared_mutex.
  *
  *	For the tests, numbers of threads are launched each having to perform \c MGTEST_RWLOCK_ITERATION_COUNT (a million by default)
  *	locks and unlocks. In between of each lock and unlock each thread performs a call to \c rand() function to simulate a small delay.
  *	Also, each thread records its number and operation type in a memory buffer so that it could be later possible to reconstruct
  *	the exact order of each lock and unlock operation with respect to all the other threads. At test levels of 'basic' and higher,
  *	this information is dumped into textual format files allowing both visual examination/comparison and/or conversion into bitmaps
- *	with operations and threads being color-coded in pixels. The same tests are run sequentially (and with a cool-down delay of 5 seconds) for
+ *	with operations and threads color-coded in pixels. The same tests are run sequentially (and with a cooldown delay of 5 seconds) for
  *	the MutexGear implementation and the respective standard RWLock object available in the system thus allowing to compare the total consumed times
  *	and individual operation distributions and patterns. Also, the tests are instrumented with runtime checks to ensure lock consistency
  *	(like absence of simultaneous locks for write or write and read from multiple threads).
  *
- *	There are the following groups of tests:
+ *	There are the following test groups:
  *	\li write locks for increasing numbers of threads;
  *	\li	read locks for increasing numbers of threads;
  *	\li mixed tests with each thread executing read locks interleaved with some write locks for increasing numbers of threads and increasing percentages of the write locks;
@@ -41,7 +41,7 @@
  *	\warning
  *	WARNING!
  *	Also, keep in mind that since the tests make time measurements, they need to raise the threads to high priorities
- *	and this may require running with admin privileges on some systems (like Ubuntu Linux, for example).
+ *	and, on some systems (like Ubuntu Linux), this may require running with admin privileges.
  *	Also, running multiple high priority CPU consuming threads will likely suspend most of the normal activity in the system
  *	and can make it unavailable from network for the duration of the individual tests. So, it's a good idea to make sure
  *	the system is free and idle. Also, it's worth rebooting the system before the test run and stopping any extra
@@ -49,13 +49,13 @@
  *
  *	\note
  *	The operation sequence dump file format is as follows.
- *	Each thread index is coded with a zero based "two-digit number", the higher digit being coded with a character.
- *	The read-locking threads (or operations) start with "a" and the write-locks start with 's'. With that,
- *	the lock operations are capitalized and the unlock operations use small letters. For example, a write lock in
- *	thread #0 is coded as 'S0'; a write-unlock of in thread #25 is coded as 'u5' ('u' = 's' + 2); a read lock in
- *	thread #11 is coded as 'B1' and the respective unlock is 'b1'. If a lock succeeds with its try-operation alone
+ *	Each thread index is coded with a zero based "two-digit hex number", the higher digit being coded with a character.
+ *	The read-locking threads (or operations) start with 'a' and the write-locks start with 's'. With that,
+ *	the lock operations have the first character capitalized and the unlock operations use small letters. 
+ *	For example, a write lock in thread #0 is coded as 'S0'; a write unlock in thread #25 is coded as 't9' (25 = 0x19; 's' + 1 = 't'); 
+ *	a read lock in thread #11 is coded as 'Ab' and the respective unlock is 'ab'. If a lock succeeds with its try-operation alone
  *	that is denoted with a dot after the thread number. All the lock operations that were accomplished with their normal
- *	[potentially] blocking calls, and all the unlocks, have commas after then.
+ *	[potentially] blocking calls, and all the unlocks, have commas after them.
  */
 
 #include "pch.h"
