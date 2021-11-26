@@ -13,19 +13,19 @@
  *	\brief Completion Queue Test and Demonstration
  *
  *	The demo implements a producer-consumer queue where numbers of producer and
- *	consumer threads are started, let work for some time, and the shut down.
+ *	consumer threads are started, let work for some time, and then shut down.
  *	The producers generate abstract "work items" identified with increasing natural numbers
  *	and the consumers calculate numeric sum of the processed items.
  *
  *	Meanwhile, the main thread, having let the threads to work for some time, shuts the producers down
- *	and starts discarding work items still in the queue while consumers continue to handle then on their own.
+ *	and starts discarding work items still in the queue while consumers continue to handle them on their own.
  *	Whenever the main item encounters a work item being busy being handled by a consumer, the thread uses
  *	the queue features to wait for the item handling to be completed by the consumer thread and that waiting
  *	is performed with muteces only. This demonstrates how work items can be dequeued prior to being handled or 
  *	be waited for the handling completion if they happen to be already started.
  *
  *	In the case of "cancelable queue", each fourth work item is, on generation, additionally linked 
- *	into an embedded list (this being a @c dlps_list usage demo) and the main thread, having stopped the producers,
+ *	into an embedded list (this being a \c dlps_list usage demo) and the main thread, having stopped the producers,
  *	performs a pass through this list canceling the selected work items. If an item has not been started being handled 
  *	by a consumer thread yet the item is just dequeued and deleted. If the item handling is already in progress 
  *	the main thread uses the queue features to request the engaged consumer thread abort its work on the item 
