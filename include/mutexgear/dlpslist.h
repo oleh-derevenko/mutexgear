@@ -40,7 +40,7 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
 //////////////////////////////////////////////////////////////////////////
 // The list is defined via template
 
-_MUTEXGEAR_PURE_INLINE
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE
 struct _t__mutexgear_dlpsitem *_mutexgear_dlpsitem_swap_items(struct _t__mutexgear_dlpsitem **p_item_storage, struct _t__mutexgear_dlpsitem *new_item_instance)
 {
 	struct _t__mutexgear_dlpsitem *existing_item_instance = *p_item_storage;
@@ -82,13 +82,13 @@ typedef _t_mutexgear_dlpsitem_t mutexgear_dlpsitem_t;
 //////////////////////////////////////////////////////////////////////////
 // Public mutexgear_dlpsitem_t API Definitions
 
-_MUTEXGEAR_PURE_INLINE void mutexgear_dlpsitem_init(mutexgear_dlpsitem_t *p_item_instance) { _t_mutexgear_dlpsitem_init(p_item_instance); }
-_MUTEXGEAR_PURE_INLINE void mutexgear_dlpsitem_destroy(mutexgear_dlpsitem_t *p_item_instance) { _t_mutexgear_dlpsitem_destroy(p_item_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE void mutexgear_dlpsitem_init(mutexgear_dlpsitem_t *p_item_instance) { _t_mutexgear_dlpsitem_init(p_item_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE void mutexgear_dlpsitem_destroy(mutexgear_dlpsitem_t *p_item_instance) { _t_mutexgear_dlpsitem_destroy(p_item_instance); }
 
-_MUTEXGEAR_PURE_INLINE bool mutexgear_dlpsitem_islinked(const mutexgear_dlpsitem_t *p_item_instance) { return _t_mutexgear_dlpsitem_islinked(p_item_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE bool mutexgear_dlpsitem_islinked(const mutexgear_dlpsitem_t *p_item_instance) { return _t_mutexgear_dlpsitem_islinked(p_item_instance); }
 
-_MUTEXGEAR_PURE_INLINE mutexgear_dlpsitem_t *mutexgear_dlpsitem_getnext(const mutexgear_dlpsitem_t *p_item_instance) { return _t_mutexgear_dlpsitem_getnext(p_item_instance); }
-_MUTEXGEAR_PURE_INLINE mutexgear_dlpsitem_t *mutexgear_dlpsitem_getprevious(const mutexgear_dlpsitem_t *p_item_instance) { return _t_mutexgear_dlpsitem_getprevious(p_item_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE mutexgear_dlpsitem_t *mutexgear_dlpsitem_getnext(const mutexgear_dlpsitem_t *p_item_instance) { return _t_mutexgear_dlpsitem_getnext(p_item_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE mutexgear_dlpsitem_t *mutexgear_dlpsitem_getprevious(const mutexgear_dlpsitem_t *p_item_instance) { return _t_mutexgear_dlpsitem_getprevious(p_item_instance); }
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -100,20 +100,20 @@ typedef _t_mutexgear_dlpslist_t mutexgear_dlpslist_t;
 //////////////////////////////////////////////////////////////////////////
 // Public mutexgear_dlpslist_t API Definitions
 
-_MUTEXGEAR_PURE_INLINE void mutexgear_dlpslist_init(mutexgear_dlpslist_t *p_list_instance) { _t_mutexgear_dlpslist_init(p_list_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE void mutexgear_dlpslist_init(mutexgear_dlpslist_t *p_list_instance) { _t_mutexgear_dlpslist_init(p_list_instance); }
 _MUTEXGEAR_PURE_INLINE void mutexgear_dlpslist_destroy(mutexgear_dlpslist_t *p_list_instance) { _t_mutexgear_dlpslist_destroy(p_list_instance); }
 
 _MUTEXGEAR_PURE_INLINE void mutexgear_dlpslist_swap(mutexgear_dlpslist_t *p_list_instance, mutexgear_dlpslist_t *p_another_list) { _t_mutexgear_dlpslist_swap(p_list_instance, p_another_list); }
 
 _MUTEXGEAR_PURE_INLINE void mutexgear_dlpslist_detach(mutexgear_dlpslist_t *p_list_instance) { _t_mutexgear_dlpslist_detach(p_list_instance); }
 
-_MUTEXGEAR_PURE_INLINE bool mutexgear_dlpslist_isempty(const mutexgear_dlpslist_t *p_list_instance) { return _t_mutexgear_dlpslist_isempty(p_list_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE bool mutexgear_dlpslist_isempty(const mutexgear_dlpslist_t *p_list_instance) { return _t_mutexgear_dlpslist_isempty(p_list_instance); }
 
-_MUTEXGEAR_PURE_INLINE mutexgear_dlpsitem_t *mutexgear_dlpslist_getbegin(const mutexgear_dlpslist_t *p_list_instance) { return _t_mutexgear_dlpslist_getbegin(p_list_instance); }
-_MUTEXGEAR_PURE_INLINE mutexgear_dlpsitem_t *mutexgear_dlpslist_getend(const mutexgear_dlpslist_t *p_list_instance) { return _t_mutexgear_dlpslist_getend(p_list_instance); }
-_MUTEXGEAR_PURE_INLINE mutexgear_dlpsitem_t *mutexgear_dlpslist_getrbegin(const mutexgear_dlpslist_t *p_list_instance) { return _t_mutexgear_dlpslist_getrbegin(p_list_instance); }
-_MUTEXGEAR_PURE_INLINE mutexgear_dlpsitem_t *mutexgear_dlpslist_getrend(const mutexgear_dlpslist_t *p_list_instance) { return _t_mutexgear_dlpslist_getrend(p_list_instance); }
-_MUTEXGEAR_PURE_INLINE bool mutexgear_dlpslist_trygetprevious(mutexgear_dlpsitem_t **p_out_previous_item, const mutexgear_dlpslist_t *p_list_instance, const mutexgear_dlpsitem_t *p_item_instance) { return _t_mutexgear_dlpslist_trygetprevious(p_out_previous_item, p_list_instance, p_item_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE mutexgear_dlpsitem_t *mutexgear_dlpslist_getbegin(const mutexgear_dlpslist_t *p_list_instance) { return _t_mutexgear_dlpslist_getbegin(p_list_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE mutexgear_dlpsitem_t *mutexgear_dlpslist_getend(const mutexgear_dlpslist_t *p_list_instance) { return _t_mutexgear_dlpslist_getend(p_list_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE mutexgear_dlpsitem_t *mutexgear_dlpslist_getrbegin(const mutexgear_dlpslist_t *p_list_instance) { return _t_mutexgear_dlpslist_getrbegin(p_list_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE mutexgear_dlpsitem_t *mutexgear_dlpslist_getrend(const mutexgear_dlpslist_t *p_list_instance) { return _t_mutexgear_dlpslist_getrend(p_list_instance); }
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE bool mutexgear_dlpslist_trygetprevious(mutexgear_dlpsitem_t **p_out_previous_item, const mutexgear_dlpslist_t *p_list_instance, const mutexgear_dlpsitem_t *p_item_instance) { return _t_mutexgear_dlpslist_trygetprevious(p_out_previous_item, p_list_instance, p_item_instance); }
 
 _MUTEXGEAR_PURE_INLINE void mutexgear_dlpslist_linkat(mutexgear_dlpslist_t *p_list_instance, mutexgear_dlpsitem_t *p_item_to_be_linked, mutexgear_dlpsitem_t *p_insert_before_item) { _t_mutexgear_dlpslist_linkat(p_list_instance, p_item_to_be_linked, p_insert_before_item); }
 _MUTEXGEAR_PURE_INLINE void mutexgear_dlpslist_linkfront(mutexgear_dlpslist_t *p_list_instance, mutexgear_dlpsitem_t *p_item_to_be_linked) { _t_mutexgear_dlpslist_linkfront(p_list_instance, p_item_to_be_linked); }

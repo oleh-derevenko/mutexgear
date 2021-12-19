@@ -92,19 +92,19 @@ _MUTEXGEAR_PURE_INLINE _t_mutexgear_##t_prefix##item_t *_t_mutexgear_##t_prefix#
 \
 /* Public litem_t definitions */ \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t_mutexgear_##t_prefix##item_init(_t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	_t__mutexgear_##t_prefix##item_internalinitunlinked(p_item_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 bool _t_mutexgear_##t_prefix##item_islinked(const _t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	return _t_mutexgear_##t_prefix##item_getprevious(p_item_instance) != p_item_instance; \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t_mutexgear_##t_prefix##item_destroy(_t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	MG_ASSERT(!_t_mutexgear_##t_prefix##item_islinked(p_item_instance)); \
@@ -112,13 +112,13 @@ void _t_mutexgear_##t_prefix##item_destroy(_t_mutexgear_##t_prefix##item_t *p_it
 	_t__mutexgear_##t_prefix##item_internaldestroy(p_item_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 _t_mutexgear_##t_prefix##item_t *_t_mutexgear_##t_prefix##item_getnext(const _t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	return (_t_mutexgear_##t_prefix##item_t *)_MUTEXGEAR_LITEM_GETNEXT(p_item_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 _t_mutexgear_##t_prefix##item_t *_t_mutexgear_##t_prefix##item_getprevious(const _t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	return (_t_mutexgear_##t_prefix##item_t *)_MUTEXGEAR_LITEM_GETPREV(p_item_instance); \
@@ -126,75 +126,75 @@ _t_mutexgear_##t_prefix##item_t *_t_mutexgear_##t_prefix##item_getprevious(const
 \
 /* Private litem_t definitions */ \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t__mutexgear_##t_prefix##item_setnext(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *new_next_instance) \
 { \
 	_MUTEXGEAR_LITEM_SETNEXT(p_item_instance, new_next_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t__mutexgear_##t_prefix##item_constructprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *new_prev_instance) \
 { \
 	_MUTEXGEAR_LITEM_CONSTRPREV(p_item_instance, new_prev_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t__mutexgear_##t_prefix##item_destroyprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	_MUTEXGEAR_LITEM_DESTRPREV(p_item_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t__mutexgear_##t_prefix##item_setunsafeprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *new_prev_instance) \
 { \
 	_MUTEXGEAR_LITEM_UNSAFESETPREV(p_item_instance, new_prev_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t__mutexgear_##t_prefix##item_setprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *new_prev_instance) \
 { \
 	_MUTEXGEAR_LITEM_SAFESETPREV(p_item_instance, new_prev_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 bool _t__mutexgear_##t_prefix##item_trysetprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t **p_expected_prev_instance, _t_mutexgear_##t_prefix##item_t *new_prev_instance) \
 { \
 	return _MUTEXGEAR_LITEM_TRYSETPREV(p_item_instance, p_expected_prev_instance, new_prev_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 _t_mutexgear_##t_prefix##item_t *_t__mutexgear_##t_prefix##item_swapprevious(_t_mutexgear_##t_prefix##item_t *p_item_instance, _t_mutexgear_##t_prefix##item_t *new_prev_instance) \
 { \
 	return _MUTEXGEAR_LITEM_SWAPPREV(p_item_instance, new_prev_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t__mutexgear_##t_prefix##item_internalinitselflinked(_t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	_t__mutexgear_##t_prefix##item_setnext(p_item_instance, p_item_instance); \
 	_t__mutexgear_##t_prefix##item_constructprevious(p_item_instance, p_item_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t__mutexgear_##t_prefix##item_internalinitunlinked(_t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	_t__mutexgear_##t_prefix##item_constructprevious(p_item_instance, p_item_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t__mutexgear_##t_prefix##item_internaldestroy(_t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	_t__mutexgear_##t_prefix##item_destroyprevious(p_item_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t__mutexgear_##t_prefix##item_unsaferesettounlinked(_t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	/* Store unsafe since there should not be interlocked access from other threads to an item being reset to unlinked */ \
 	_t__mutexgear_##t_prefix##item_setunsafeprevious(p_item_instance, p_item_instance); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t__mutexgear_##t_prefix##item_unsaferesettoselflinked(_t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \
 	_t__mutexgear_##t_prefix##item_setnext(p_item_instance, p_item_instance); \
@@ -225,7 +225,7 @@ typedef struct _t__mutexgear_##t_prefix##list \
 \
 /* Public llist_t definitions */ \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 void _t_mutexgear_##t_prefix##list_init(_t_mutexgear_##t_prefix##list_t *p_list_instance) \
 { \
 	_t__mutexgear_##t_prefix##item_internalinitselflinked(&p_list_instance->end_item); \
@@ -262,36 +262,36 @@ void _t_mutexgear_##t_prefix##list_detach(_t_mutexgear_##t_prefix##list_t *p_lis
 	_t__mutexgear_##t_prefix##item_unsaferesettoselflinked(&p_list_instance->end_item); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 bool _t_mutexgear_##t_prefix##list_isempty(const _t_mutexgear_##t_prefix##list_t *p_list_instance) \
 { \
 	return !_t_mutexgear_##t_prefix##item_islinked(&p_list_instance->end_item); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 _t_mutexgear_##t_prefix##item_t *_t_mutexgear_##t_prefix##list_getbegin(const _t_mutexgear_##t_prefix##list_t *p_list_instance) \
 { \
 	return _t_mutexgear_##t_prefix##item_getnext(&p_list_instance->end_item); \
 } \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 _t_mutexgear_##t_prefix##item_t *_t_mutexgear_##t_prefix##list_getend(const _t_mutexgear_##t_prefix##list_t *p_list_instance) \
 { \
 	const _t_mutexgear_##t_prefix##item_t *p_result = &p_list_instance->end_item; return (_t_mutexgear_##t_prefix##item_t *)p_result; \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 _t_mutexgear_##t_prefix##item_t *_t_mutexgear_##t_prefix##list_getrbegin(const _t_mutexgear_##t_prefix##list_t *p_list_instance) \
 { \
 	return _t_mutexgear_##t_prefix##item_getprevious(&p_list_instance->end_item); \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 _t_mutexgear_##t_prefix##item_t *_t_mutexgear_##t_prefix##list_getrend(const _t_mutexgear_##t_prefix##list_t *p_list_instance) \
 { \
 	const _t_mutexgear_##t_prefix##item_t *p_result = &p_list_instance->end_item; return (_t_mutexgear_##t_prefix##item_t *)p_result; \
 } \
 \
-_MUTEXGEAR_PURE_INLINE \
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE \
 bool _t_mutexgear_##t_prefix##list_trygetprevious(_t_mutexgear_##t_prefix##item_t **p_out_previous_item, \
 	const _t_mutexgear_##t_prefix##list_t *p_list_instance, const _t_mutexgear_##t_prefix##item_t *p_item_instance) \
 { \

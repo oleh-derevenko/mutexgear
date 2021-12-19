@@ -44,7 +44,7 @@
 #endif // #if defined(_MUTEXGEAR_HAVE_NO_STDBOOL_H)
 
 
-#if defined(_MSC_VER) || (defined(__GNUC__) && defined(_WIN32))
+#if defined(_MSC_VER) || (defined(_WIN32) && (defined(__GNUC__) || defined(__clang__)))
 
 #if defined(_MUTEXGEAR_DLL)
 
@@ -59,7 +59,7 @@
 #endif // #if !defined(MUTEXGEAR_LIB)
 
 
-#endif // #if defined(_MSC_VER) || (defined(__GNUC__) && defined(_WIN32))
+#endif // #if defined(_MSC_VER) || (defined(_WIN32) && (defined(__GNUC__) || defined(__clang__)))
 
 
 #if !defined(_MUTEXGEAR_API)
@@ -118,12 +118,38 @@
 #endif // #if !defined(__cplusplus)
 
 
+//////////////////////////////////////////////////////////////////////////
+// Inline specifiers
+
 #if !defined(_MUTEXGEAR_PURE_INLINE)
 
 #define _MUTEXGEAR_PURE_INLINE static inline
 
 
 #endif // #if !defined(_MUTEXGEAR_PURE_INLINE)
+
+
+#if !defined(_MUTEXGEAR_ALWAYS_INLINE)
+
+#if defined(__GNUC__) || defined(__clang__)
+
+#define _MUTEXGEAR_ALWAYS_INLINE __attribute__((always_inline))
+
+
+#elif defined(_MSC_VER)
+
+#define _MUTEXGEAR_ALWAYS_INLINE __forceinline
+
+
+#else // No compiler match
+
+#define _MUTEXGEAR_ALWAYS_INLINE
+
+
+#endif // No compiler match
+
+
+#endif // #if !defined(_MUTEXGEAR_ALWAYS_INLINE)
 
 
 //////////////////////////////////////////////////////////////////////////
