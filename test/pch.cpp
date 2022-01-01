@@ -2,7 +2,7 @@
 /* The MutexGear Library                                                */
 /* The Library Test Application Precompiled Header Related Source       */
 /*                                                                      */
-/* Copyright (c) 2016-2021 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2022 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */

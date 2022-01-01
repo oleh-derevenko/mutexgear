@@ -2,7 +2,7 @@ AC_PREREQ([2.69])
 AC_INIT([mutexgear],[0.1],[oleh.derevenko@gmail.com])
 AC_LANG(C)
 
-AC_COPYRIGHT([Copyright (C) 2020-2021, Oleh Derevenko <oleh.derevenko@gmail.com>])
+AC_COPYRIGHT([Copyright (C) 2020-2022, Oleh Derevenko <oleh.derevenko@gmail.com>])
 AC_REVISION([$Revision: 1.01 $])
 
 MUTEXGEAR_VERSION=0.1
