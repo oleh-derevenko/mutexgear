@@ -1474,27 +1474,87 @@ int _mutexgear_rwlock_rdlock(mutexgear_completion_item_t *__end_item, mutexgear_
 				// access_locked = true;
 			}
 
+			mutexgear_dlraitem_t *first_express_read, *last_express_read;
+			bool got_express_reads = false;
+
 			// Link own item first to give others a clue that the express queue can already be used...
 			// (even though this can potentially waste two memory writes compared to linking the item 
 			// together with the express queue in case if execution enters that branch)
 			if (!linked_into_express_queue)
 			{
-				_mutexgear_completion_queue_unsafeenqueue_before(&__rwlock->acquired_reads, __end_item, __item);
-				MG_ASSERT(readers_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN);
-				MG_DO_NOTHING(readers_lock_storage); // To suppress unused variable compiler warning
-			}
-			// ...then inspect the express_reads
-			mutexgear_dlraitem_t *const express_reads = _mutexgear_dlraitem_getfromprevious(&__rwlock->express_reads);
-			mutexgear_dlraitem_t  *express_tail_preview = mutexgear_dlraitem_getprevious(express_reads);
-
-			if (express_tail_preview != express_reads)
-			{
 				// Increment the commit counter as soon as it is known that a commit will be performed 
 				// to make the beset effort preventing writers from merging within a single reader push lock.
 				_mg_atomic_store_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->express_commits)) + 1); // _mg_atomic_fetch_add_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), 1);
 
-				mutexgear_dlraitem_t *last_express_read = _mutexgear_dlraitem_swapprevious(express_reads, express_reads);
-				mutexgear_dlraitem_t *first_express_read = rwlock_rdlock_link_express_queue_till_rend(last_express_read, express_reads);
+				_mutexgear_completion_queue_unsafeenqueue_before(&__rwlock->acquired_reads, __end_item, __item);
+				MG_ASSERT(readers_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN);
+				MG_DO_NOTHING(readers_lock_storage); // To suppress unused variable compiler warning
+
+				// ... then inspect the express_reads
+				mutexgear_dlraitem_t *const express_reads = _mutexgear_dlraitem_getfromprevious(&__rwlock->express_reads);
+				mutexgear_dlraitem_t *express_tail_preview = mutexgear_dlraitem_getprevious(express_reads);
+
+				if (express_tail_preview != express_reads)
+				{
+					last_express_read = _mutexgear_dlraitem_swapprevious(express_reads, express_reads);
+					first_express_read = rwlock_rdlock_link_express_queue_till_rend(last_express_read, express_reads);
+
+					got_express_reads = true;
+				}
+			}
+			// ... else just inspect the express_reads
+			else
+			{
+				mutexgear_dlraitem_t *const express_reads = _mutexgear_dlraitem_getfromprevious(&__rwlock->express_reads);
+				mutexgear_dlraitem_t *express_tail_preview = mutexgear_dlraitem_getprevious(express_reads);
+
+				if (express_tail_preview != express_reads)
+				{
+					// Increment the commit counter as soon as it is known that a commit will be performed 
+					// to make the beset effort preventing writers from merging within a single reader push lock.
+					_mg_atomic_store_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->express_commits)) + 1); // _mg_atomic_fetch_add_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), 1);
+
+					mutexgear_dlraitem_t *tail_preview_prev = mutexgear_dlraitem_getprevious(express_tail_preview);
+					MG_ASSERT((_mutexgear_dlraitem_setunsafeprevious(express_tail_preview, express_tail_preview), true)); // To suppress an assertion check in _mutexgear_completion_queue_unsafequeue_before() on the item to be not linked
+
+					// Immediately link the first known item to give others a clue that the express queue can already be used...
+					mutexgear_completion_item_t *tail_preview_item = _mutexgear_completion_item_getfromworkitem(express_tail_preview);
+					_mutexgear_completion_queue_unsafeenqueue_before(&__rwlock->acquired_reads, __end_item, tail_preview_item);
+					MG_ASSERT(readers_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN);
+					MG_DO_NOTHING(readers_lock_storage); // To suppress unused variable compiler warning
+
+					last_express_read = _mutexgear_dlraitem_swapprevious(express_reads, express_reads);
+					
+					if (last_express_read != express_tail_preview)
+					{
+						mutexgear_dlraitem_t *tail_preview_next = rwlock_rdlock_link_express_queue_till_rend(last_express_read, express_tail_preview);
+
+						if (tail_preview_prev != express_reads)
+						{
+							_mutexgear_dlraitem_setunsafeprevious(tail_preview_next, tail_preview_prev);
+							_mutexgear_dlraitem_setnext(tail_preview_prev, tail_preview_next);
+
+							first_express_read = rwlock_rdlock_link_express_queue_till_rend(tail_preview_prev, express_reads);
+						}
+						else
+						{
+							first_express_read = tail_preview_next;
+						}
+
+						got_express_reads = true;
+					}
+					else if (tail_preview_prev != express_reads)
+					{
+						last_express_read = tail_preview_prev;
+						first_express_read = rwlock_rdlock_link_express_queue_till_rend(tail_preview_prev, express_reads);
+
+						got_express_reads = true;
+					}
+				}
+			}
+
+			if (got_express_reads)
+			{
 				MG_ASSERT((_mutexgear_dlraitem_setunsafeprevious(first_express_read, first_express_read), true)); // To suppress an assertion check in _mutexgear_completion_queue_unsafemultiqueue_before() on the first item to be not linked
 
 				mutexgear_completion_item_t *last_item = _mutexgear_completion_item_getfromworkitem(last_express_read), *first_item = _mutexgear_completion_item_getfromworkitem(first_express_read);

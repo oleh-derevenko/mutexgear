@@ -46,6 +46,10 @@ enum EMUTEXGEARSUBSYSTEMTEST
 	MGST_TRDL_RWLOCK,
 
 	MGST__MAX,
+
+	MGST__TESTBEGIN = MGST__MIN,
+	MGST__TESTEND = MGST__MAX,
+	MGST__TESTCOUNT = MGST__TESTEND - MGST__TESTBEGIN,
 };
 
 typedef bool (*CMGSubsystemTestProcedure)(unsigned int &nOutSuccessCount, unsigned int &nOutTestCount);
@@ -90,7 +94,7 @@ bool PerformMGCoverageTests(unsigned int &nOutFailureCount)
 {
 	unsigned int nSuccessCount = 0;
 
-	for (EMUTEXGEARSUBSYSTEMTEST stSubsystemTest = MGST__MIN; stSubsystemTest != MGST__MAX; ++stSubsystemTest)
+	for (EMUTEXGEARSUBSYSTEMTEST stSubsystemTest = MGST__TESTBEGIN; stSubsystemTest != MGST__TESTEND; ++stSubsystemTest)
 	{
 		const char *szSubsystemName = g_aszMGSubsystemNames[stSubsystemTest];
 		printf("\nTesting subsystem \"%s\"\n", szSubsystemName);
@@ -109,13 +113,13 @@ bool PerformMGCoverageTests(unsigned int &nOutFailureCount)
 		printf("Feature tests failed:           %3u out of %3u\n", nSubsysytemFailureCount, nSubsystemTestCount);
 	}
 
-	unsigned int nFailureCount = MGST__MAX - nSuccessCount;
+	unsigned int nFailureCount = MGST__TESTCOUNT - nSuccessCount;
 
 	printf("\n==============================================\n");
-	printf("Subsystem tests failed:         %3u out of %3u\n", nFailureCount, (unsigned int)MGST__MAX);
+	printf("Subsystem tests failed:         %3u out of %3u\n", nFailureCount, (unsigned int)MGST__TESTCOUNT);
 
 	nOutFailureCount = nFailureCount;
-	return nSuccessCount == MGST__MAX;
+	return nSuccessCount == MGST__TESTCOUNT;
 }
 
 

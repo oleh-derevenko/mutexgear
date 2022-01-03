@@ -1205,7 +1205,7 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	{
 		const ERWLOCKLOCKTESTOBJECT toTestedObjectKind = LTO_SYSTEM;
 
-#if  !_MGTEST_ANY_SHARED_MUTEX_AVAILABLE
+#if !_MGTEST_ANY_SHARED_MUTEX_AVAILABLE
 		if (ttlTestLanguage == LTL_CPP)
 		{
 			atdObjectTestDurations[toTestedObjectKind] = 0;
