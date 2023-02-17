@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2022 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2023 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -622,13 +622,13 @@ int _mutexgear_completion_drainablequeue_safedrain(mutexgear_completion_drainabl
 	}
 	while (false);
 
-	// if (!success)
-	// {
+	if (!success)
+	{
 	// 	if (mutex_locked)
 	// 	{
 	// 			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = mutexgear_completion_plain_unlock_queue(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
 	// 	}
-	// }
+	}
 
 	return ret;
 }
@@ -827,13 +827,13 @@ int _mutexgear_completion_drainablequeueditem_safefinish(mutexgear_completion_dr
 	}
 	while (false);
 
-	// if (!success)
-	// {
+	if (!success)
+	{
 	// 	if (mutex_locked)
 	// 	{
 	// 		MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__queue_instance->basic_queue)) == EOK); // Should succeed normally
 	// 	}
-	// }
+	}
 
 	return ret;
 }

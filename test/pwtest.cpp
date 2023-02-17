@@ -2,7 +2,7 @@
 /* The MutexGear Library                                                */
 /* The Library Parent Wrapper Implementation Test File                  */
 /*                                                                      */
-/* Copyright (c) 2016-2022 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2023 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
