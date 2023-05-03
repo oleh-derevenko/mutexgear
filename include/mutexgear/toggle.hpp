@@ -56,7 +56,7 @@ public:
 
 	mutex_toggle()
 	{
-		int iInitializationResult = mutexgear_toggle_init(&m_tToggleInstance, NULL);
+		int iInitializationResult = mutexgear_toggle_init(&m_tToggleInstance, nullptr);
 
 		if (iInitializationResult != EOK)
 		{

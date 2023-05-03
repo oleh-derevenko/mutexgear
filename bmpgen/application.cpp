@@ -1,3 +1,9 @@
+/*
+*	A program to convert RWLock test dump files into bitmaps 
+*	(magenta tones - writes, teal tones - single thread reads, yellow tones - shared reads).
+*	Windows only but should  be easy to port to other platforms (just bitmap structure definitions are needed).
+*/
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -62,7 +68,7 @@ struct _sized_unsigned<sizeof(int64_t)>
 enum
 {
 	SOURCE_LINE_CHAR_COUNT		= 300,
-	
+
 	DESTINATIONLINE_WIDTH		= 1000,
 	DESTINATION_BYTES_PER_PIXEL	= 3,
 };
@@ -120,7 +126,7 @@ private:
 		}
 
 		~CConversionContext() { Finalize(); }
-		
+
 		bool Initialize(const CProgramArguments &paProgramArguments);
 		void Finalize();
 
@@ -165,11 +171,11 @@ private:
 bool CBMPGenProgram::Execute(int iArgumentCount, char *apszArgumentValues[])
 {
 	bool bResult = false;
-	
+
 	do
 	{
 		CProgramArguments paProgramArguments;
-		
+
 		if (!ParseProgramArguments(paProgramArguments, iArgumentCount, apszArgumentValues))
 		{
 			break;
@@ -180,16 +186,16 @@ bool CBMPGenProgram::Execute(int iArgumentCount, char *apszArgumentValues[])
 		{
 			break;
 		}
-		
+
 		if (!PerformConversionPrepared(ccWorkContext))
 		{
 			break;
 		}
-		
+
 		bResult = true;
 	}
 	while (false);
-	
+
 	return bResult;
 }
 
@@ -197,7 +203,7 @@ bool CBMPGenProgram::Execute(int iArgumentCount, char *apszArgumentValues[])
 bool CBMPGenProgram::CConversionContext::Initialize(const CProgramArguments &paProgramArguments)
 {
 	bool bResult = false;
-	
+
 	assert(m_psfSourceFile == NULL);
 
 	do
@@ -210,13 +216,13 @@ bool CBMPGenProgram::CConversionContext::Initialize(const CProgramArguments &paP
 
 		sizeint nPathLength = strlen(paProgramArguments.m_szInputFilePath);
 		char *pscDestinationPath = new char[nPathLength + ARRAY_SIZE(g_ascdestinationExtension)];
-		
+
 		char *pscDotPosition = strrchr(paProgramArguments.m_szInputFilePath, '.');
-		
+
 		if (pscDotPosition != NULL)
 		{
 			char *pscSlashPosition = strrchr(paProgramArguments.m_szInputFilePath, PATH_SEPARATOR_CHAR);
-			
+
 			if (pscSlashPosition != NULL && pscSlashPosition > pscDotPosition)
 			{
 				pscDotPosition = paProgramArguments.m_szInputFilePath + nPathLength;
@@ -247,7 +253,7 @@ bool CBMPGenProgram::CConversionContext::Initialize(const CProgramArguments &paP
 		bResult = true;
 	}
 	while (false);
-	
+
 	return bResult;
 }
 
@@ -270,7 +276,7 @@ void CBMPGenProgram::CConversionContext::Finalize()
 bool CBMPGenProgram::CConversionContext::ReadNextSourceLine(const char *&szOutNextLine, bool &bOutEOFReached)
 {
 	bool bResult = false;
-	
+
 	do
 	{
 		if (!FindNextLineInTheCachedData(szOutNextLine))
@@ -291,18 +297,18 @@ bool CBMPGenProgram::CConversionContext::ReadNextSourceLine(const char *&szOutNe
 				break;
 			}
 		}
-		
+
 		bResult = true;
 	}
 	while (false);
-	
+
 	return bResult;
 }
 
 bool CBMPGenProgram::CConversionContext::FindNextLineInTheCachedData(const char *&szOutNextLine)
 {
 	bool bResult = false;
-	
+
 	do
 	{
 		unsigned uiCacheSizeRemainder = m_uiBufferSizeUsed - m_uiBufferSizeParsed;
@@ -336,13 +342,13 @@ bool CBMPGenProgram::CConversionContext::FindNextLineInTheCachedData(const char 
 
 		m_uiBufferSizeParsed += (unsigned)(pscNewlinePosition - pscCacheDataStart) + 1;
 		++m_siCurrentSourceLineIndex;
-		
+
 		szOutNextLine = pscCacheDataStart;
-		
+
 		bResult = true;
 	}
 	while (false);
-	
+
 	return bResult;
 }
 
@@ -373,7 +379,7 @@ bool CBMPGenProgram::ParseProgramArguments(CProgramArguments &paProgramArguments
 bool CBMPGenProgram::PerformConversionPrepared(CConversionContext &ccRefWorkContext)
 {
 	bool bResult = false;
-	
+
 	do
 	{
 		if (!SkipSourceHeaderLines(ccRefWorkContext))
@@ -396,11 +402,11 @@ bool CBMPGenProgram::PerformConversionPrepared(CConversionContext &ccRefWorkCont
 		{
 			break;
 		}
-		
+
 		bResult = true;
 	}
 	while (false);
-	
+
 	return bResult;
 }
 
@@ -434,7 +440,7 @@ bool CBMPGenProgram::SkipSourceHeaderLines(CConversionContext &ccRefWorkContext)
 bool CBMPGenProgram::SkipDestinationHeaders(CConversionContext &ccRefWorkContext)
 {
 	bool bResult = false;
-	
+
 	do
 	{
 		unsigned uiSizeToBeSkipped = sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER);
@@ -444,11 +450,11 @@ bool CBMPGenProgram::SkipDestinationHeaders(CConversionContext &ccRefWorkContext
 			PrintError("Failed seeking destination file\n");
 			break;
 		}
-		
+
 		bResult = true;
 	}
 	while (false);
-	
+
 	return bResult;
 }
 
@@ -462,7 +468,7 @@ bool CBMPGenProgram::ConvertMapData(CConversionContext &ccRefWorkContext, sizein
 	CRunningMapState msMapState;
 
 	uint8_t auiDestinationLine[DESTINATIONLINE_WIDTH][DESTINATION_BYTES_PER_PIXEL];
-	
+
 	for (;;)
 	{
 		bool bEOFReached;
@@ -505,7 +511,7 @@ bool CBMPGenProgram::ConvertMapData(CConversionContext &ccRefWorkContext, sizein
 	{
 		siOutBitmapLines = siGeneratedLineCount;
 	}
-	
+
 	bool bResult = !bAnyFault;
 	return bResult;
 }
@@ -515,7 +521,7 @@ bool CBMPGenProgram::ConvertSingleSourceLine(const char *szSourceLine, CRunningM
 	unsigned &uiVarGeneratedPixelCount, uint8_t auiDestinationLine[][DESTINATION_BYTES_PER_PIXEL], unsigned uiMaximalPixelCount, sizeint siLineIndex)
 {
 	bool bAnyFault = false;
-	
+
 	unsigned uiCurrentPixelCount = uiVarGeneratedPixelCount;
 	assert(uiCurrentPixelCount < uiMaximalPixelCount);
 
@@ -679,7 +685,7 @@ bool CBMPGenProgram::ConvertSingleSourceLine(const char *szSourceLine, CRunningM
 bool CBMPGenProgram::WriteDestinationHeaders(CConversionContext &ccRefWorkContext, sizeint siBitmapLines)
 {
 	bool bResult = false;
-	
+
 	do
 	{
 		if (fseek(ccRefWorkContext.m_psfDestinationFile, 0, SEEK_SET) != 0)
@@ -725,7 +731,7 @@ bool CBMPGenProgram::WriteDestinationHeaders(CConversionContext &ccRefWorkContex
 		bResult = true;
 	}
 	while (false);
-	
+
 	return bResult;
 }
 

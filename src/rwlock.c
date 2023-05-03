@@ -17,10 +17,10 @@
 
 
 /**
- *	\file
- *	\brief MutexGear RWLock API implementation
- *
- */
+*	\file
+*	\brief MutexGear RWLock API implementation
+*
+*/
 
 
 #include <mutexgear/rwlock.h>
@@ -30,6 +30,7 @@
 #undef mutexgear_rwlock_init
 #undef mutexgear_rwlock_destroy
 #undef mutexgear_rwlock_wrlock
+#undef mutexgear_rwlock_wrlock_cwp
 #undef mutexgear_rwlock_trywrlock
 #undef mutexgear_rwlock_wrunlock
 #undef mutexgear_rwlock_rdlock
@@ -45,11 +46,11 @@
 #include "utility.h"
 
 
- // A macro to derive mutexgear_rwlock_t::reader_push_locks array index from waiter pointer
+// A macro to derive mutexgear_rwlock_t::reader_push_locks array index from waiter pointer
 #define _MUTEXGEAR_RWLOCK_MAKE_READER_PUSH_SELECTOR(Pointer) ((uintptr_t)(Pointer) / (size_t)_MUTEXGEAR_RWLOCK_READERPUSHSELECTOR_FACTOR)
 #define _MUTEXGEAR_RWLOCK_ACCESS_READER_PUSH_LOCK(RWLock, Selector) ((RWLock)->reader_push_locks[(_MUTEXGEAR_RWLOCK_READERPUSHLOCK_MAXCOUNT - 1) - (Selector)])
 
- // Use a whole byte for the mask as that allows compiler to generate a byte memory access instead of masking
+// Use a whole byte for the mask as that allows compiler to generate a byte memory access instead of masking
 #define _MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_MASK		0x00FF
 #define _MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_SHIFT	0
 
@@ -65,7 +66,7 @@ MG_STATIC_ASSERT((((_MUTEXGEAR_RWLOCK_READERPUSHLOCK_MAXCOUNT - 1) | _MUTEXGEAR_
 //////////////////////////////////////////////////////////////////////////
 // RWLock Attributes Implementation
 
- /*extern */
+/*extern */
 int mutexgear_rwlockattr_init(mutexgear_rwlockattr_t *__attr)
 {
 	__attr->mode_flags = 0;
@@ -678,12 +679,17 @@ bool rwlock_wrlock_are_zero_wrlock_waits(mutexgear_trdl_rwlock_t *__rwlock)
 }
 
 
-static bool rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *separator_item,
-	mutexgear_completion_waiter_t *__waiter, int *__out_status);
-static bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *separator_item,
-	mutexgear_completion_waiter_t *__waiter, int *__out_status);
-static bool rwlock_wrlock_wait_all_reads_and_acquire_access(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *separator_item,
-	mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__last_reader_item, int *__out_status);
+static int _mutexgear_trdl_rwlock_wrlock(int __readers_till_wp, mutexgear_trdl_rwlock_t *__rwlock,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item/*=NULL*/);
+static int _mutexgear_rwlock_wrlock(int __readers_till_wp, mutexgear_rwlock_t *__rwlock,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item/*=NULL*/);
+static bool rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *__separator_item,
+	mutexgear_completion_waiter_t *__waiter, int *__var_readers_till_wp, mutexgear_completion_item_t *__wait_completion_item, int *__out_status);
+static bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *__separator_item,
+	mutexgear_completion_waiter_t *__waiter, int *__var_readers_till_wp, mutexgear_completion_item_t *__wait_completion_item, int *__out_status);
+static bool rwlock_wrlock_wait_all_reads_and_acquire_access(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *__separator_item,
+	mutexgear_completion_waiter_t *__waiter, int *__var_readers_till_wp, mutexgear_completion_item_t *__wait_completion_item, 
+	mutexgear_completion_item_t *__last_reader_item, int *__out_status);
 _MUTEXGEAR_PURE_INLINE bool rwlock_wrlock_find_notmarked_reader_item(mutexgear_completion_item_t **__out_reader_item,
 	mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *__reader_item);
 
@@ -691,9 +697,24 @@ _MUTEXGEAR_PURE_INLINE bool rwlock_wrlock_find_notmarked_reader_item(mutexgear_c
 int mutexgear_trdl_rwlock_wrlock(mutexgear_trdl_rwlock_t *__rwlock,
 	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item/*=NULL*/)
 {
+	return _mutexgear_trdl_rwlock_wrlock(0, __rwlock, __worker, __waiter, __item);
+}
+
+/*extern */
+int mutexgear_trdl_rwlock_wrlock_cwp(mutexgear_trdl_rwlock_t *__rwlock,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item/*=NULL*/, int __readers_till_wp)
+{
+	return _mutexgear_trdl_rwlock_wrlock(__readers_till_wp, __rwlock, __worker, __waiter, __item);
+}
+
+static 
+int _mutexgear_trdl_rwlock_wrlock(int __readers_till_wp, mutexgear_trdl_rwlock_t *__rwlock,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item/*=NULL*/)
+{
 	bool success = false;
 	int ret, mutex_unlock_status, item_completion_status;
 
+	int readers_till_wp = __readers_till_wp;
 	bool item_initialized = false, wrwaits_incremented = false, wait_initialized = false, wait_inserted = false;
 
 	mutexgear_completion_item_t wait_completion_item;
@@ -701,7 +722,7 @@ int mutexgear_trdl_rwlock_wrlock(mutexgear_trdl_rwlock_t *__rwlock,
 
 	do
 	{
-		if (__item == NULL)
+		if (__item == NULL && readers_till_wp >= 0)
 		{
 			MG_STATIC_ASSERT(MUTEXGEAR_PROCESS_SHARED != 0);
 
@@ -765,30 +786,46 @@ int mutexgear_trdl_rwlock_wrlock(mutexgear_trdl_rwlock_t *__rwlock,
 
 		if (!access_acquired)
 		{
-			_mutexgear_completion_item_prestart(wait_completion_to_use, __worker);
-			wait_initialized = true;
-
-			if ((ret = _mutexgear_completion_queue_enqueue_back(&__rwlock->basic_lock.waiting_writes, wait_completion_to_use, NULL)) != EOK)
+			if (readers_till_wp >= 0)
 			{
-				break;
+				_mutexgear_completion_item_prestart(wait_completion_to_use, __worker);
+				wait_initialized = true;
+
+				if (readers_till_wp == 0)
+				{
+					if ((ret = _mutexgear_completion_queue_enqueue_back(&__rwlock->basic_lock.waiting_writes, wait_completion_to_use, NULL)) != EOK)
+					{
+						break;
+					}
+
+					wait_inserted = true;
+				}
 			}
-			wait_inserted = true;
 
 			mutexgear_completion_item_t *tryread_queue_separator = _mutexgear_rtdl_rwlock_getseparator(__rwlock);
 			// NOTE: The overhead in rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels() is actually
 			// so minor that it is unclear if it is worth making the two separate implementations. Let it be though.
 			if ((__rwlock->basic_lock.fl_un.mode_flags & _MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_MASK) == 0
-				? !rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(&__rwlock->basic_lock, tryread_queue_separator, __waiter, &ret)
-				: !rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(&__rwlock->basic_lock, tryread_queue_separator, __waiter, &ret))
+				? !rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(&__rwlock->basic_lock, tryread_queue_separator, __waiter, &readers_till_wp, wait_completion_to_use, &ret)
+				: !rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(&__rwlock->basic_lock, tryread_queue_separator, __waiter, &readers_till_wp, wait_completion_to_use, &ret))
 			{
+				wait_inserted = readers_till_wp == 0;
 				break;
 			}
 
-			MG_CHECK(item_completion_status, (item_completion_status = _mutexgear_completion_queueditem_safefinish(&__rwlock->basic_lock.waiting_writes, wait_completion_to_use, __worker)) == EOK); // Well, the item must be removed at any cost!
-			// wait_inserted = false;
+			if (readers_till_wp == 0)
+			{
+				MG_CHECK(item_completion_status, (item_completion_status = _mutexgear_completion_queueditem_safefinish(&__rwlock->basic_lock.waiting_writes, wait_completion_to_use, __worker)) == EOK); // Well, the item must be removed at any cost!
+				// wait_inserted = false;
+			}
+			else if (readers_till_wp > 0)
+			{
+				_mutexgear_completion_item_reinit(wait_completion_to_use);
+				// wait_initialized = false;
+			}
 		}
 
-		if (__item == NULL)
+		if (item_initialized)
 		{
 			_mutexgear_completion_item_destroy(&wait_completion_item);
 		}
@@ -831,9 +868,24 @@ int mutexgear_trdl_rwlock_wrlock(mutexgear_trdl_rwlock_t *__rwlock,
 int mutexgear_rwlock_wrlock(mutexgear_rwlock_t *__rwlock,
 	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item/*=NULL*/)
 {
+	return _mutexgear_rwlock_wrlock(0, __rwlock, __worker, __waiter, __item);
+}
+
+/*extern */
+int mutexgear_rwlock_wrlock_cwp(mutexgear_rwlock_t *__rwlock,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item/*=NULL*/, int __readers_till_wp)
+{
+	return _mutexgear_rwlock_wrlock(__readers_till_wp, __rwlock, __worker, __waiter, __item);
+}
+
+static 
+int _mutexgear_rwlock_wrlock(int __readers_till_wp, mutexgear_rwlock_t *__rwlock,
+	mutexgear_completion_worker_t *__worker, mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__item/*=NULL*/)
+{
 	bool success = false;
 	int ret, mutex_unlock_status, item_completion_status;
 
+	int readers_till_wp = __readers_till_wp;
 	bool item_initialized = false, wait_initialized = false, wait_inserted = false;
 
 	mutexgear_completion_item_t wait_completion_item;
@@ -841,7 +893,7 @@ int mutexgear_rwlock_wrlock(mutexgear_rwlock_t *__rwlock,
 
 	do
 	{
-		if (__item == NULL)
+		if (__item == NULL && readers_till_wp >= 0)
 		{
 			MG_STATIC_ASSERT(MUTEXGEAR_PROCESS_SHARED != 0);
 
@@ -881,29 +933,45 @@ int mutexgear_rwlock_wrlock(mutexgear_rwlock_t *__rwlock,
 
 		if (!access_acquired)
 		{
-			_mutexgear_completion_item_prestart(wait_completion_to_use, __worker);
-			wait_initialized = true;
-
-			if ((ret = _mutexgear_completion_queue_enqueue_back(&__rwlock->waiting_writes, wait_completion_to_use, NULL)) != EOK)
+			if (readers_till_wp >= 0)
 			{
-				break;
+				_mutexgear_completion_item_prestart(wait_completion_to_use, __worker);
+				wait_initialized = true;
+
+				if (readers_till_wp == 0)
+				{
+					if ((ret = _mutexgear_completion_queue_enqueue_back(&__rwlock->waiting_writes, wait_completion_to_use, NULL)) != EOK)
+					{
+						break;
+					}
+
+					wait_inserted = true;
+				}
 			}
-			wait_inserted = true;
 
 			// NOTE: The overhead in rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels() is actually
 			// so minor that it is unclear if it is worth making the two separate implementations. Let it be though.
 			if ((__rwlock->fl_un.mode_flags & _MUTEXGEAR_RWLOCK_MODE_READERPUSHLOCKS_MASK) == 0
-				? !rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(__rwlock, NULL, __waiter, &ret)
-				: !rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(__rwlock, NULL, __waiter, &ret))
+				? !rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(__rwlock, NULL, __waiter, &readers_till_wp, wait_completion_to_use, &ret)
+				: !rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(__rwlock, NULL, __waiter, &readers_till_wp, wait_completion_to_use, &ret))
 			{
+				wait_inserted = readers_till_wp == 0;
 				break;
 			}
 
-			MG_CHECK(item_completion_status, (item_completion_status = _mutexgear_completion_queueditem_safefinish(&__rwlock->waiting_writes, wait_completion_to_use, __worker)) == EOK); // Well, the item must be removed at any cost!
-			// wait_inserted = false;
+			if (readers_till_wp == 0)
+			{
+				MG_CHECK(item_completion_status, (item_completion_status = _mutexgear_completion_queueditem_safefinish(&__rwlock->waiting_writes, wait_completion_to_use, __worker)) == EOK); // Well, the item must be removed at any cost!
+				// wait_inserted = false;
+			}
+			else if (readers_till_wp > 0)
+			{
+				_mutexgear_completion_item_reinit(wait_completion_to_use);
+				// wait_initialized = false;
+			}
 		}
 
-		if (__item == NULL)
+		if (item_initialized)
 		{
 			_mutexgear_completion_item_destroy(&wait_completion_item);
 		}
@@ -938,8 +1006,8 @@ int mutexgear_rwlock_wrlock(mutexgear_rwlock_t *__rwlock,
 }
 
 static
-bool rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *separator_item,
-	mutexgear_completion_waiter_t *__waiter, int *__out_status)
+bool rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *__separator_item,
+	mutexgear_completion_waiter_t *__waiter, int *__var_readers_till_wp, mutexgear_completion_item_t *__wait_completion_item, int *__out_status)
 {
 	bool success = false;
 	int ret, mutex_unlock_status;
@@ -966,8 +1034,8 @@ bool rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(mutexg
 
 		mutexgear_completion_item_t	*last_reader_item;
 		if (_mutexgear_completion_queue_gettail(&last_reader_item, &__rwlock->acquired_reads) // This is equivalent to emptiness check
-			&& (last_reader_item != separator_item || _mutexgear_completion_queue_getpreceding(&last_reader_item, &__rwlock->acquired_reads, last_reader_item))
-			&& !rwlock_wrlock_wait_all_reads_and_acquire_access(__rwlock, separator_item, __waiter, last_reader_item, &ret))
+			&& (last_reader_item != __separator_item || _mutexgear_completion_queue_getpreceding(&last_reader_item, &__rwlock->acquired_reads, last_reader_item))
+			&& !rwlock_wrlock_wait_all_reads_and_acquire_access(__rwlock, __separator_item, __waiter, __var_readers_till_wp, __wait_completion_item, last_reader_item, &ret))
 		{
 			// The unlock for acquired_reads in the call above is not allowed to fail
 
@@ -996,8 +1064,8 @@ bool rwlock_wrlock_push_readers_waiting_to_acquire_access__single_channel(mutexg
 }
 
 static
-bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *separator_item,
-	mutexgear_completion_waiter_t *__waiter, int *__out_status)
+bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *__separator_item,
+	mutexgear_completion_waiter_t *__waiter, int *__var_readers_till_wp, mutexgear_completion_item_t *__wait_completion_item, int *__out_status)
 {
 	bool fault = false;
 	int ret, mutex_unlock_status;
@@ -1036,12 +1104,12 @@ bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mut
 
 		mutexgear_completion_item_t	*last_reader_item;
 		if (!_mutexgear_completion_queue_gettail(&last_reader_item, &__rwlock->acquired_reads) // This is equivalent to emptiness check
-			|| (last_reader_item == separator_item && !_mutexgear_completion_queue_getpreceding(&last_reader_item, &__rwlock->acquired_reads, last_reader_item)))
+			|| (last_reader_item == __separator_item && !_mutexgear_completion_queue_getpreceding(&last_reader_item, &__rwlock->acquired_reads, last_reader_item)))
 		{
 			break;
 		}
 
-		if (rwlock_wrlock_wait_all_reads_and_acquire_access(__rwlock, separator_item, __waiter, last_reader_item, &ret))
+		if (rwlock_wrlock_wait_all_reads_and_acquire_access(__rwlock, __separator_item, __waiter, __var_readers_till_wp, __wait_completion_item, last_reader_item, &ret))
 		{
 			break;
 		}
@@ -1099,11 +1167,14 @@ bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mut
 }
 
 static
-bool rwlock_wrlock_wait_all_reads_and_acquire_access(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *separator_item,
-	mutexgear_completion_waiter_t *__waiter, mutexgear_completion_item_t *__last_reader_item, int *__out_status)
+bool rwlock_wrlock_wait_all_reads_and_acquire_access(mutexgear_rwlock_t *__rwlock, mutexgear_completion_item_t *__separator_item,
+	mutexgear_completion_waiter_t *__waiter, int *__var_readers_till_wp, mutexgear_completion_item_t *__wait_completion_item, 
+	mutexgear_completion_item_t *__last_reader_item, int *__out_status)
 {
 	bool fault = false;
 	int ret, mutex_unlock_status;
+
+	int readers_till_wp = *__var_readers_till_wp;
 
 	mutexgear_completion_item_t	*reader_item = __last_reader_item;
 	MG_ASSERT(reader_item != NULL);
@@ -1116,7 +1187,7 @@ bool rwlock_wrlock_wait_all_reads_and_acquire_access(mutexgear_rwlock_t *__rwloc
 		// there are the most recent (and, hence, potentially last to release the lock) readers.
 		// This way, the algorithm should exit with less number iterations.
 		exit_loop = !_mutexgear_completion_queue_gettail(&reader_item, &__rwlock->acquired_reads)
-		|| (reader_item == separator_item && !_mutexgear_completion_queue_getpreceding(&reader_item, &__rwlock->acquired_reads, reader_item)))
+		|| (reader_item == __separator_item && !_mutexgear_completion_queue_getpreceding(&reader_item, &__rwlock->acquired_reads, reader_item)))
 	{
 		if (!_mutexgear_completion_itemdata_modifyunsafetag(&reader_item->data, rdlock_itemtag_beingwaited, true)
 			&& !rwlock_wrlock_find_notmarked_reader_item(&reader_item, __rwlock, reader_item))
@@ -1135,6 +1206,17 @@ bool rwlock_wrlock_wait_all_reads_and_acquire_access(mutexgear_rwlock_t *__rwloc
 		{
 			fault = true;
 			break;
+		}
+
+		if (readers_till_wp > 0 && --readers_till_wp == 0)
+		{
+			if ((ret = _mutexgear_completion_queue_enqueue_back(&__rwlock->waiting_writes, __wait_completion_item, NULL)) != EOK)
+			{
+				fault = true;
+				break;
+			}
+
+			*__var_readers_till_wp = 0;
 		}
 
 		if ((ret = _mutexgear_completion_queue_lock(NULL, &__rwlock->acquired_reads)) != EOK)
@@ -1419,10 +1501,10 @@ int _mutexgear_rwlock_rdlock(mutexgear_completion_item_t *__end_item, mutexgear_
 
 			// Set next self-linked to have an indicator that the item is in a single linked list yet
 			_mutexgear_dlraitem_setnext(item_work_item, item_work_item);
-			
+
 			mutexgear_dlraitem_t *const express_reads = _mutexgear_dlraitem_getfromprevious(&__rwlock->express_reads);
 			mutexgear_dlraitem_t *queued_express_last = mutexgear_dlraitem_getprevious(express_reads);
-			
+
 			linked_into_express_queue = true;
 			if ((((_mutexgear_dlraitem_setunsafeprevious(item_work_item, queued_express_last), true) && _mutexgear_dlraitem_trysetprevious(express_reads, &queued_express_last, item_work_item))
 				|| ((_mutexgear_dlraitem_setunsafeprevious(item_work_item, queued_express_last), true) && _mutexgear_dlraitem_trysetprevious(express_reads, &queued_express_last, item_work_item))
@@ -1487,7 +1569,7 @@ int _mutexgear_rwlock_rdlock(mutexgear_completion_item_t *__end_item, mutexgear_
 				_mg_atomic_store_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), _mg_atomic_load_relaxed_ptrdiff(_MG_PCVA_PTRDIFF(&__rwlock->express_commits)) + 1); // _mg_atomic_fetch_add_relaxed_ptrdiff(_MG_PVA_PTRDIFF(&__rwlock->express_commits), 1);
 
 				_mutexgear_completion_queue_unsafeenqueue_before(&__rwlock->acquired_reads, __end_item, __item);
-				MG_ASSERT(readers_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN);
+				MG_ASSERT(readers_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOKEN);
 				MG_DO_NOTHING(readers_lock_storage); // To suppress unused variable compiler warning
 
 				// ... then inspect the express_reads
@@ -1520,11 +1602,11 @@ int _mutexgear_rwlock_rdlock(mutexgear_completion_item_t *__end_item, mutexgear_
 					// Immediately link the first known item to give others a clue that the express queue can already be used...
 					mutexgear_completion_item_t *tail_preview_item = _mutexgear_completion_item_getfromworkitem(express_tail_preview);
 					_mutexgear_completion_queue_unsafeenqueue_before(&__rwlock->acquired_reads, __end_item, tail_preview_item);
-					MG_ASSERT(readers_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN);
+					MG_ASSERT(readers_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOKEN);
 					MG_DO_NOTHING(readers_lock_storage); // To suppress unused variable compiler warning
 
 					last_express_read = _mutexgear_dlraitem_swapprevious(express_reads, express_reads);
-					
+
 					if (last_express_read != express_tail_preview)
 					{
 						mutexgear_dlraitem_t *tail_preview_next = rwlock_rdlock_link_express_queue_till_rend(last_express_read, express_tail_preview);
@@ -1559,7 +1641,7 @@ int _mutexgear_rwlock_rdlock(mutexgear_completion_item_t *__end_item, mutexgear_
 
 				mutexgear_completion_item_t *last_item = _mutexgear_completion_item_getfromworkitem(last_express_read), *first_item = _mutexgear_completion_item_getfromworkitem(first_express_read);
 				_mutexgear_completion_queue_unsafemultiqueue_before(&__rwlock->acquired_reads, __end_item, first_item, last_item);
-				MG_ASSERT(readers_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN);
+				MG_ASSERT(readers_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOKEN);
 				MG_DO_NOTHING(readers_lock_storage); // To suppress unused variable compiler warning
 			}
 
@@ -1627,7 +1709,7 @@ bool rwlock_rdlock_wait_all_writes_and_acquire_access(mutexgear_rwlock_t *__rwlo
 		//
 
 		_mutexgear_completion_drainablequeue_unsafeenqueue(&__rwlock->waiting_reads, __item, &read_wait_drain_index);
-		MG_ASSERT(waiting_reads_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN);
+		MG_ASSERT(waiting_reads_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOKEN);
 		MG_DO_NOTHING(waiting_reads_lock_storage); // To suppress unused variable compiler warning
 		wait_inserted = true;
 
@@ -1913,7 +1995,7 @@ int mutexgear_trdl_rwlock_rdunlock(mutexgear_trdl_rwlock_t *__rwlock,
 			// to not create a window when new express_reads items could be added 
 			// with acquired_reads looking not empty for them...
 			_mutexgear_completion_queueditem_unsafefinish__locked(__item);
-			MG_ASSERT(reads_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN);
+			MG_ASSERT(reads_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOKEN);
 			MG_DO_NOTHING(reads_lock_storage); // To suppress unused variable compiler warning
 
 			if (tryreads_locked)
@@ -1990,7 +2072,7 @@ int mutexgear_rwlock_rdunlock(mutexgear_rwlock_t *__rwlock,
 			// to not create a window when new express_reads items could be added 
 			// with acquired_reads looking not empty for them...
 			_mutexgear_completion_queueditem_unsafefinish__locked(__item);
-			MG_ASSERT(reads_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN);
+			MG_ASSERT(reads_lock_storage == MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOKEN);
 			MG_DO_NOTHING(reads_lock_storage); // To suppress unused variable compiler warning
 
 			// ...and then it is safe to extract the queued express_reads 

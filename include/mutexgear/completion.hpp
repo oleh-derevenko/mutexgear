@@ -20,23 +20,23 @@
 /************************************************************************/
 
 /**
- *	\file
- *	\brief MutexGear Completion class set definitions
- *
- *	The header defines a namespace with a set of classes being header-only wrappers
- *  for \c mutexgear_completion_*_t objects.
- *
- *	The \c waitable_queue wrapper class implements a multi-threaded server work queue 
- *	with ability to wait for work item completion. The \c cancelable_queue wrapper class
- *	additionally allows to request and conduct work item handling cancellation.
- *
- *	NOTE:
- *
- *	The \c mutexgear_completion_worker_t object (and hence, the \c completion::worker wrapper) 
- *	depends on a synchronization mechanism being a subject of the U.S. Patent No. 9983913. 
- *	Use USPTO Patent Full-Text and Image Database search (currently, 
- *	http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
- */
+*	\file
+*	\brief MutexGear Completion class set definitions
+*
+*	The header defines a namespace with a set of classes being header-only wrappers
+*  for \c mutexgear_completion_*_t objects.
+*
+*	The \c waitable_queue wrapper class implements a multi-threaded server work queue 
+*	with ability to wait for work item completion. The \c cancelable_queue wrapper class
+*	additionally allows to request and conduct work item handling cancellation.
+*
+*	NOTE:
+*
+*	The \c mutexgear_completion_worker_t object (and hence, the \c completion::worker wrapper) 
+*	depends on a synchronization mechanism being a subject of the U.S. Patent No. 9983913. 
+*	Use USPTO Patent Full-Text and Image Database search (currently, 
+*	http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
+*/
 
 
 #include <mutexgear/completion.h>
@@ -50,22 +50,22 @@
 _MUTEXGEAR_BEGIN_NAMESPACE()
 
 /**
- *	\namespace completion
- *	\brief A namespace to group completion queues and related classes.
- */
+*	\namespace completion
+*	\brief A namespace to group completion queues and related classes.
+*/
 _MUTEXGEAR_BEGIN_COMPLETION_NAMESPACE()
 
 
 /**
- *	\class worker
- *	\brief A wrapper for \c mutexgear_completion_worker_t and its related functions.
- *
- *	The class is a helper for active side handling items in a completion queue like \c waitable_queue or \c cancelable_queue.
- *
- *	\see mutexgear_completion_worker_t
- *	\see waitable_queue
- *	\see cancelable_queue
- */
+*	\class worker
+*	\brief A wrapper for \c mutexgear_completion_worker_t and its related functions.
+*
+*	The class is a helper for active side handling items in a completion queue like \c waitable_queue or \c cancelable_queue.
+*
+*	\see mutexgear_completion_worker_t
+*	\see waitable_queue
+*	\see cancelable_queue
+*/
 class worker:
 	private mutexgear_completion_worker_t
 {
@@ -116,14 +116,14 @@ public:
 };
 
 /**
- *	\class worker_view
- *	\brief A wrapper for \c worker data pointer.
- *
- *	The class wraps a reference for accessing and handling a \worker data structure.
- *
- *	\see worker
- *	\see mutexgear_completion_worker_t
- */
+*	\class worker_view
+*	\brief A wrapper for \c worker data pointer.
+*
+*	The class wraps a reference for accessing and handling a \worker data structure.
+*
+*	\see worker
+*	\see mutexgear_completion_worker_t
+*/
 class worker_view
 {
 public:
@@ -156,15 +156,15 @@ private:
 
 
 /**
- *	\class waiter
- *	\brief A wrapper for \c mutexgear_completion_waiter_t and its related functions.
- *
- *	The class is a helper for client side scheduling items into a completion queue, like \c waitable_queue or \c cancelable_queue, and waiting for them to be processed there.
- *
- *	\see mutexgear_completion_waiter_t
- *	\see waitable_queue
- *	\see cancelable_queue
- */
+*	\class waiter
+*	\brief A wrapper for \c mutexgear_completion_waiter_t and its related functions.
+*
+*	The class is a helper for client side scheduling items into a completion queue, like \c waitable_queue or \c cancelable_queue, and waiting for them to be processed there.
+*
+*	\see mutexgear_completion_waiter_t
+*	\see waitable_queue
+*	\see cancelable_queue
+*/
 class waiter:
 	private mutexgear_completion_waiter_t
 {
@@ -182,7 +182,7 @@ public:
 			throw std::system_error(std::error_code(iInitializationResult, std::system_category()));
 		}
 	}
-	
+
 	waiter(const waiter &wAnotherWaiter) = delete; 
 
 	~waiter() noexcept
@@ -198,16 +198,16 @@ public:
 
 
 /**
- *	\class item
- *	\brief A wrapper for \c mutexgear_completion_item_t and its related functions.
- *
- *	The class is an item that can be inserted into a completion queue, like \c waitable_queue or \c cancelable_queue, 
- *	to act as a reference for accessing the item's host object for processing.
- *
- *	\see mutexgear_completion_item_t
- *	\see waitable_queue
- *	\see cancelable_queue
- */
+*	\class item
+*	\brief A wrapper for \c mutexgear_completion_item_t and its related functions.
+*
+*	The class is an item that can be inserted into a completion queue, like \c waitable_queue or \c cancelable_queue, 
+*	to act as a reference for accessing the item's host object for processing.
+*
+*	\see mutexgear_completion_item_t
+*	\see waitable_queue
+*	\see cancelable_queue
+*/
 class item:
 	private mutexgear_completion_item_t
 {
@@ -235,14 +235,14 @@ public:
 };
 
 /**
- *	\class item_view
- *	\brief A wrapper for \c item data pointer.
- *
- *	The class wraps a reference for accessing and handling an \c item data structure.
- *
- *	\see item
- *	\see mutexgear_completion_item_t
- */
+*	\class item_view
+*	\brief A wrapper for \c item data pointer.
+*
+*	The class wraps a reference for accessing and handling an \c item data structure.
+*
+*	\see item
+*	\see mutexgear_completion_item_t
+*/
 class item_view
 {
 public:
@@ -281,15 +281,15 @@ private:
 
 
 /**
- *	\class waitable_queue
- *	\brief A wrapper for \c mutexgear_completion_queue_t and its related functions.
- *
- *	The class implements a threading-aware queue that can be used for scheduling work
- *	items and letting them to be handled asynchronously with threads while allowing the clients 
- *	to request waits for particular item handling completions.
- *
- *	\see mutexgear_completion_queue_t
- */
+*	\class waitable_queue
+*	\brief A wrapper for \c mutexgear_completion_queue_t and its related functions.
+*
+*	The class implements a threading-aware queue that can be used for scheduling work
+*	items and letting them to be handled asynchronously with threads while allowing the clients 
+*	to request waits for particular item handling completions.
+*
+*	\see mutexgear_completion_queue_t
+*/
 class waitable_queue
 {
 public:
@@ -368,8 +368,8 @@ public:
 
 	void lock(lock_token_type *pltOutLockToken=nullptr)
 	{
-		mutexgear_completion_locktoken_t *pclAcquiredLockTockenToUse = pltOutLockToken;
-		int iLockResult = mutexgear_completion_queue_lock(pclAcquiredLockTockenToUse, &m_cqQueueInstance);
+		mutexgear_completion_locktoken_t *pclAcquiredLockTokenToUse = pltOutLockToken;
+		int iLockResult = mutexgear_completion_queue_lock(pclAcquiredLockTokenToUse, &m_cqQueueInstance);
 
 		if (iLockResult != EOK)
 		{
@@ -448,7 +448,7 @@ public:
 	}
 
 	static 
-	void dequeue(const item_view &ivItemInstance) noexcept
+		void dequeue(const item_view &ivItemInstance) noexcept
 	{
 		mutexgear_completion_queue_unsafedequeue(static_cast<item_view::pointer>(ivItemInstance));
 	}
@@ -459,7 +459,7 @@ public:
 	}
 
 	static 
-	void unsafefinish__locked(item &iRefItemInstance) noexcept
+		void unsafefinish__locked(item &iRefItemInstance) noexcept
 	{
 		mutexgear_completion_queueditem_unsafefinish__locked(static_cast<item::pointer>(iRefItemInstance));
 	}
@@ -498,16 +498,16 @@ waitable_queue::const_iterator &waitable_queue::const_iterator::operator =(const
 
 
 /**
- *	\class cancelable_queue
- *	\brief A wrapper for \c mutexgear_completion_cancelablequeue_t and its related functions.
- *
- *	The class implements a threading-aware queue that can be used for scheduling work
- *	items and letting them to be handled asynchronously with threads while allowing the clients
- *	to request waits for particular item handling completions and request canceling and safe removal
- *	of the items that no longer need the processing.
- *
- *	\see mutexgear_completion_queue_t
- */
+*	\class cancelable_queue
+*	\brief A wrapper for \c mutexgear_completion_cancelablequeue_t and its related functions.
+*
+*	The class implements a threading-aware queue that can be used for scheduling work
+*	items and letting them to be handled asynchronously with threads while allowing the clients
+*	to request waits for particular item handling completions and request canceling and safe removal
+*	of the items that no longer need the processing.
+*
+*	\see mutexgear_completion_queue_t
+*/
 class cancelable_queue
 {
 public:
@@ -586,8 +586,8 @@ public:
 
 	void lock(lock_token_type *pltOutLockToken=nullptr)
 	{
-		mutexgear_completion_locktoken_t *pclAcquiredLockTockenToUse = pltOutLockToken;
-		int iLockResult = mutexgear_completion_cancelablequeue_lock(pclAcquiredLockTockenToUse, &m_cqQueueInstance);
+		mutexgear_completion_locktoken_t *pclAcquiredLockTokenToUse = pltOutLockToken;
+		int iLockResult = mutexgear_completion_cancelablequeue_lock(pclAcquiredLockTokenToUse, &m_cqQueueInstance);
 
 		if (iLockResult != EOK)
 		{
@@ -661,10 +661,10 @@ public:
 		const cancel_callback_type &fnCancelCallback=nullptr) noexcept(false)
 	{
 		cancel_context_type ccCancelContext;
-		mutexgear_completion_cancel_fn_t fnItemCancelFunctionToUse = NULL;
+		mutexgear_completion_cancel_fn_t fnItemCancelFunctionToUse = nullptr;
 
 		mutexgear_completion_ownership_t coItemOwnership;
-		
+
 		if (fnCancelCallback)
 		{
 			ccCancelContext.assign(this, fnCancelCallback);
@@ -704,36 +704,36 @@ public:
 	}
 
 	static
-	void dequeue(const item_view &ivItemInstance) noexcept
+		void dequeue(const item_view &ivItemInstance) noexcept
 	{
 		mutexgear_completion_cancelablequeue_unsafedequeue(static_cast<item_view::pointer>(ivItemInstance));
 	}
 
-// 	item_view start_any(worker &wRefWorkerToBeEngaged, lock_token_type ltLockToken) noexcept
-// 	{
-// 		MG_ASSERT(ltLockToken != nullptr);
-// 
-// 		mutexgear_completion_item_t *pciAcquiredItem;
-// 		const mutexgear_completion_locktoken_t clQueueLock = ltLockToken;
-// 		int iStartResult = mutexgear_completion_cancelablequeue_locateandstart(&pciAcquiredItem, &m_cqQueueInstance, static_cast<worker::pointer>(wRefWorkerToBeEngaged), clQueueLock);
-// 		MG_VERIFY(iStartResult == EOK);
-// 
-// 		return item_view(pciAcquiredItem); // The item may be a nullptr
-// 	}
-// 
-// 	item_view start_any_with_locking(worker &wRefWorkerToBeEngaged)
-// 	{
-// 		mutexgear_completion_item_t *pciAcquiredItem;
-// 		const mutexgear_completion_locktoken_t clQueueLock = nullptr;
-// 		int iStartResult = mutexgear_completion_cancelablequeue_locateandstart(&pciAcquiredItem, &m_cqQueueInstance, static_cast<worker::pointer>(wRefWorkerToBeEngaged), clQueueLock);
-// 		
-// 		if (iStartResult != EOK)
-// 		{
-// 			throw std::system_error(std::error_code(iStartResult, std::system_category()));
-// 		}
-// 
-// 		return item_view(pciAcquiredItem); // The item may be a nullptr
-// 	}
+	// 	item_view start_any(worker &wRefWorkerToBeEngaged, lock_token_type ltLockToken) noexcept
+	// 	{
+	// 		MG_ASSERT(ltLockToken != nullptr);
+	// 
+	// 		mutexgear_completion_item_t *pciAcquiredItem;
+	// 		const mutexgear_completion_locktoken_t clQueueLock = ltLockToken;
+	// 		int iStartResult = mutexgear_completion_cancelablequeue_locateandstart(&pciAcquiredItem, &m_cqQueueInstance, static_cast<worker::pointer>(wRefWorkerToBeEngaged), clQueueLock);
+	// 		MG_VERIFY(iStartResult == EOK);
+	// 
+	// 		return item_view(pciAcquiredItem); // The item may be a nullptr
+	// 	}
+	// 
+	// 	item_view start_any_with_locking(worker &wRefWorkerToBeEngaged)
+	// 	{
+	// 		mutexgear_completion_item_t *pciAcquiredItem;
+	// 		const mutexgear_completion_locktoken_t clQueueLock = nullptr;
+	// 		int iStartResult = mutexgear_completion_cancelablequeue_locateandstart(&pciAcquiredItem, &m_cqQueueInstance, static_cast<worker::pointer>(wRefWorkerToBeEngaged), clQueueLock);
+	// 		
+	// 		if (iStartResult != EOK)
+	// 		{
+	// 			throw std::system_error(std::error_code(iStartResult, std::system_category()));
+	// 		}
+	// 
+	// 		return item_view(pciAcquiredItem); // The item may be a nullptr
+	// 	}
 
 	void start(item &iRefItemInstance, worker &wRefWorkerToBeEngaged) noexcept
 	{
@@ -741,7 +741,7 @@ public:
 	}
 
 	static 
-	void unsafefinish__locked(item &iRefItemInstance) noexcept
+		void unsafefinish__locked(item &iRefItemInstance) noexcept
 	{
 		mutexgear_completion_cancelablequeueditem_unsafefinish__locked(static_cast<item::pointer>(iRefItemInstance));
 	}
@@ -811,15 +811,16 @@ cancelable_queue::const_iterator &cancelable_queue::const_iterator::operator =(c
 }
 
 
-struct acquire_tocken_t { explicit acquire_tocken_t() noexcept = default; };
+struct acquire_token_t { explicit acquire_token_t() noexcept = default; };
+typedef acquire_token_t acquire_tocken_t; // To keep backward compatibility with an old mistake
 
 /**
- *	\template queue_lock_helper
- *	\brief A template class to aid safe locking of completion queues
- *
- *	\see waitable_queue
- *	\see cancelable_queue
- */
+*	\template queue_lock_helper
+*	\brief A template class to aid safe locking of completion queues
+*
+*	\see waitable_queue
+*	\see cancelable_queue
+*/
 template<class TQueueType, bool tsbCancelAvailability=std::is_same<TQueueType, cancelable_queue>::value>
 class queue_lock_helper;
 
@@ -829,7 +830,7 @@ class queue_lock_helper<TQueueType, false>
 public:
 	typedef TQueueType queue_type;
 	typedef typename queue_type::lock_token_type lock_token_type;
-	
+
 	explicit queue_lock_helper(queue_type &qQueueInstance):
 		m_psqQueueInstance(&qQueueInstance),
 		m_bQueueIsLocked(true),
@@ -839,7 +840,7 @@ public:
 		qQueueInstance.lock();
 	}
 
-	explicit queue_lock_helper(queue_type &qQueueInstance, acquire_tocken_t):
+	explicit queue_lock_helper(queue_type &qQueueInstance, acquire_token_t):
 		m_psqQueueInstance(&qQueueInstance),
 		m_bQueueIsLocked(true), 
 		m_bTokenIsAvailable(true)
@@ -922,7 +923,7 @@ public:
 		}
 	}
 
-	void lock(acquire_tocken_t)
+	void lock(acquire_token_t)
 	{
 		if (!m_psqQueueInstance)
 		{
@@ -982,7 +983,7 @@ public:
 		}
 
 		queue_type *psqQueueInstance = m_psqQueueInstance;
-		
+
 		if (pltOutLockToken != nullptr)
 		{
 			*pltOutLockToken = std::move(m_ltLockToken);
@@ -991,7 +992,7 @@ public:
 		m_psqQueueInstance = nullptr;
 		m_bQueueIsLocked = false;
 		m_bTokenIsAvailable = false;
-		
+
 		return psqQueueInstance;
 	}
 
@@ -1057,7 +1058,7 @@ public:
 	{
 	}
 
-	explicit queue_lock_helper(queue_type &qQueueInstance, acquire_tocken_t atAcquireTokenRequest) :
+	explicit queue_lock_helper(queue_type &qQueueInstance, acquire_token_t atAcquireTokenRequest) :
 		parent_type(qQueueInstance, atAcquireTokenRequest)
 	{
 	}
@@ -1135,12 +1136,12 @@ struct adopt_work_t { explicit adopt_work_t() noexcept = default; };
 
 
 /**
- *	\template queue_work_helper
- *	\brief A template class to aid safe starting and finishing work on queue items
- *
- *	\see waitable_queue
- *	\see cancelable_queue
- */
+*	\template queue_work_helper
+*	\brief A template class to aid safe starting and finishing work on queue items
+*
+*	\see waitable_queue
+*	\see cancelable_queue
+*/
 template<class TQueueType>
 class queue_work_helper
 {
@@ -1180,7 +1181,7 @@ public:
 			m_bLockedFinishPartExecuted = whAnotherInstance.m_bLockedFinishPartExecuted;
 		}
 	}
-	
+
 	queue_work_helper &operator =(queue_work_helper &&whAnotherInstance)
 	{
 		_finalize();

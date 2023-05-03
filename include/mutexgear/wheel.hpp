@@ -56,7 +56,7 @@ public:
 
 	mutex_wheel()
 	{
-		int iInitializationResult = mutexgear_wheel_init(&m_wWheelInstance, NULL);
+		int iInitializationResult = mutexgear_wheel_init(&m_wWheelInstance, nullptr);
 
 		if (iInitializationResult != EOK)
 		{

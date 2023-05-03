@@ -9,42 +9,42 @@
 /************************************************************************/
 
 /**
- *	\file
- *	\brief Completion Queue Test and Demonstration
- *
- *	The demo implements a producer-consumer queue where numbers of producer and
- *	consumer threads are started, let work for some time, and then shut down.
- *	The producers generate abstract "work items" identified with increasing natural numbers
- *	and the consumers calculate numeric sum of the processed items.
- *
- *	Meanwhile, the main thread, having let the threads to work for some time, shuts the producers down
- *	and starts discarding work items still in the queue while consumers continue to handle them on their own.
- *	Whenever the main item encounters a work item being busy being handled by a consumer, the thread uses
- *	the queue features to wait for the item handling to be completed by the consumer thread and that waiting
- *	is performed with muteces only. This demonstrates how work items can be dequeued prior to being handled or 
- *	be waited for the handling completion if they happen to be already started.
- *
- *	In the case of "cancelable queue", each fourth work item is, on generation, additionally linked 
- *	into an embedded list (this being a \c dlps_list usage demo) and the main thread, having stopped the producers,
- *	performs a pass through this list canceling the selected work items. If an item has not been started being handled 
- *	by a consumer thread yet the item is just dequeued and deleted. If the item handling is already in progress 
- *	the main thread uses the queue features to request the engaged consumer thread abort its work on the item 
- *	and to wait for the item handling to be either aborted or completed. The waiting for the abort or completion is 
- *	performed with muteces only and this demonstrates how work items can be dequeued prior to being handled or 
- *	be requested an abort and be waited for the abort or handling completion (on the consumer thread's discretion) 
- *	if they happen to be already started.
- *
- *	The equality of total of individual consumed, aborted, canceled and dropped sums with the total of generated 
- *	numbers is considered the test success criterion. The test statistics is output on levels of "basic" and higher.
- *
- *	Since it is impractical to implement such complex producer-consumer cooperation and work queue operations in C language 
- *	the demo was implemented via the library's C++ wrappers and requires C++ 11. If no C++ 11 support is detected 
- *	the completion queue tests are skipped.
- *
- *	\note Even though the thread counts and queue sizes can be easily customized by changing constants 
- *	the implementation was not tested to flawlessly handle all the corner cases. The main purpose of the test is 
- *	not to implement a perfect producer-consumer system but rather to demonstrate the completion queue features.
- */
+*	\file
+*	\brief Completion Queue Test and Demonstration
+*
+*	The demo implements a producer-consumer queue where numbers of producer and
+*	consumer threads are started, let work for some time, and then shut down.
+*	The producers generate abstract "work items" identified with increasing natural numbers
+*	and the consumers calculate numeric sum of the processed items.
+*
+*	Meanwhile, the main thread, having let the threads to work for some time, shuts the producers down
+*	and starts discarding work items still in the queue while consumers continue to handle them on their own.
+*	Whenever the main item encounters a work item being busy being handled by a consumer, the thread uses
+*	the queue features to wait for the item handling to be completed by the consumer thread and that waiting
+*	is performed with muteces only. This demonstrates how work items can be dequeued prior to being handled or 
+*	be waited for the handling completion if they happen to be already started.
+*
+*	In the case of "cancelable queue", each fourth work item is, on generation, additionally linked 
+*	into an embedded list (this being a \c dlps_list usage demo) and the main thread, having stopped the producers,
+*	performs a pass through this list canceling the selected work items. If an item has not been started being handled 
+*	by a consumer thread yet the item is just dequeued and deleted. If the item handling is already in progress 
+*	the main thread uses the queue features to request the engaged consumer thread abort its work on the item 
+*	and to wait for the item handling to be either aborted or completed. The waiting for the abort or completion is 
+*	performed with muteces only and this demonstrates how work items can be dequeued prior to being handled or 
+*	be requested an abort and be waited for the abort or handling completion (on the consumer thread's discretion) 
+*	if they happen to be already started.
+*
+*	The equality of total of individual consumed, aborted, canceled and dropped sums with the total of generated 
+*	numbers is considered the test success criterion. The test statistics is output on levels of "basic" and higher.
+*
+*	Since it is impractical to implement such complex producer-consumer cooperation and work queue operations in C language 
+*	the demo was implemented via the library's C++ wrappers and requires C++ 11. If no C++ 11 support is detected 
+*	the completion queue tests are skipped.
+*
+*	\note Even though the thread counts and queue sizes can be easily customized by changing constants 
+*	the implementation was not tested to flawlessly handle all the corner cases. The main purpose of the test is 
+*	not to implement a perfect producer-consumer system but rather to demonstrate the completion queue features.
+*/
 
 #include "pch.h"
 #include "cqtest.h"
@@ -74,7 +74,7 @@ using mg::completion::item_view;
 using mg::completion::waitable_queue;
 using mg::completion::cancelable_queue;
 using mg::completion::queue_lock_helper;
-using mg::completion::acquire_tocken_t;
+using mg::completion::acquire_token_t;
 using mg::completion::queue_work_helper;
 using mg::parent_wrapper;
 using mg::dlps_info;
@@ -207,7 +207,7 @@ static const char *const g_aszWorkerQueueFeatureTestNames[MGCQF__MAX] =
 bool CCompletionQueueTest::RunTheTest(unsigned int &nOutSuccessCount, unsigned int &nOutTestCount)
 {
 	unsigned int nSuccessCount = 0;
-	
+
 	const EMGTESTFEATURELEVEL tlFeatureTestLevel = CCompletionQueueTest::RetrieveSelectedFeatureTestLevel();
 
 	CTesterBase::CTestStatistics tsTestStatistics;
@@ -437,7 +437,7 @@ private:
 		void WaitQueueQuotaAvailability(const atomic_bool *pabAbortFlag/*=nullptr*/)
 		{
 			const size_type siSizeLimit = GetQueueSizeLimit();
-			
+
 			size_type siCurrentSize = m_lsiQueueReserve.load(std::memory_order_relaxed);
 			MG_ASSERT(siCurrentSize <= siSizeLimit);
 
@@ -449,7 +449,7 @@ private:
 
 				size_type siCurrentSizeRecheck = m_lsiQueueReserve.load(std::memory_order_acquire);
 				MG_ASSERT(siCurrentSizeRecheck <= siSizeLimit);
-				
+
 				if (siCurrentSizeRecheck == siSizeLimit && (pabAbortFlag == nullptr || !pabAbortFlag->load(std::memory_order_relaxed)))
 				{
 					condition_variable &cvProductionWakeupEvent = GetProductionWakeupEvent();
@@ -632,7 +632,7 @@ private:
 				else
 				{
 					unique_ptr<CWorkItem> uwiFrontItem(CWorkItem::GetInstanceFromItem(&item::instance_from_pointer(ivCurrentItem)));
-					
+
 					nDroppedSum += uwiFrontItem->GetItemIndex();
 
 					AdvanceItemAwaitingStartIfMatchesItem(ivCurrentItem);
@@ -724,7 +724,7 @@ private:
 		}
 
 		typedef typename CWorkQueueObjects::size_type size_type;
-		
+
 	protected:
 		CThreadBase &operator =(thread &&tThreadInstance) { CThreadBase_ThreadParent::operator =(std::move(tThreadInstance)); return *this; }
 
@@ -802,7 +802,7 @@ private:
 
 			CWorkQueueObjects &qoQueueObjectsRef = GetQueueObjects();
 			{
-				queue_lock_helper<queue_type> lhQueueLockHelper(qoQueueObjectsRef.m_qCompletionQueue, acquire_tocken_t());
+				queue_lock_helper<queue_type> lhQueueLockHelper(qoQueueObjectsRef.m_qCompletionQueue, acquire_token_t());
 
 				CWorkItemLinker &ilCancelableLinkerRef = GetCancelableLinker();
 				ilCancelableLinkerRef.LinkItemInIfNecessary(*uwiWorkItem);
@@ -856,7 +856,7 @@ private:
 		using CProducerThread_Parent::GetQueueObjects;
 		using CProducerThread_Parent::GetCancelableLinker;
 	};
-	
+
 	class CConsumerThread :
 		public CThreadBase,
 		private parent_wrapper<worker>
@@ -1203,7 +1203,7 @@ void CQueueTester<TQueueType, tuiProducerCount, tuiConsumerCount>::RunTheTest(CT
 	production_size_type nCanceledSum, nOnDiscardDroppedItemSum, nOnDiscardWaitedItemCount;
 
 	CreateAndStartAllConsumers();
-	
+
 	try 
 	{
 		CreateAndStartAllProducers();

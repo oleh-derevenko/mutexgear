@@ -129,12 +129,12 @@ mutexgear_completion_drainidx_t _mutexgear_completion_drainidx_getmin()
 }
 
 
-#define MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN	((mutexgear_completion_locktoken_t)((char *)NULL + 1))
+#define MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOKEN	((mutexgear_completion_locktoken_t)((char *)NULL + 1))
 
 _MUTEXGEAR_PURE_INLINE
 mutexgear_completion_locktoken_t _mutexgear_completion_queue_derivetoken(mutexgear_completion_queue_t *__queue_instance)
 {
-	return MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOCKEN;
+	return MUTEXGEAR_COMPLETION_ACQUIRED_LOCKTOKEN;
 }
 
 
