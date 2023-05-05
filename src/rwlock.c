@@ -1194,6 +1194,7 @@ bool rwlock_wrlock_wait_all_reads_and_acquire_access(mutexgear_rwlock_t *__rwloc
 		{
 			MG_CHECK(mutex_unlock_status, (mutex_unlock_status = _mutexgear_completion_queue_plainunlock(&__rwlock->acquired_reads)) == EOK);
 
+			*__var_readers_till_wp = readers_till_wp;
 			ret = _MUTEXGEAR_ERRNO__RWLOCK_ALLITEMSBUSY;
 			fault = true;
 			break;
