@@ -677,6 +677,16 @@ public:
 	typedef uint64_t timepoint;
 	typedef int64_t timeduration;
 
+	static timeduration GetMaxTimeduration() { return INT64_MAX; }
+	static uint32_t MakeTimepointHash32(timepoint tpTimePoint)
+	{
+		uint32_t uiTimePointLow = (uint32_t)tpTimePoint, uiTimePointHigh = (uint32_t)(tpTimePoint >> 32);
+		uint64_t uiHashValue =  (((uint64_t)uiTimePointLow + ((uiTimePointHigh >> 7) | (uiTimePointHigh << 25))) << 22)
+			^ ((((uint64_t)((uiTimePointLow << 11) | (uiTimePointLow >> 21)) + ((uiTimePointHigh >> 25) | (uiTimePointHigh << 7))) << 11))
+			^ ((((uint64_t)((uiTimePointLow << 22) | (uiTimePointLow >> 10)) + (uiTimePointHigh))/* << 0*/));
+		return (uint32_t)uiHashValue ^ (uint32_t)(uiHashValue >> 32);
+	}
+
 	static void Sleep(unsigned int uiMillisecondCount)
 	{
 		int iSleepResult;

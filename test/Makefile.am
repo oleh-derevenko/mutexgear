@@ -17,7 +17,7 @@ mgtest_SOURCES = \
   mgtest.cpp \
   cqtest.cpp cqtest.h \
   pwtest.cpp pwtest.h \
-  rwltest.cpp rwltest.h \
+  rwltest.cpp rwltest.h rwltest_randoms.h \
   mgtest_common.h \
   pch.cpp pch.h
 

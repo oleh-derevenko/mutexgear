@@ -210,6 +210,41 @@ static const char *const g_aszTestedObjectLanguageNames[] =
 MG_STATIC_ASSERT(ARRAY_SIZE(g_aszTestedObjectLanguageNames) == LTL__MAX);
 
 
+class CRandomContextProvider
+{
+public:
+	enum 
+	{
+		RANDOM_BYTE_COUNT = 32768,
+		RANDOM_BLOCK_SIZE = 256,
+		RANDOM_BLOCK_COUNT = RANDOM_BYTE_COUNT / RANDOM_BLOCK_SIZE,
+	};
+
+	typedef uint32_t randcontextint;
+	typedef CTimeUtils::timepoint timepoint;
+
+	static randcontextint ConvertTimeToRandcontext(timepoint tpTimePoint) { MG_STATIC_ASSERT(sizeof(randcontextint) == sizeof(uint32_t)); return CTimeUtils::MakeTimepointHash32(tpTimePoint); }
+	static randcontextint AdjutsRandcontextForThreadIndex(randcontextint ciSourceRandomContext, unsigned uiThreadIndex) { return ciSourceRandomContext + uiThreadIndex / RANDOM_BLOCK_COUNT + (uiThreadIndex % RANDOM_BLOCK_COUNT) * RANDOM_BLOCK_SIZE;	}
+	static randcontextint MixContextWithData(randcontextint ciRandomContext, unsigned uiRandomData) { randcontextint ciUpdatedContext = ciRandomContext ^ uiRandomData; return (ciUpdatedContext << 21) | (ciUpdatedContext >> 11); }
+
+	static void RefreshRandomsCache()
+	{
+		const uint32_t *const puiDataEnd = reinterpret_cast<const uint32_t *>(m_auiRandomData + ARRAY_SIZE(m_auiRandomData));
+		MG_VERIFY(std::find(reinterpret_cast<const uint32_t *>(m_auiRandomData), puiDataEnd, -1) == puiDataEnd); // Search through the data to touch it and move into the CPU cache
+	}
+
+	static unsigned ExtractRandomItem(randcontextint ciOperationRandomContext) { return m_auiRandomData[ciOperationRandomContext % RANDOM_BYTE_COUNT]; }
+
+private:
+	static const uint8_t m_auiRandomData[RANDOM_BYTE_COUNT];
+};
+
+/*static */const uint8_t CRandomContextProvider::m_auiRandomData[CRandomContextProvider::RANDOM_BYTE_COUNT] = 
+{
+#include "rwltest_randoms.h"
+};
+
+
 class CThreadExecutionBarrier
 {
 public:
@@ -984,10 +1019,23 @@ public:
 
 class CRWLockLockTestProgress;
 
+
+class CLockDurationUtils
+{
+public:
+	typedef CTimeUtils::timeduration timeduration;
+
+	static bool IsDurationSmaller(timeduration tdTestDuration, timeduration tdThanDuration) { return tdTestDuration * 3 / 2 <= tdThanDuration; }
+};
+
+
 class IRWLockLockTestThread
 {
 public:
-	virtual void ReleaseInstance() = 0;
+	typedef CTimeUtils::timeduration timeduration;
+
+	virtual void ReleaseInstance(timeduration &tdOutMinimumLockDuration, timeduration &tdOutMinDurationUnavailabilityTime, timeduration &tdOutHigherDurationUnavailabilityTime,
+		timeduration &tdOutMaxUnavailabilityTime) = 0;
 };
 
 
@@ -997,6 +1045,7 @@ public:
 	typedef unsigned int iterationcntint;
 	typedef unsigned int operationidxint; typedef signed int operationsidxint; typedef _mg_atomic_uint_t atomic_operationidxint;
 	typedef unsigned int threadcntint;
+	typedef CRandomContextProvider::randcontextint randcontextint;
 
 	static inline void atomic_init_operationidxint(volatile atomic_operationidxint *piiDestination, operationidxint iiValue)
 	{
@@ -1030,6 +1079,9 @@ public:
 	bool RunTheTask();
 
 private:
+	typedef CTimeUtils::timeduration timeduration;
+	typedef CTimeUtils::timepoint timepoint;
+
 	void AllocateThreadOperationBuffers(threadcntint ciTotalThreadCount);
 	void FreeThreadOperationBuffers(threadcntint ciTotalThreadCount);
 	operationidxint GetMaximalThreadOperationCount() const;
@@ -1037,22 +1089,25 @@ private:
 	template<unsigned tuiCustomizedImplementationOptions, ERWLOCKLOCKTESTOBJECT ttoTestedObjectKind>
 	void AllocateTestThreads(
 		CRWLockImplementation<trsTryReadSupport, tuiCustomizedImplementationOptions, ttoTestedObjectKind, ttlTestLanguage> &liRefRWLock,
-		threadcntint ciWriterCount, threadcntint ciReraderCount,
+		threadcntint ciWriterCount, threadcntint ciReraderCount, timepoint tpRunStartTime, 
 		CThreadExecutionBarrier &sbRefStartBarrier, CThreadExecutionBarrier &sbRefFinishBarrier, CThreadExecutionBarrier &sbRefExitBarrier,
 		CRWLockLockTestProgress &tpRefProgressInstance);
-	void FreeTestThreads(CThreadExecutionBarrier &sbRefExitBarrier, threadcntint ciTotalThreadCount);
+	void FreeTestThreads(CThreadExecutionBarrier &sbRefExitBarrier, threadcntint ciTotalThreadCount, 
+		timeduration &tdOutTotalUnavailabilityTime, timeduration &tdOutMaxUnavailabilityTime);
 
 	void WaitTestThreadsReady(CThreadExecutionBarrier &sbStartBarrier);
 	void LaunchTheTest(CThreadExecutionBarrier &sbStartBarrier);
 	void WaitTheTestEnd(CThreadExecutionBarrier &sbFinishBarrier);
 
 	void InitializeTestResults(threadcntint ciWriterCount, threadcntint ciReraderCount, EMGTESTFEATURELEVEL flTestLevel);
-	void PublishTestResults(ERWLOCKFINETEST ftTestKind, threadcntint ciWriterCount, threadcntint ciReraderCount, EMGTESTFEATURELEVEL flTestLevel,
-		CTimeUtils::timeduration tdTestDuration);
+	void PublishTestResults(ERWLOCKFINETEST ftTestKind, threadcntint ciWriterCount, threadcntint ciReraderCount, timepoint tpRunStartTime, 
+		EMGTESTFEATURELEVEL flTestLevel, timeduration tdTestDuration, timeduration tdTotalUnavailabilityTime, timeduration tdMaxUnavailabilityTime);
+	void FillInitialThreadRandomContexts(randcontextint aciThreadRandomContexts[], threadcntint ciTotalThreadCount, randcontextint ciRunRandomContext);
 	void BuildMergedThreadOperationMap(char ascMergeBuffer[], operationidxint iiLastSavedOperationIndex, operationidxint iiThreadOperationCount,
-		operationidxint aiiThreadLastOperationIndices[], threadcntint ciWriterCount, threadcntint ciReaderCount);
+		operationidxint aiiThreadLastOperationIndices[], threadcntint ciWriterCount, threadcntint ciReaderCount, randcontextint aciThreadRandomContexts[], unsigned puiThreadRandomData[]);
 	operationidxint FillThreadOperationMap(char ascMergeBuffer[], operationidxint iiLastSavedOperationIndex, const operationidxint iiThreadOperationCount,
-		const operationidxint *piiThreadOperationIndices, operationidxint iiThreadLastOperationIndex, const char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH]);
+		const operationidxint *piiThreadOperationIndices, operationidxint iiThreadLastOperationIndex, randcontextint &ciVarThreadRandomContext, unsigned &uiVarThreadRandomData, 
+		const char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH]);
 	void InitializeThreadName(char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH + 1], char cMapFirstChar);
 	void IncrementThreadName(char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH + 1], threadcntint ciThreadIndex);
 	void SaveThreadOperationMapToDetails(ERWLOCKFINETEST ftTestKind, const char ascMergeBuffer[], operationidxint iiThreadOperationCount);
@@ -1116,6 +1171,9 @@ class CRWLockLockTestThread:
 public:
 	typedef CRWLockLockTestBase::iterationcntint iterationcntint;
 	typedef CRWLockLockTestBase::operationidxint operationidxint;
+	typedef CRandomContextProvider::randcontextint randcontextint;
+	typedef CTimeUtils::timepoint timepoint;
+	using IRWLockLockTestThread::timeduration;
 
 	struct CThreadParameterInfo
 	{
@@ -1137,8 +1195,9 @@ public:
 	};
 
 public:
-	CRWLockLockTestThread(const CThreadParameterInfo &piThreadParameters, iterationcntint uiIterationCount, const typename TOperationExecutor::CConstructionParameter &cpExecutorParameter, operationidxint aiiOperationIndexBuffer[]):
+	CRWLockLockTestThread(const CThreadParameterInfo &piThreadParameters, randcontextint ciThreadRandomContext, iterationcntint uiIterationCount, const typename TOperationExecutor::CConstructionParameter &cpExecutorParameter, operationidxint aiiOperationIndexBuffer[]):
 		m_piThreadParameters(piThreadParameters),
+		m_ciThreadRandomContext(ciThreadRandomContext),
 		m_uiIterationCount(uiIterationCount),
 		m_piiOperationIndexBuffer(aiiOperationIndexBuffer),
 		m_oeOperationExecutor(cpExecutorParameter)
@@ -1168,12 +1227,37 @@ private:
 	void DoTheDirtyJob(CExecutorExtraObjects &eoRefExecutorExtraObjects, CRWLockLockTestProgress *ptpProgressInstance);
 
 private: // IRWLockLockTestThread
-	virtual void ReleaseInstance();
+	virtual void ReleaseInstance(timeduration &tdOutMinimumLockDuration, timeduration &tdOutMinDurationUnavailabilityTime, timeduration &tdOutHigherDurationUnavailabilityTime, 
+		timeduration &tdOutMaxUnavailabilityTime);
+
+private:
+	void StoreUnavailabilityTimes(timeduration tdMinimumLockDuration, timeduration tdMinDurationUnavailabilityTime, timeduration tdHigherDurationUnavailabilityTime,
+		timeduration tdMaxUnavailabilityTime)
+	{
+		m_tdMinimumLockDuration = tdMinimumLockDuration;
+		m_tdMinDurationUnavailabilityTime = tdMinDurationUnavailabilityTime;
+		m_tdHigherDurationUnavailabilityTime = tdHigherDurationUnavailabilityTime;
+		m_tdMaxUnavailabilityTime = tdMaxUnavailabilityTime;
+	}
+
+	void RetrieveUnavailabilityTimes(timeduration &tdOutMinimumLockDuration, timeduration &tdOutMinDurationUnavailabilityTime, timeduration &tdOutHigherDurationUnavailabilityTime,
+		timeduration &tdOutMaxUnavailabilityTime) const
+	{
+		tdOutMinimumLockDuration = m_tdMinimumLockDuration;
+		tdOutMinDurationUnavailabilityTime = m_tdMinDurationUnavailabilityTime;
+		tdOutHigherDurationUnavailabilityTime = m_tdHigherDurationUnavailabilityTime;
+		tdOutMaxUnavailabilityTime = m_tdMaxUnavailabilityTime;
+	}
 
 private:
 	CThreadParameterInfo m_piThreadParameters;
+	randcontextint		m_ciThreadRandomContext;
 	iterationcntint		m_uiIterationCount;
-	operationidxint *m_piiOperationIndexBuffer;
+	operationidxint		*m_piiOperationIndexBuffer;
+	timeduration		m_tdMinimumLockDuration;
+	timeduration		m_tdMinDurationUnavailabilityTime;
+	timeduration		m_tdHigherDurationUnavailabilityTime;
+	timeduration		m_tdMaxUnavailabilityTime;
 	TOperationExecutor	m_oeOperationExecutor;
 #ifdef _WIN32
 	uintptr_t			m_hThreadHandle;
@@ -1188,10 +1272,12 @@ enum EEXECUTORLOCKOPERATIONKIND
 	LOK__MIN,
 
 	LOK__ENCODED_MIN = LOK__MIN,
+	LOK__RANDCONTEXT_UPDATE_MIN = LOK__ENCODED_MIN,
 
-	LOK_ACUIORE_LOCK = LOK__ENCODED_MIN,
+	LOK_ACUIORE_LOCK = LOK__RANDCONTEXT_UPDATE_MIN,
 
-	LOK__ENCODED_MAX,
+	LOK__RANDCONTEXT_UPDATE_MAX,
+	LOK__ENCODED_MAX = LOK__RANDCONTEXT_UPDATE_MAX,
 
 	LOK_RELEASE_LOCK = LOK__ENCODED_MAX,
 
@@ -1252,7 +1338,7 @@ public:
 
 	static operationidxint GetThreadOperationCount(iterationcntint uiIterationCount) { return (operationidxint)uiIterationCount * LOK__MAX; }
 
-	bool ApplyLock(COperationExtraObjects &eoRefExtraObjects)
+	bool ApplyLock(COperationExtraObjects &eoRefExtraObjects, unsigned uiRandomData)
 	{
 		bool bLockedWithTryVariant = m_liRWLockInstance.LockRWLockWrite(eoRefExtraObjects);
 		CRWLockValidator::IncrementWrites();
@@ -1260,7 +1346,7 @@ public:
 		return bLockedWithTryVariant;
 	}
 
-	void ReleaseLock(COperationExtraObjects &eoRefExtraObjects)
+	void ReleaseLock(COperationExtraObjects &eoRefExtraObjects, unsigned uiRandomData)
 	{
 		CRWLockValidator::DecrementWrites();
 		m_liRWLockInstance.UnlockRWLockWrite(eoRefExtraObjects);
@@ -1283,7 +1369,7 @@ public:
 		implementation_type &m_liRWLockInstance;
 	};
 
-	CRWLockReadLockExecutor(const CConstructionParameter &cpConstructionParameter): m_liRWLockInstance(cpConstructionParameter.m_liRWLockInstance), m_ciLockIndex(0) {}
+	CRWLockReadLockExecutor(const CConstructionParameter &cpConstructionParameter): m_liRWLockInstance(cpConstructionParameter.m_liRWLockInstance) {}
 
 	typedef typename implementation_type::CLockReadExtraObjects COperationExtraObjects;
 	typedef CRWLockLockTestBase::iterationcntint iterationcntint;
@@ -1291,12 +1377,13 @@ public:
 
 	static operationidxint GetThreadOperationCount(iterationcntint uiIterationCount) { return (operationidxint)uiIterationCount * LOK__MAX; }
 
-	bool ApplyLock(COperationExtraObjects &eoRefExtraObjects)
+	bool ApplyLock(COperationExtraObjects &eoRefExtraObjects, unsigned uiRandomData)
 	{
 		bool bLockedWithTryVariant;
 
-		volatile unsigned uiReaderWriteDivisor; // The volatile is necessary to avoid compiler warnings with some compilers
-		if (tuiReaderWriteDivisor == 0 || (uiReaderWriteDivisor = tuiReaderWriteDivisor, ++m_ciLockIndex % uiReaderWriteDivisor != 0))
+		MG_STATIC_ASSERT((tuiReaderWriteDivisor & (tuiReaderWriteDivisor - 1)) == 0); // For the test below...
+		// ...
+		if (tuiReaderWriteDivisor == 0 || (uiRandomData & (tuiReaderWriteDivisor - 1)) != 0)
 		{
 			bLockedWithTryVariant = m_liRWLockInstance.LockRWLockRead(eoRefExtraObjects);
 			CRWLockValidator::IncrementReads();
@@ -1310,10 +1397,11 @@ public:
 		return bLockedWithTryVariant;
 	}
 
-	void ReleaseLock(COperationExtraObjects &eoRefExtraObjects)
+	void ReleaseLock(COperationExtraObjects &eoRefExtraObjects, unsigned uiRandomData)
 	{
-		volatile unsigned uiReaderWriteDivisor; // The volatile is necessary to avoid compiler warnings with some compilers
-		if (tuiReaderWriteDivisor == 0 || (uiReaderWriteDivisor = tuiReaderWriteDivisor, m_ciLockIndex % uiReaderWriteDivisor != 0))
+		MG_STATIC_ASSERT((tuiReaderWriteDivisor & (tuiReaderWriteDivisor - 1)) == 0); // For the test below...
+		// ...
+		if (tuiReaderWriteDivisor == 0 || (uiRandomData & (tuiReaderWriteDivisor - 1)) != 0)
 		{
 			CRWLockValidator::DecrementReads();
 			m_liRWLockInstance.UnlockRWLockRead(eoRefExtraObjects);
@@ -1327,11 +1415,22 @@ public:
 
 private:
 	implementation_type			&m_liRWLockInstance;
-	iterationcntint				m_ciLockIndex;
 };
 
 
 //////////////////////////////////////////////////////////////////////////
+
+static const char g_ascLockTestLegend[] = "Total = Consumed clock time for the test\nSBID = sum of lock times bigger than 1 quantum\nMBID = the maximal lock time of those bigger than 1 quantum";
+
+static const int g_iTestFeatureNameWidth = 33;
+static const char g_ascFeatureTestingText[] = "Testing ";
+static const char g_ascPostFeatureSuffix[] = ": ";
+
+static const char g_ascLockTestTableCaption[] = "          Sys         /          MG         /        MG-" MAKE_STRING_LITERAL(MGTEST_RWLOCK_MINIMAL_READERS_TILL_WP) "WP       /        MG-" MAKE_STRING_LITERAL(MGTEST_RWLOCK_AVERAGE_READERS_TILL_WP) "WP       /        MG-" MAKE_STRING_LITERAL(MGTEST_RWLOCK_SUBSTANTIAL_READERS_TILL_WP) "WP       /        MG-!WP       ";
+static const char g_ascLockTestTableSubCapn[] = "  Total,  SBID , MBID / Total,  SBID , MBID / Total,  SBID , MBID "                                                           "/ Total,  SBID , MBID "                                                           "/ Total,  SBID , MBID "                                                               "/ Total,  SBID , MBID ";
+
+static const char g_ascLockTestTimesFormat[] = "(%2lu.%.03lu,%3lu.%.03lu,%2lu.%.03lu/%2lu.%.03lu,%3lu.%.03lu,%2lu.%.03lu/%2lu.%.03lu,%3lu.%.03lu,%2lu.%.03lu/%2lu.%.03lu,%3lu.%.03lu,%2lu.%.03lu/%2lu.%.03lu,%3lu.%.03lu,%2lu.%.03lu/%2lu.%.03lu,%3lu.%.03lu,%2lu.%.03lu): ";
+
 
 template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, unsigned int tuiImplementationOptions, ERWLOCKTESTTRYREADSUPPORT trsTryReadSupport, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
 CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, tuiImplementationOptions, trsTryReadSupport, ttlTestLanguage>::~CRWLockLockTestExecutor()
@@ -1354,7 +1453,9 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 
 	CThreadExecutionBarrier sbStartBarrier(LOCKTEST_THREAD_COUNT), sbFinishBarrier(LOCKTEST_THREAD_COUNT), sbExitBarrier(0);
 	CRWLockLockTestProgress tpProgressInstance;
-	CTimeUtils::timeduration atdObjectTestDurations[LFT__MAX];
+	timeduration atdObjectTestDurations[LFT__MAX] = { 0, }, atdObjectTestTotalUnavailabilityTimes[LFT__MAX] = { 0, }, atdObjectTestMaxUnavailabilityTimes[LFT__MAX] = { 0, };
+
+	timepoint tpRunStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
 	{
 		const ERWLOCKFINETEST ftTestKind = LFT_SYSTEM;
@@ -1364,28 +1465,33 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 #if !_MGTEST_ANY_SHARED_MUTEX_AVAILABLE
 		if (ttlTestLanguage == LTL_CPP)
 		{
-			atdObjectTestDurations[ftTestKind] = 0;
+			// Do nothing
 		}
 		else
 #endif
 		{
 			const unsigned uiCustomizedImplementationOptions = tuiImplementationOptions | ENCODE_CUSTOM_WP_OPT(uiCustomWPOption);
 			CRWLockImplementation<trsTryReadSupport, uiCustomizedImplementationOptions, toTestedObjectKind, ttlTestLanguage> liRWLock;
-			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
+			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
 
 			WaitTestThreadsReady(sbStartBarrier);
+			CRandomContextProvider::RefreshRandomsCache();
 
-			CTimeUtils::timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
 			LaunchTheTest(sbStartBarrier);
 			WaitTheTestEnd(sbFinishBarrier);
 
-			CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
-			CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
-			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
+			timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
 
-			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
+			timeduration tdTotalUnavailabilityTime, tdMaxUnavailabilityTime;
+			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
+			atdObjectTestTotalUnavailabilityTimes[ftTestKind] = tdTotalUnavailabilityTime;
+			atdObjectTestMaxUnavailabilityTimes[ftTestKind] = tdMaxUnavailabilityTime;
+
+			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, flLevelToTest, tdTestDuration, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
 
 			sbStartBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
 			sbFinishBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
@@ -1406,27 +1512,32 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 			(uiCustomWPOption != 0 && bSingleOperationTest)
 			)
 		{
-			atdObjectTestDurations[ftTestKind] = 0;
+			// Do nothing
 		}
 		else
 		{
 			const unsigned uiCustomizedImplementationOptions = tuiImplementationOptions | ENCODE_CUSTOM_WP_OPT(uiCustomWPOption);
 			CRWLockImplementation<trsTryReadSupport, uiCustomizedImplementationOptions, toTestedObjectKind, ttlTestLanguage> liRWLock;
-			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
+			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
 
 			WaitTestThreadsReady(sbStartBarrier);
+			CRandomContextProvider::RefreshRandomsCache();
 
-			CTimeUtils::timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
 			LaunchTheTest(sbStartBarrier);
 			WaitTheTestEnd(sbFinishBarrier);
 
-			CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
-			CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
-			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
+			timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
 
-			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
+			timeduration tdTotalUnavailabilityTime, tdMaxUnavailabilityTime;
+			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
+			atdObjectTestTotalUnavailabilityTimes[ftTestKind] = tdTotalUnavailabilityTime;
+			atdObjectTestMaxUnavailabilityTimes[ftTestKind] = tdMaxUnavailabilityTime;
+
+			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, flLevelToTest, tdTestDuration, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
 
 			sbStartBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
 			sbFinishBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
@@ -1447,27 +1558,32 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 			(uiCustomWPOption != 0 && bSingleOperationTest)
 			)
 		{
-			atdObjectTestDurations[ftTestKind] = 0;
+			// Do nothing
 		}
 		else
 		{
 			const unsigned uiCustomizedImplementationOptions = tuiImplementationOptions | ENCODE_CUSTOM_WP_OPT(uiCustomWPOption);
 			CRWLockImplementation<trsTryReadSupport, uiCustomizedImplementationOptions, toTestedObjectKind, ttlTestLanguage> liRWLock;
-			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
+			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
 
 			WaitTestThreadsReady(sbStartBarrier);
+			CRandomContextProvider::RefreshRandomsCache();
 
-			CTimeUtils::timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
 			LaunchTheTest(sbStartBarrier);
 			WaitTheTestEnd(sbFinishBarrier);
 
-			CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
-			CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
-			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
+			timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
 
-			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
+			timeduration tdTotalUnavailabilityTime, tdMaxUnavailabilityTime;
+			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
+			atdObjectTestTotalUnavailabilityTimes[ftTestKind] = tdTotalUnavailabilityTime;
+			atdObjectTestMaxUnavailabilityTimes[ftTestKind] = tdMaxUnavailabilityTime;
+
+			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, flLevelToTest, tdTestDuration, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
 
 			sbStartBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
 			sbFinishBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
@@ -1488,27 +1604,32 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 			(uiCustomWPOption != 0 && bSingleOperationTest)
 			)
 		{
-			atdObjectTestDurations[ftTestKind] = 0;
+			// Do nothing
 		}
 		else
 		{
 			const unsigned uiCustomizedImplementationOptions = tuiImplementationOptions | ENCODE_CUSTOM_WP_OPT(uiCustomWPOption);
 			CRWLockImplementation<trsTryReadSupport, uiCustomizedImplementationOptions, toTestedObjectKind, ttlTestLanguage> liRWLock;
-			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
+			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
 
 			WaitTestThreadsReady(sbStartBarrier);
+			CRandomContextProvider::RefreshRandomsCache();
 
-			CTimeUtils::timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
 			LaunchTheTest(sbStartBarrier);
 			WaitTheTestEnd(sbFinishBarrier);
 
-			CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
-			CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
-			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
+			timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
 
-			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
+			timeduration tdTotalUnavailabilityTime, tdMaxUnavailabilityTime;
+			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
+			atdObjectTestTotalUnavailabilityTimes[ftTestKind] = tdTotalUnavailabilityTime;
+			atdObjectTestMaxUnavailabilityTimes[ftTestKind] = tdMaxUnavailabilityTime;
+
+			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, flLevelToTest, tdTestDuration, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
 
 			sbStartBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
 			sbFinishBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
@@ -1529,27 +1650,32 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 			(uiCustomWPOption != 0 && bSingleOperationTest)
 			)
 		{
-			atdObjectTestDurations[ftTestKind] = 0;
+			// Do nothing
 		}
 		else
 		{
 			const unsigned uiCustomizedImplementationOptions = tuiImplementationOptions | ENCODE_CUSTOM_WP_OPT(uiCustomWPOption);
 			CRWLockImplementation<trsTryReadSupport, uiCustomizedImplementationOptions, toTestedObjectKind, ttlTestLanguage> liRWLock;
-			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
+			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
 
 			WaitTestThreadsReady(sbStartBarrier);
+			CRandomContextProvider::RefreshRandomsCache();
 
-			CTimeUtils::timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
 			LaunchTheTest(sbStartBarrier);
 			WaitTheTestEnd(sbFinishBarrier);
 
-			CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
-			CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
-			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
+			timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
 
-			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
+			timeduration tdTotalUnavailabilityTime, tdMaxUnavailabilityTime;
+			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
+			atdObjectTestTotalUnavailabilityTimes[ftTestKind] = tdTotalUnavailabilityTime;
+			atdObjectTestMaxUnavailabilityTimes[ftTestKind] = tdMaxUnavailabilityTime;
+
+			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, flLevelToTest, tdTestDuration, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
 
 			sbStartBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
 			sbFinishBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
@@ -1570,27 +1696,32 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 			(uiCustomWPOption != 0 && bSingleOperationTest)
 			)
 		{
-			atdObjectTestDurations[ftTestKind] = 0;
+			// Do nothing
 		}
 		else
 		{
 			const unsigned uiCustomizedImplementationOptions = tuiImplementationOptions | ENCODE_CUSTOM_WP_OPT(uiCustomWPOption);
 			CRWLockImplementation<trsTryReadSupport, uiCustomizedImplementationOptions, toTestedObjectKind, ttlTestLanguage> liRWLock;
-			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
+			AllocateTestThreads<uiCustomizedImplementationOptions, toTestedObjectKind>(liRWLock, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, sbStartBarrier, sbFinishBarrier, sbExitBarrier, tpProgressInstance);
 
 			WaitTestThreadsReady(sbStartBarrier);
+			CRandomContextProvider::RefreshRandomsCache();
 
-			CTimeUtils::timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestStartTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
 			LaunchTheTest(sbStartBarrier);
 			WaitTheTestEnd(sbFinishBarrier);
 
-			CTimeUtils::timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+			timepoint tpTestEndTime = CTimeUtils::GetCurrentMonotonicTimeNano();
 
-			CTimeUtils::timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
-			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, flLevelToTest, tdTestDuration);
+			timeduration tdTestDuration = atdObjectTestDurations[ftTestKind] = tpTestEndTime - tpTestStartTime;
 
-			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT);
+			timeduration tdTotalUnavailabilityTime, tdMaxUnavailabilityTime;
+			FreeTestThreads(sbExitBarrier, LOCKTEST_THREAD_COUNT, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
+			atdObjectTestTotalUnavailabilityTimes[ftTestKind] = tdTotalUnavailabilityTime;
+			atdObjectTestMaxUnavailabilityTimes[ftTestKind] = tdMaxUnavailabilityTime;
+
+			PublishTestResults(ftTestKind, LOCKTEST_WRITER_COUNT, LOCKTEST_READER_COUNT, tpRunStartTime, flLevelToTest, tdTestDuration, tdTotalUnavailabilityTime, tdMaxUnavailabilityTime);
 
 			// sbStartBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
 			// sbFinishBarrier.ResetInstance(LOCKTEST_THREAD_COUNT);
@@ -1600,14 +1731,26 @@ bool CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	}
 	MG_STATIC_ASSERT(LFT__MAX == 6);
 
-	printf("(%2lu.%.03lu/%2lu.%.03lu/%2lu.%.03lu/%2lu.%.03lu/%2lu.%.03lu/%2lu.%.03lu): ",
+	printf(g_ascLockTestTimesFormat,
 		(unsigned long)(atdObjectTestDurations[LFT_SYSTEM] / 1000000000), (unsigned long)(atdObjectTestDurations[LFT_SYSTEM] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_SYSTEM] / 1000000000), (unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_SYSTEM] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_SYSTEM] / 1000000000), (unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_SYSTEM] % 1000000000) / 1000000,
 		(unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR] / 1000000000), (unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_MUTEXGEAR] / 1000000000), (unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_MUTEXGEAR] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_MUTEXGEAR] / 1000000000), (unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_MUTEXGEAR] % 1000000000) / 1000000,
 		(unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR_MINIMAL_TO_WP] / 1000000000), (unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR_MINIMAL_TO_WP] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_MUTEXGEAR_MINIMAL_TO_WP] / 1000000000), (unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_MUTEXGEAR_MINIMAL_TO_WP] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_MUTEXGEAR_MINIMAL_TO_WP] / 1000000000), (unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_MUTEXGEAR_MINIMAL_TO_WP] % 1000000000) / 1000000,
 		(unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR_AVERAGE_TO_WP] / 1000000000), (unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR_AVERAGE_TO_WP] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_MUTEXGEAR_AVERAGE_TO_WP] / 1000000000), (unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_MUTEXGEAR_AVERAGE_TO_WP] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_MUTEXGEAR_AVERAGE_TO_WP] / 1000000000), (unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_MUTEXGEAR_AVERAGE_TO_WP] % 1000000000) / 1000000,
 		(unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR_SUBSTANTIAL_TO_WP] / 1000000000), (unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR_SUBSTANTIAL_TO_WP] % 1000000000) / 1000000,
-		(unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR_INFINITE_TO_WP] / 1000000000), (unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR_INFINITE_TO_WP] % 1000000000) / 1000000);
-	MG_STATIC_ASSERT(LFT__MAX == 6);
+		(unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_MUTEXGEAR_SUBSTANTIAL_TO_WP] / 1000000000), (unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_MUTEXGEAR_SUBSTANTIAL_TO_WP] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_MUTEXGEAR_SUBSTANTIAL_TO_WP] / 1000000000), (unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_MUTEXGEAR_SUBSTANTIAL_TO_WP] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR_INFINITE_TO_WP] / 1000000000), (unsigned long)(atdObjectTestDurations[LFT_MUTEXGEAR_INFINITE_TO_WP] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_MUTEXGEAR_INFINITE_TO_WP] / 1000000000), (unsigned long)(atdObjectTestTotalUnavailabilityTimes[LFT_MUTEXGEAR_INFINITE_TO_WP] % 1000000000) / 1000000,
+		(unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_MUTEXGEAR_INFINITE_TO_WP] / 1000000000), (unsigned long)(atdObjectTestMaxUnavailabilityTimes[LFT_MUTEXGEAR_INFINITE_TO_WP] % 1000000000) / 1000000);
+		MG_STATIC_ASSERT(LFT__MAX == 6);
 
 	FreeThreadOperationBuffers(LOCKTEST_THREAD_COUNT);
 	FinalizeTestResults(flLevelToTest);
@@ -1681,11 +1824,12 @@ template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int 
 template<unsigned tuiCustomizedImplementationOptions, ERWLOCKLOCKTESTOBJECT ttoTestedObjectKind>
 void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, tuiImplementationOptions, trsTryReadSupport, ttlTestLanguage>::AllocateTestThreads(
 	CRWLockImplementation<trsTryReadSupport, tuiCustomizedImplementationOptions, ttoTestedObjectKind, ttlTestLanguage> &liRefRWLock,
-	threadcntint ciWriterCount, threadcntint ciReraderCount,
+	threadcntint ciWriterCount, threadcntint ciReraderCount, timepoint tpRunStartTime, 
 	CThreadExecutionBarrier &sbRefStartBarrier, CThreadExecutionBarrier &sbRefFinishBarrier, CThreadExecutionBarrier &sbRefExitBarrier,
 	CRWLockLockTestProgress &tpRefProgressInstance)
 {
 	const iterationcntint uiIterationCount = m_uiIterationCount;
+	randcontextint ciRunRandomContext = CRandomContextProvider::ConvertTimeToRandcontext(tpRunStartTime);
 
 	threadcntint uiThreadIndex = 0;
 
@@ -1698,7 +1842,8 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 
 		typedef CRWLockLockTestThread<CRWLockWriteLockExecutor<trsTryReadSupport, tuiCustomizedImplementationOptions, ttoTestedObjectKind, ttlTestLanguage> > CUsedRWLockLockTestThread;
 		typedef typename CUsedRWLockLockTestThread::CThreadParameterInfo CUsedThreadParameterInfo;
-		CUsedRWLockLockTestThread *pttThreadInstance = new CUsedRWLockLockTestThread(CUsedThreadParameterInfo(sbRefStartBarrier, sbRefFinishBarrier, sbRefExitBarrier, tpRefProgressInstance), uiIterationCount, cpWriteExecutorParameter, m_apiiThreadOperationIndices[uiThreadIndex]);
+		randcontextint ciThreadRandomContext = CRandomContextProvider::AdjutsRandcontextForThreadIndex(ciRunRandomContext, uiThreadIndex);
+		CUsedRWLockLockTestThread *pttThreadInstance = new CUsedRWLockLockTestThread(CUsedThreadParameterInfo(sbRefStartBarrier, sbRefFinishBarrier, sbRefExitBarrier, tpRefProgressInstance), ciThreadRandomContext, uiIterationCount, cpWriteExecutorParameter, m_apiiThreadOperationIndices[uiThreadIndex]);
 		m_aittTestThreads[uiThreadIndex] = pttThreadInstance;
 	}
 
@@ -1711,15 +1856,21 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 
 		typedef CRWLockLockTestThread<CRWLockReadLockExecutor<trsTryReadSupport, tuiCustomizedImplementationOptions, ttoTestedObjectKind, ttlTestLanguage, tuiReaderWriteDivisor> > CUsedRWLockLockTestThread;
 		typedef typename CUsedRWLockLockTestThread::CThreadParameterInfo CUsedThreadParameterInfo;
-		CUsedRWLockLockTestThread *pttThreadInstance = new CUsedRWLockLockTestThread(CUsedThreadParameterInfo(sbRefStartBarrier, sbRefFinishBarrier, sbRefExitBarrier, tpRefProgressInstance), uiIterationCount, cpReadExecutorParameter, m_apiiThreadOperationIndices[uiThreadIndex]);
+		randcontextint ciThreadRandomContext = CRandomContextProvider::AdjutsRandcontextForThreadIndex(ciRunRandomContext, uiThreadIndex);
+		CUsedRWLockLockTestThread *pttThreadInstance = new CUsedRWLockLockTestThread(CUsedThreadParameterInfo(sbRefStartBarrier, sbRefFinishBarrier, sbRefExitBarrier, tpRefProgressInstance), ciThreadRandomContext, uiIterationCount, cpReadExecutorParameter, m_apiiThreadOperationIndices[uiThreadIndex]);
 		m_aittTestThreads[uiThreadIndex] = pttThreadInstance;
 	}
 }
 
 template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, unsigned int tuiImplementationOptions, ERWLOCKTESTTRYREADSUPPORT trsTryReadSupport, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
-void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, tuiImplementationOptions, trsTryReadSupport, ttlTestLanguage>::FreeTestThreads(CThreadExecutionBarrier &sbRefExitBarrier, threadcntint ciTotalThreadCount)
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, tuiImplementationOptions, trsTryReadSupport, ttlTestLanguage>::FreeTestThreads(CThreadExecutionBarrier &sbRefExitBarrier, threadcntint ciTotalThreadCount,
+	timeduration &tdOutTotalUnavailabilityTime, timeduration &tdOutMaxUnavailabilityTime)
 {
 	sbRefExitBarrier.SignalReleaseEvent();
+
+	timeduration tdGlobalMinimumLockDuration = CTimeUtils::GetMaxTimeduration();
+	timeduration tdTotalMinDurationUnavailabilityTime = 0, tdTotalHigherDurationUnavailabilityTime = 0;
+	timeduration tdGlobalMaxUnavailabilityTime = 0;
 
 	for (threadcntint uiThreadIndex = 0; uiThreadIndex != ciTotalThreadCount; ++uiThreadIndex)
 	{
@@ -1729,9 +1880,33 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 		{
 			m_aittTestThreads[uiThreadIndex] = NULL;
 
-			ittCurrentTestThread->ReleaseInstance();
+			timeduration tdThreadMinimumLockDuration, tdThreadMinDurationUnavailabilityTime, tdThreadHigherDurationUnavailabilityTime;
+			timeduration tdThreadMaxUnavailabilityTime;
+			ittCurrentTestThread->ReleaseInstance(tdThreadMinimumLockDuration, tdThreadMinDurationUnavailabilityTime, tdThreadHigherDurationUnavailabilityTime, tdThreadMaxUnavailabilityTime);
+
+			if (CLockDurationUtils::IsDurationSmaller(tdThreadMinimumLockDuration, tdGlobalMinimumLockDuration))
+			{
+				tdTotalHigherDurationUnavailabilityTime += tdTotalMinDurationUnavailabilityTime;
+				tdTotalMinDurationUnavailabilityTime = tdThreadMinDurationUnavailabilityTime;
+				tdGlobalMinimumLockDuration = tdThreadMinimumLockDuration;
+			}
+			else if (CLockDurationUtils::IsDurationSmaller(tdGlobalMinimumLockDuration, tdThreadMinimumLockDuration))
+			{
+				tdTotalHigherDurationUnavailabilityTime += tdThreadMinDurationUnavailabilityTime;
+			}
+			else
+			{
+				tdTotalMinDurationUnavailabilityTime += tdThreadMinDurationUnavailabilityTime;
+			}
+
+			tdTotalHigherDurationUnavailabilityTime += tdThreadHigherDurationUnavailabilityTime;
+
+			tdGlobalMaxUnavailabilityTime = std::max(tdGlobalMaxUnavailabilityTime, tdThreadMaxUnavailabilityTime);
 		}
 	}
+
+	tdOutTotalUnavailabilityTime = tdTotalHigherDurationUnavailabilityTime;
+	tdOutMaxUnavailabilityTime = tdGlobalMaxUnavailabilityTime;
 }
 
 
@@ -1795,7 +1970,7 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 
 template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, unsigned int tuiImplementationOptions, ERWLOCKTESTTRYREADSUPPORT trsTryReadSupport, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
 void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, tuiImplementationOptions, trsTryReadSupport, ttlTestLanguage>::PublishTestResults(ERWLOCKFINETEST ftTestKind,
-	threadcntint ciWriterCount, threadcntint ciReaderCount, EMGTESTFEATURELEVEL flTestLevel, CTimeUtils::timeduration tdTestDuration)
+	threadcntint ciWriterCount, threadcntint ciReaderCount, timepoint tpRunStartTime, EMGTESTFEATURELEVEL flTestLevel, timeduration tdTestDuration, timeduration tdTotalUnavailabilityTime, timeduration tdMaxUnavailabilityTime)
 {
 	MG_ASSERT(IN_RANGE(ftTestKind, LFT__MIN, LFT__MAX));
 
@@ -1805,35 +1980,59 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 		const unsigned uiWritesPercent = tuiReaderWriteDivisor != 0 ? (uiReaderWriteDivisor = tuiReaderWriteDivisor, 100 / uiReaderWriteDivisor) : 0;
 
 		FILE *psfDetailsFile = m_apsfOperationDetailFiles[ftTestKind];
-		int iPrintResult = fprintf(psfDetailsFile, "Lock-unlock test for %s with %u%s write%s%s, %u %s%s\nTime taken: %lu sec %lu nsec\nLegend:\n  a0+ = reads, s0+ = writes\n  upper case = lock, lower case = unlock\n  trailing comma = locked with blocking variant, trailing dot = locked with try- variant\n\nOperation sequence map:\n",
+		int iPrintResult = fprintf(psfDetailsFile, "Lock-unlock test for %s with %u%s write%s%s, %u %s%s\n"
+			"Consumed Time (less is better): %lu sec %lu nsec\nSignificant Blocking Incurred Delays (less is better): %lu sec %lu nsec\nMaximal Blocking Incurred Delay (less is better): %lu sec %lu nsec\n"
+			"Legend:\n  a0+ = reads, s0+ = writes\n  upper case = lock, lower case = unlock\n  trailing comma = locked with blocking variant, trailing dot = locked with try- variant\n"
+			"\nOperation sequence map:\n",
 			g_aszTestedObjectLanguageNames[ttlTestLanguage],
 			tuiReaderWriteDivisor == 0 ? (unsigned int)ciWriterCount : (unsigned int)uiWritesPercent, tuiReaderWriteDivisor == 0 ? "" : "%",
 			tuiReaderWriteDivisor == 0 ? "r" : "s", tuiReaderWriteDivisor == 0 && ciWriterCount != 1 ? "s" : "", (unsigned int)ciReaderCount,
 			tuiReaderWriteDivisor == 0 ? "reader" : "thread", ciReaderCount != 1 ? "s" : "",
-			(unsigned long)(tdTestDuration / 1000000000), (unsigned long)(tdTestDuration % 1000000000));
+			(unsigned long)(tdTestDuration / 1000000000), (unsigned long)(tdTestDuration % 1000000000),
+			(unsigned long)(tdTotalUnavailabilityTime / 1000000000), (unsigned long)(tdTotalUnavailabilityTime % 1000000000),
+			(unsigned long)(tdMaxUnavailabilityTime / 1000000000), (unsigned long)(tdMaxUnavailabilityTime % 1000000000));
 		MG_CHECK(iPrintResult, iPrintResult > 0 || (iPrintResult = errno, false));
 
 		const threadcntint ciTotalThreadCount = ciWriterCount + ciReaderCount;
 		operationidxint *piiThreadLastOperationIndices = new operationidxint[ciTotalThreadCount];
 		std::fill(piiThreadLastOperationIndices, piiThreadLastOperationIndices + ciTotalThreadCount, 0);
 
-		const operationidxint nThreadOperationCount = GetThreadOperationCount();
+		randcontextint ciRunRandomContext = CRandomContextProvider::ConvertTimeToRandcontext(tpRunStartTime);
+		randcontextint *pciThreadRandomContexts = new randcontextint[ciTotalThreadCount];
+		FillInitialThreadRandomContexts(pciThreadRandomContexts, ciTotalThreadCount, ciRunRandomContext);
+
+		unsigned *puiThreadRandomData = new unsigned[ciTotalThreadCount];
+		std::fill(puiThreadRandomData, puiThreadRandomData + ciTotalThreadCount, 0);
+
 		operationidxint iiLastSavedOperationIndex = 0;
 		char *pscMergeBuffer = GetDetailsMergeBuffer();
+		const operationidxint nThreadOperationCount = GetThreadOperationCount();
 		for (threadcntint ciCurrentBufferIndex = 0; ciCurrentBufferIndex != ciTotalThreadCount; ++ciCurrentBufferIndex)
 		{
-			BuildMergedThreadOperationMap(pscMergeBuffer, iiLastSavedOperationIndex, nThreadOperationCount, piiThreadLastOperationIndices, ciWriterCount, ciReaderCount);
+			BuildMergedThreadOperationMap(pscMergeBuffer, iiLastSavedOperationIndex, nThreadOperationCount, piiThreadLastOperationIndices, ciWriterCount, ciReaderCount, pciThreadRandomContexts, puiThreadRandomData);
 			SaveThreadOperationMapToDetails(ftTestKind, pscMergeBuffer, nThreadOperationCount);
 			iiLastSavedOperationIndex += nThreadOperationCount;
 		}
 
+		delete[] puiThreadRandomData;
+		delete[] pciThreadRandomContexts;
 		delete[] piiThreadLastOperationIndices;
 	}
 }
 
 template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, unsigned int tuiImplementationOptions, ERWLOCKTESTTRYREADSUPPORT trsTryReadSupport, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
+void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, tuiImplementationOptions, trsTryReadSupport, ttlTestLanguage>::FillInitialThreadRandomContexts(
+	randcontextint aciThreadRandomContexts[], threadcntint ciTotalThreadCount, randcontextint ciRunRandomContext)
+{
+	for (threadcntint ciCurrentThreadIndex = 0; ciCurrentThreadIndex != ciTotalThreadCount; ++ciCurrentThreadIndex)
+	{
+		aciThreadRandomContexts[ciCurrentThreadIndex] = CRandomContextProvider::AdjutsRandcontextForThreadIndex(ciRunRandomContext, ciCurrentThreadIndex);
+	}
+}
+
+template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, unsigned int tuiImplementationOptions, ERWLOCKTESTTRYREADSUPPORT trsTryReadSupport, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
 void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, tuiImplementationOptions, trsTryReadSupport, ttlTestLanguage>::BuildMergedThreadOperationMap(char ascMergeBuffer[], operationidxint iiLastSavedOperationIndex, operationidxint iiThreadOperationCount,
-	operationidxint aiiThreadLastOperationIndices[], threadcntint ciWriterCount, threadcntint ciReaderCount)
+	operationidxint aiiThreadLastOperationIndices[], threadcntint ciWriterCount, threadcntint ciReaderCount, randcontextint aciThreadRandomContexts[], unsigned puiThreadRandomData[])
 {
 	char ascCurrentThreadMapChars[LOCK_THREAD_NAME_LENGTH + 1]; // +1 for terminal zero
 	threadcntint ciCurrentThreadIndex = 0;
@@ -1843,7 +2042,7 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	for (; ciCurrentThreadIndex != ciWriterThreadsEnd; )
 	{
 		const operationidxint *piiThreadOperationIndices = m_apiiThreadOperationIndices[ciCurrentThreadIndex];
-		aiiThreadLastOperationIndices[ciCurrentThreadIndex] = FillThreadOperationMap(ascMergeBuffer, iiLastSavedOperationIndex, iiThreadOperationCount, piiThreadOperationIndices, aiiThreadLastOperationIndices[ciCurrentThreadIndex], ascCurrentThreadMapChars);
+		aiiThreadLastOperationIndices[ciCurrentThreadIndex] = FillThreadOperationMap(ascMergeBuffer, iiLastSavedOperationIndex, iiThreadOperationCount, piiThreadOperationIndices, aiiThreadLastOperationIndices[ciCurrentThreadIndex], aciThreadRandomContexts[ciCurrentThreadIndex], puiThreadRandomData[ciCurrentThreadIndex], ascCurrentThreadMapChars);
 
 		++ciCurrentThreadIndex;
 		IncrementThreadName(ascCurrentThreadMapChars, ciCurrentThreadIndex - ciWriterThreadsBegin);
@@ -1854,7 +2053,7 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 	for (; ciCurrentThreadIndex != ciReaderThreadsEnd; )
 	{
 		const operationidxint *piiThreadOperationIndices = m_apiiThreadOperationIndices[ciCurrentThreadIndex];
-		aiiThreadLastOperationIndices[ciCurrentThreadIndex] = FillThreadOperationMap(ascMergeBuffer, iiLastSavedOperationIndex, iiThreadOperationCount, piiThreadOperationIndices, aiiThreadLastOperationIndices[ciCurrentThreadIndex], ascCurrentThreadMapChars);
+		aiiThreadLastOperationIndices[ciCurrentThreadIndex] = FillThreadOperationMap(ascMergeBuffer, iiLastSavedOperationIndex, iiThreadOperationCount, piiThreadOperationIndices, aiiThreadLastOperationIndices[ciCurrentThreadIndex], aciThreadRandomContexts[ciCurrentThreadIndex], puiThreadRandomData[ciCurrentThreadIndex], ascCurrentThreadMapChars);
 
 		++ciCurrentThreadIndex;
 		IncrementThreadName(ascCurrentThreadMapChars, ciCurrentThreadIndex - ciReaderThreadsBegin);
@@ -1863,10 +2062,12 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 
 template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int tuiReaderWriteDivisor, unsigned int tuiImplementationOptions, ERWLOCKTESTTRYREADSUPPORT trsTryReadSupport, ERWLOCKLOCKTESTLANGUAGE ttlTestLanguage>
 typename CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, tuiImplementationOptions, trsTryReadSupport, ttlTestLanguage>::operationidxint CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, tuiImplementationOptions, trsTryReadSupport, ttlTestLanguage>::FillThreadOperationMap(
-	char ascMergeBuffer[], operationidxint iiLastSavedOperationIndex, const operationidxint iiThreadOperationCount,
-	const operationidxint *piiThreadOperationIndices, operationidxint iiThreadLastOperationIndex, const char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH])
+	char ascMergeBuffer[], operationidxint iiLastSavedOperationIndex, const operationidxint iiThreadOperationCount, 
+	const operationidxint *piiThreadOperationIndices, operationidxint iiThreadLastOperationIndex, randcontextint &ciVarThreadRandomContext, unsigned &uiVarThreadRandomData, 
+	const char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH])
 {
-	const unsigned uiPerIndexOperationKindCount = CRWLockLockExecutorLogic::GetOperationKindCount();
+	randcontextint ciOperationRandomContext = ciVarThreadRandomContext;
+	unsigned uiRandomData = uiVarThreadRandomData;
 
 	const operationidxint iiAcceptableOperationSequencesEnd = iiLastSavedOperationIndex + iiThreadOperationCount;
 	operationidxint iiThreadCurrentOperationIndex = iiThreadLastOperationIndex;
@@ -1893,20 +2094,29 @@ typename CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteD
 
 		std::copy(ascThreadMapChars, ascThreadMapChars + LOCK_THREAD_NAME_LENGTH, ascMergeBuffer + siNameInsertOffset);
 
-		if (tuiReaderWriteDivisor != 0 && ascThreadMapChars[0] >= g_cReaderMapFirstChar)
+		if (tuiReaderWriteDivisor != 0)
 		{
-			operationidxint iiThreadReducedOperationIndex = iiThreadCurrentOperationIndex / uiPerIndexOperationKindCount;
+			MG_ASSERT(IN_RANGE(ascThreadMapChars[0], g_cReaderMapFirstChar, g_cWriterMapFirstChar));
 
-			volatile unsigned uiReaderWriteDivisor = tuiReaderWriteDivisor; // The volatile is necessary to avoid compiler warnings with some compilers
-			if ((iiThreadReducedOperationIndex + 1) % uiReaderWriteDivisor == 0)
+			if (IN_RANGE(okOperationKind, LOK__RANDCONTEXT_UPDATE_MIN, LOK__RANDCONTEXT_UPDATE_MAX))
 			{
-				ascMergeBuffer[siNameInsertOffset] -= g_cReaderMapFirstChar - g_cWriterMapFirstChar;
+				uiRandomData = CRandomContextProvider::ExtractRandomItem(ciOperationRandomContext);
+				ciOperationRandomContext = CRandomContextProvider::MixContextWithData(ciOperationRandomContext, uiRandomData);
+			}
+
+			MG_STATIC_ASSERT((tuiReaderWriteDivisor & (tuiReaderWriteDivisor - 1)) == 0); // For the test below...
+
+			if ((uiRandomData & (tuiReaderWriteDivisor - 1)) == 0)
+			{
+				ascMergeBuffer[siNameInsertOffset] += g_cWriterMapFirstChar - g_cReaderMapFirstChar;
 			}
 		}
 
 		ascMergeBuffer[siNameInsertOffset] += g_ascLockOperationKindThreadNameFirstCharModifiers[okOperationKind];
 	}
 
+	uiVarThreadRandomData = uiRandomData;
+	ciVarThreadRandomContext = ciOperationRandomContext;
 	return iiThreadCurrentOperationIndex;
 }
 
@@ -1914,7 +2124,7 @@ template<unsigned int tuiWriterCount, unsigned int tuiReaderCount, unsigned int 
 void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivisor, tuiImplementationOptions, trsTryReadSupport, ttlTestLanguage>::InitializeThreadName(char ascThreadMapChars[LOCK_THREAD_NAME_LENGTH + 1], char cMapFirstChar)
 {
 	ascThreadMapChars[0] = cMapFirstChar;
-	int iPrintResult = sprintf(ascThreadMapChars + 1, "%0*x", LOCK_THREAD_NAME_LENGTH - 1, (unsigned int)0);
+	int iPrintResult = snprintf(ascThreadMapChars + 1, LOCK_THREAD_NAME_LENGTH, "%0*x", LOCK_THREAD_NAME_LENGTH - 1, (unsigned int)0);
 	MG_CHECK(iPrintResult, iPrintResult == LOCK_THREAD_NAME_LENGTH - 1 || (iPrintResult < 0 && (iPrintResult = -errno, false)));
 }
 
@@ -1927,7 +2137,7 @@ void CRWLockLockTestExecutor<tuiWriterCount, tuiReaderCount, tuiReaderWriteDivis
 		++ascThreadMapChars[0];
 	}
 
-	int iPrintResult = sprintf(ascThreadMapChars + 1, "%0*x", LOCK_THREAD_NAME_LENGTH - 1, (unsigned int)ciThreadIndexNumericPart);
+	int iPrintResult = snprintf(ascThreadMapChars + 1, LOCK_THREAD_NAME_LENGTH, "%0*x", LOCK_THREAD_NAME_LENGTH - 1, (unsigned int)ciThreadIndexNumericPart);
 	MG_CHECK(iPrintResult, iPrintResult == LOCK_THREAD_NAME_LENGTH - 1 || (iPrintResult < 0 && (iPrintResult = -errno, false)));
 }
 
@@ -1975,7 +2185,6 @@ template<class TOperationExecutor>
 /*virtual */
 CRWLockLockTestThread<TOperationExecutor>::~CRWLockLockTestThread()
 {
-	StopRunningThread();
 }
 
 
@@ -2079,13 +2288,23 @@ void CRWLockLockTestThread<TOperationExecutor>::DoTheDirtyJob(CExecutorExtraObje
 {
 	volatile int iRandomNumber;
 	operationidxint *piiOperationIndexBuffer = m_piiOperationIndexBuffer;
+	randcontextint ciOperationRandomContext = m_ciThreadRandomContext;
+
+	timeduration tdMinimumLockDuration = CTimeUtils::GetMaxTimeduration();
+	timeduration tdMinDurationUnavailabilityTime = 0, tdHigherDurationUnavailabilityTime = 0;
+	timeduration tdMaxUnavailabilityTime = 0;
 
 	const iterationcntint uiIterationCount = m_uiIterationCount;
 	for (iterationcntint uiIterationIndex = 0; uiIterationIndex != uiIterationCount; ++uiIterationIndex)
 	{
-		bool bLockedWitTryVariant = m_oeOperationExecutor.ApplyLock(eoRefExecutorExtraObjects);
+		unsigned uiRandomData = CRandomContextProvider::ExtractRandomItem(ciOperationRandomContext);
+		ciOperationRandomContext = CRandomContextProvider::MixContextWithData(ciOperationRandomContext, uiRandomData);
 
+		timepoint tpPreLockTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+		bool bLockedWitTryVariant = m_oeOperationExecutor.ApplyLock(eoRefExecutorExtraObjects, uiRandomData);
 		operationidxint iiLockOperationSequence = ptpProgressInstance->GenerateOperationIndex();
+		volatile timepoint tpPostLockTime = CTimeUtils::GetCurrentMonotonicTimeNano();
+
 		*piiOperationIndexBuffer++ = ENCODE_SEQUENCE_WITH_TRYVARIANT(iiLockOperationSequence, bLockedWitTryVariant);
 
 		iRandomNumber = rand(); // Generate a random number to simulate a small delay
@@ -2093,16 +2312,49 @@ void CRWLockLockTestThread<TOperationExecutor>::DoTheDirtyJob(CExecutorExtraObje
 		operationidxint iiUnlockOperationSequence = ptpProgressInstance->GenerateOperationIndex();
 		*piiOperationIndexBuffer++ = iiUnlockOperationSequence;
 
-		m_oeOperationExecutor.ReleaseLock(eoRefExecutorExtraObjects);
+		m_oeOperationExecutor.ReleaseLock(eoRefExecutorExtraObjects, uiRandomData);
 		MG_STATIC_ASSERT(LOK__MAX == 2);
-	}
-}
 
+		if (!bLockedWitTryVariant)
+		{
+			CTimeUtils::timeduration tdLockDuration = tpPostLockTime - tpPreLockTime;
+
+			if (tdLockDuration != 0)
+			{
+				if (CLockDurationUtils::IsDurationSmaller(tdLockDuration, tdMinimumLockDuration))
+				{
+					tdHigherDurationUnavailabilityTime += tdMinDurationUnavailabilityTime;
+					tdMinDurationUnavailabilityTime = tdLockDuration;
+					tdMinimumLockDuration = tdLockDuration;
+					
+					// The comparison needs to be done here to ensure initialization for the case when all durations are minimal
+					tdMaxUnavailabilityTime = std::max(tdMaxUnavailabilityTime, tdLockDuration);
+				}
+				else if (CLockDurationUtils::IsDurationSmaller(tdMinimumLockDuration, tdLockDuration))
+				{
+					tdHigherDurationUnavailabilityTime += tdLockDuration;
+
+					tdMaxUnavailabilityTime = std::max(tdMaxUnavailabilityTime, tdLockDuration);
+				}
+				else
+				{
+					tdMinDurationUnavailabilityTime += tdLockDuration;
+				}
+			}
+		}
+	}
+
+	StoreUnavailabilityTimes(tdMinimumLockDuration, tdMinDurationUnavailabilityTime, tdHigherDurationUnavailabilityTime, tdMaxUnavailabilityTime);
+}
 
 template<class TOperationExecutor>
 /*virtual */
-void CRWLockLockTestThread<TOperationExecutor>::ReleaseInstance()
+void CRWLockLockTestThread<TOperationExecutor>::ReleaseInstance(timeduration &tdOutMinimumLockDuration, timeduration &tdOutMinDurationUnavailabilityTime, timeduration &tdOutHigherDurationUnavailabilityTime,
+	timeduration &tdOutMaxUnavailabilityTime)
 {
+	StopRunningThread();
+	RetrieveUnavailabilityTimes(tdOutMinimumLockDuration, tdOutMinDurationUnavailabilityTime, tdOutHigherDurationUnavailabilityTime, tdOutMaxUnavailabilityTime);
+	
 	delete this;
 }
 
@@ -2335,13 +2587,10 @@ bool CRWLockTest::RunBasicImplementationTest(unsigned int &nOutSuccessCount, uns
 
 	EMGTESTFEATURELEVEL flLevelToTest = CRWLockTest::RetrieveSelectedFeatureTestLevel();
 
-	const int iFeatureNameWidth = 33;
-	const char ascTestingText[] = "Testing ";
-	const char ascPostFeatureSuffix[] = ": ";
+	printf("%s\n", g_ascLockTestLegend);
 
-	const char ascTableCaption[] = "   Sys /  MG  /MG-" MAKE_STRING_LITERAL(MGTEST_RWLOCK_MINIMAL_READERS_TILL_WP) "WP/MG-" MAKE_STRING_LITERAL(MGTEST_RWLOCK_AVERAGE_READERS_TILL_WP) "WP/MG-" MAKE_STRING_LITERAL(MGTEST_RWLOCK_SUBSTANTIAL_READERS_TILL_WP) "WP/MG-!WP";
-	int iCaptionWidth = ARRAY_SIZE(ascTestingText) - 1 + iFeatureNameWidth + ARRAY_SIZE(ascPostFeatureSuffix) - 1 + ARRAY_SIZE(ascTableCaption) - 1;
-	printf("%*s\n", iCaptionWidth, ascTableCaption);
+	int iCaptionWidth = ARRAY_SIZE(g_ascFeatureTestingText) - 1 + g_iTestFeatureNameWidth + ARRAY_SIZE(g_ascPostFeatureSuffix) - 1 + ARRAY_SIZE(g_ascLockTestTableCaption) - 1;
+	printf("%*s\n%*s\n", iCaptionWidth, g_ascLockTestTableCaption, iCaptionWidth, g_ascLockTestTableSubCapn);
 
 	for (EMGRWLOCKFEATURE lfRWLockFeature = MGWLF__TESTBEGIN; lfRWLockFeature != MGWLF__TESTEND; ++lfRWLockFeature)
 	{
@@ -2350,7 +2599,7 @@ bool CRWLockTest::RunBasicImplementationTest(unsigned int &nOutSuccessCount, uns
 			++nTestCount;
 
 			const char *szFeatureName = g_aszRWLockFeatureTestNames[lfRWLockFeature];
-			printf("%s%*s%s", ascTestingText, iFeatureNameWidth, szFeatureName, ascPostFeatureSuffix);
+			printf("%s%*s%s", g_ascFeatureTestingText, g_iTestFeatureNameWidth, szFeatureName, g_ascPostFeatureSuffix);
 
 			CRWLockFeatureTestProcedure fnTestProcedure = g_afnRWLockFeatureTestProcedures[lfRWLockFeature];
 			bool bTestResult = fnTestProcedure();
@@ -2438,13 +2687,8 @@ bool CRWLockTest::RunTRDLImplementationTest(unsigned int &nOutSuccessCount, unsi
 
 	EMGTESTFEATURELEVEL flLevelToTest = CRWLockTest::RetrieveSelectedFeatureTestLevel();
 
-	const int iFeatureNameWidth = 33;
-	const char ascTestingText[] = "Testing ";
-	const char ascPostFeatureSuffix[] = ": ";
-
-	const char ascTableCaption[] = "   Sys /  MG  /MG-" MAKE_STRING_LITERAL(MGTEST_RWLOCK_MINIMAL_READERS_TILL_WP) "WP/MG-" MAKE_STRING_LITERAL(MGTEST_RWLOCK_AVERAGE_READERS_TILL_WP) "WP/MG-" MAKE_STRING_LITERAL(MGTEST_RWLOCK_SUBSTANTIAL_READERS_TILL_WP) "WP/MG-!WP";
-	int iCaptionWidth = ARRAY_SIZE(ascTestingText) - 1 + iFeatureNameWidth + ARRAY_SIZE(ascPostFeatureSuffix) - 1 + ARRAY_SIZE(ascTableCaption) - 1;
-	printf("%*s\n", iCaptionWidth, ascTableCaption);
+	int iCaptionWidth = ARRAY_SIZE(g_ascFeatureTestingText) - 1 + g_iTestFeatureNameWidth + ARRAY_SIZE(g_ascPostFeatureSuffix) - 1 + ARRAY_SIZE(g_ascLockTestTableCaption) - 1;
+	printf("%*s\n%*s\n", iCaptionWidth, g_ascLockTestTableCaption, iCaptionWidth, g_ascLockTestTableSubCapn);
 
 	for (EMGRWLOCKFEATURE lfRWLockFeature = MGWLF__TESTBEGIN; lfRWLockFeature != MGWLF__TESTEND; ++lfRWLockFeature)
 	{
@@ -2453,7 +2697,7 @@ bool CRWLockTest::RunTRDLImplementationTest(unsigned int &nOutSuccessCount, unsi
 			++nTestCount;
 
 			const char *szFeatureName = g_aszTRDLRWLockFeatureTestNames[lfRWLockFeature];
-			printf("%s%*s%s", ascTestingText, iFeatureNameWidth, szFeatureName, ascPostFeatureSuffix);
+			printf("%s%*s%s", g_ascFeatureTestingText, g_iTestFeatureNameWidth, szFeatureName, g_ascPostFeatureSuffix);
 
 			CRWLockFeatureTestProcedure fnTestProcedure = g_afnTRDLRWLockFeatureTestProcedures[lfRWLockFeature];
 			bool bTestResult = fnTestProcedure();

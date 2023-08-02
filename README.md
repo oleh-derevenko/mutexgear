@@ -39,21 +39,26 @@ For better code coverage, threads first attempt respective try-lock variant and 
 
     Testing subsystem "RWLock (with try-write, 1000000 cycles/thr)"
     ----------------------------------------------
-                                                  Sys /  MG  /MG-1WP/MG-2WP/MG-4WP/MG-!WP
-    Testing                      8 Writers, C: ( 6.052/ 2.562/ 0.000/ 0.000/ 0.000/ 0.000): success
-    Testing                     16 Readers, C: ( 4.168/ 4.913/ 0.000/ 0.000/ 0.000/ 0.000): success
-    Testing       25% writes, 16 threads, C++: ( 9.584/18.059/ 8.199/ 6.820/ 6.160/ 6.039): success
-    Testing 25% writes @4cnl, 32 threads, C++: (19.381/36.321/16.477/13.691/12.429/12.145): success
+    Total = Consumed clock time for the test
+    SBID = sum of lock times bigger than 1 quantum
+    MBID = the maximal lock time of those bigger than 1 quantum
+                                                         Sys         /          MG         /        MG-1WP       /        MG-2WP       /        MG-4WP       /        MG-!WP
+                                                 Total,  SBID , MBID / Total,  SBID , MBID / Total,  SBID , MBID / Total,  SBID , MBID / Total,  SBID , MBID / Total,  SBID , MBID
+    Testing                      8 Writers, C: ( 6.566, 38.829, 0.000/ 3.654, 19.104, 0.000/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000): success
+    Testing                     16 Readers, C: ( 5.025,  0.000, 0.000/ 5.522,  2.340, 0.044/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000): success
+    Testing       25% writes, 16 threads, C++: ( 9.620,128.245, 0.001/21.411,329.521, 0.004/10.398,158.216, 0.002/ 7.680,115.635, 0.006/ 6.775,101.128, 0.008/ 6.526, 97.366, 0.009): success
+    Testing 25% writes @4cnl, 32 threads, C++: (19.204,561.823, 0.001/42.579,1335.058, 0.012/20.962,652.258, 0.004/15.559,482.082, 0.006/13.685,421.613, 0.011/13.266,408.011, 0.008): success
     ----------------------------------------------
     Feature tests failed:             0 out of   4
     
     Testing subsystem "TRDL-RWLock (with try-write, with try-read, 1000000 cycles/thr)"
     ----------------------------------------------
-                                                  Sys /  MG  /MG-1WP/MG-2WP/MG-4WP/MG-!WP
-    Testing                      8 Writers, C: ( 6.051/ 2.978/ 0.000/ 0.000/ 0.000/ 0.000): success
-    Testing                     16 Readers, C: ( 4.156/ 9.440/ 0.000/ 0.000/ 0.000/ 0.000): success
-    Testing       25% writes, 16 threads, C++: ( 9.573/17.827/ 8.962/ 7.089/ 6.591/ 6.390): success
-    Testing 25% writes @4cnl, 32 threads, C++: (19.302/35.855/17.093/14.199/13.153/12.878): success
+                                                         Sys         /          MG         /        MG-1WP       /        MG-2WP       /        MG-4WP       /        MG-!WP
+                                                 Total,  SBID , MBID / Total,  SBID , MBID / Total,  SBID , MBID / Total,  SBID , MBID / Total,  SBID , MBID / Total,  SBID , MBID
+    Testing                      8 Writers, C: ( 6.551, 38.703, 0.000/ 4.005, 21.410, 0.000/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000): success
+    Testing                     16 Readers, C: ( 4.957,  0.000, 0.000/10.322,  0.000, 0.000/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000/ 0.000,  0.000, 0.000): success
+    Testing       25% writes, 16 threads, C++: ( 9.747,130.002, 0.001/21.621,330.592, 0.005/10.539,160.202, 0.002/ 7.850,118.124, 0.003/ 7.010,104.940, 0.014/ 6.834,102.035, 0.014): success
+    Testing 25% writes @4cnl, 32 threads, C++: (19.289,564.727, 0.002/43.350,1354.363, 0.011/20.838,648.507, 0.003/15.630,484.634, 0.003/14.066,433.938, 0.009/13.796,425.780, 0.008): success
     ----------------------------------------------
     Feature tests failed:             0 out of   4
 
@@ -61,9 +66,11 @@ In the output, first column is the system implementation, then there are several
 the default one (with immediately claimed writer priority); writer priority delayed till writer thread witnesses 1, 2 or 4
 reader lock releases; and finally, no writer priority variant (this is behaviorally equivalent to the system implementation).
 The writer priority customized test variants are skipped for single operation type runs as the feature has no effect in these cases.
+In the mixed tests, threads are performing each its own pseudo-random lock sequence where write lock is executed with the specified 
+probability and read lock is executed otherwise. The thread sequences match across per-object test runs so that each of the object modifications
+is presented with equal operation sequences (being only subject to thread scheduling order and lock success order variations). 
 The increased times in mixed operation tests are due to fewer write threads forcing larger number of readers to enter kernel for blocking 
-to let the writers ahead (the very same writer priority). The mixed test are somewhat artificial yet though as write lock
-requests are evenly distributed at every Nth operation in each thread.
+to let the writers ahead (the very same writer priority).
 
 At higher feature test levels the exact lock-unlock sequence is dumped to text file for every test. The files can then be used
 for quality evaluation and analysis or converted to bitmaps with the included "bmpgen" application (Windows only) for examination at a glance.
