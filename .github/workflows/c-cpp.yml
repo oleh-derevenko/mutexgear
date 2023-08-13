@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: bootstrap
       run: ./bootstrap
     - name: configure
@@ -27,13 +27,13 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v3
     - name: packages
       run: brew install automake
     - name: bootstrap
       run: ./bootstrap
     - name: configure
-      run: ./configure CXXFLAGS="-std=c++14 -O3 -g"
+      run: ./configure CXXFLAGS="-std=c++14 -O3 -g -DMGTEST_RWLOCK_ITERATION_COUNT=100000"
     - name: make
       run: make
     - name: make check
