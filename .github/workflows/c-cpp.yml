@@ -29,7 +29,7 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: packages
-      run: brew install automake
+      run: brew install automake libtool
     - name: bootstrap
       run: ./bootstrap
     - name: configure
