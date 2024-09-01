@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2023 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2024 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -364,22 +364,20 @@ _MUTEXGEAR_PURE_INLINE \
 void _t_mutexgear_##t_prefix##list_spliceat(_t_mutexgear_##t_prefix##list_t *p_list_instance, _t_mutexgear_##t_prefix##item_t *p_insert_before_item, \
 	_t_mutexgear_##t_prefix##item_t *p_to_be_spliced_begin, _t_mutexgear_##t_prefix##item_t *p_to_be_spliced_end) \
 { \
-	if (p_to_be_spliced_begin != p_to_be_spliced_end) \
+	if (p_to_be_spliced_begin != p_to_be_spliced_end && p_insert_before_item != p_to_be_spliced_end) \
 	{ \
+		/* First, unlink the sequence from its host list (possibly, this list)... */ \
 		_t_mutexgear_##t_prefix##item_t *p_last_spliced_item = _t_mutexgear_##t_prefix##item_getprevious(p_to_be_spliced_end); \
-		_t__mutexgear_##t_prefix##item_setnext(p_last_spliced_item, p_insert_before_item); \
-		\
-		/* Save the "prev_item" pointer of the first item to be spliced as the former is going to be overwritten. */ \
 		_t_mutexgear_##t_prefix##item_t *p_one_before_first_spliced_item = _t_mutexgear_##t_prefix##item_getprevious(p_to_be_spliced_begin); \
-		\
+		_t__mutexgear_##t_prefix##item_setnext(p_one_before_first_spliced_item, p_to_be_spliced_end); \
+		_t__mutexgear_##t_prefix##item_setprevious(p_to_be_spliced_end, p_one_before_first_spliced_item); \
+		/* ... and only then retrieve the previous of p_insert_before_item (as it might have changed). */ \
 		_t_mutexgear_##t_prefix##item_t *p_insert_after_item = _t_mutexgear_##t_prefix##item_getprevious(p_insert_before_item); \
+		_t__mutexgear_##t_prefix##item_setnext(p_last_spliced_item, p_insert_before_item); \
 		_t__mutexgear_##t_prefix##item_setunsafeprevious(p_to_be_spliced_begin, p_insert_after_item); \
 		\
 		_t__mutexgear_##t_prefix##item_setprevious(p_insert_before_item, p_last_spliced_item); \
 		_t__mutexgear_##t_prefix##item_setnext(p_insert_after_item, p_to_be_spliced_begin); \
-		\
-		_t__mutexgear_##t_prefix##item_setnext(p_one_before_first_spliced_item, p_to_be_spliced_end); \
-		_t__mutexgear_##t_prefix##item_setprevious(p_to_be_spliced_end, p_one_before_first_spliced_item); \
 	} \
 } \
 \

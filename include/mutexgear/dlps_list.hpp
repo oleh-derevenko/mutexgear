@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2023 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2024 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -442,24 +442,25 @@ public:
 private:
 	void SpliceRange(iterator itBeforeItem, iterator itRangeBegin, iterator itRangeEnd) noexcept
 	{
-		dlps_info *psiRangeBegin = &*itRangeBegin;
-		dlps_info *psiRangeEnd = &*itRangeEnd;
-		dlps_info *psiBeforeItem = &*itBeforeItem;
+		if (itBeforeItem != itRangeEnd)
+		{
+			dlps_info *psiRangeBegin = &*itRangeBegin;
+			dlps_info *psiRangeEnd = &*itRangeEnd;
+			dlps_info *psiBeforeItem = &*itBeforeItem;
 
-		dlps_info *psiRangeLast = psiRangeEnd->m_psiPreviousItem;
-		psiRangeLast->m_psiNextItem = psiBeforeItem;
+			// First, unlink the sequence from its host list (possibly, this list)...
+			dlps_info *psiRangeLast = psiRangeEnd->m_psiPreviousItem;
+			dlps_info *psiOriginalRangePrevious = psiRangeBegin->m_psiPreviousItem;
+			psiOriginalRangePrevious->m_psiNextItem = psiRangeEnd;
+			psiRangeEnd->m_psiPreviousItem = psiOriginalRangePrevious;
+			// ... and only then retrieve the previous of psiBeforeItem (as it might have changed).
+			dlps_info *psiAfterItem = psiBeforeItem->m_psiPreviousItem;
+			psiRangeLast->m_psiNextItem = psiBeforeItem;
+			psiRangeBegin->m_psiPreviousItem = psiAfterItem;
 
-		// Save the m_psiPreviousItem of the first item to be spliced as the pointer is going to be replaced.
-		dlps_info *psiOriginalRangePrevious = psiRangeBegin->m_psiPreviousItem;
-
-		dlps_info *psiAfterItem = psiBeforeItem->m_psiPreviousItem;
-		psiRangeBegin->m_psiPreviousItem = psiAfterItem;
-
-		psiBeforeItem->m_psiPreviousItem = psiRangeLast;
-		psiAfterItem->m_psiNextItem = psiRangeBegin;
-
-		psiOriginalRangePrevious->m_psiNextItem = psiRangeEnd;
-		psiRangeEnd->m_psiPreviousItem = psiOriginalRangePrevious;
+			psiBeforeItem->m_psiPreviousItem = psiRangeLast;
+			psiAfterItem->m_psiNextItem = psiRangeBegin;
+		}
 	}
 
 private:
