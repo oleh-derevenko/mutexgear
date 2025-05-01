@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2024 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -111,9 +111,18 @@
 #define _MUTEXGEAR_BEGIN_TRDL_NAMESPACE() namespace _MUTEXGEAR_TRDL_NAMESPACE {
 #define _MUTEXGEAR_END_TRDL_NAMESPACE() }
 
+#define _MUTEXGEAR_MTX_HELPERS_NAMESPACE mtx_helpers
+#define _MUTEXGEAR_BEGIN_MTX_HELPERS_NAMESPACE() namespace _MUTEXGEAR_MTX_HELPERS_NAMESPACE {
+#define _MUTEXGEAR_END_MTX_HELPERS_NAMESPACE() }
+
 #define _MUTEXGEAR_SHMTX_HELPERS_NAMESPACE shmtx_helpers
 #define _MUTEXGEAR_BEGIN_SHMTX_HELPERS_NAMESPACE() namespace _MUTEXGEAR_SHMTX_HELPERS_NAMESPACE {
 #define _MUTEXGEAR_END_SHMTX_HELPERS_NAMESPACE() }
+
+#define _MUTEXGEAR_MNTMTX_HELPERS_NAMESPACE mntmtx_helpers
+#define _MUTEXGEAR_BEGIN_MNTMTX_HELPERS_NAMESPACE() namespace _MUTEXGEAR_MNTMTX_HELPERS_NAMESPACE {
+#define _MUTEXGEAR_END_MNTMTX_HELPERS_NAMESPACE() }
+
 
 #endif // #if !defined(__cplusplus)
 

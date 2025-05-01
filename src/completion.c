@@ -9,7 +9,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2024 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -518,6 +518,13 @@ void mutexgear_completion_drainablequeue_unsafedrain__locked(mutexgear_completio
 	mutexgear_completion_drain_t *__target_drain, bool *__out_drain_execution_status/*=NULL*/)
 {
 	_mutexgear_completion_drainablequeue_unsafedrain__locked(__queue_instance, __drain_head_item, __item_drain_index, __target_drain, __out_drain_execution_status);
+}
+
+/*_MUTEXGEAR_API */
+void mutexgear_completion_drainablequeue_unsafedsplice__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_queue_t *__target_queue)
+{
+	_mutexgear_completion_drainablequeue_unsafedsplice__locked(__queue_instance, __target_queue);
 }
 
 

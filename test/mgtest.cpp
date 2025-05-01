@@ -2,7 +2,7 @@
 /* The MutexGear Library                                                */
 /* The Library Test Application Main File                               */
 /*                                                                      */
-/* Copyright (c) 2016-2024 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */

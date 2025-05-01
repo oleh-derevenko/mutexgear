@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2024 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -23,7 +23,8 @@
 *	\file
 *	\brief MutexGear RWLock API definitions
 *
-*	The header defines a "read-write lock" (\c rwlock) object.
+*	The header defines "read-write lock" (\c rwlock) object.
+* 
 *	A read-write lock is an object that can be locked by single thread at a time 
 *	(exclusively) for "write" or be locked by multiple threads simultaneously 
 *	(shared) for "read". This particular implementation is based solely on muteces 
@@ -815,7 +816,7 @@ _MUTEXGEAR_BEGIN_EXTERN_C();
 *	The function can also be called for \c mutexgear_trdl_rwlock_t objects.
 *
 *	The \p __worker_instance and \p __item_instance must be the same objects that were used in the previous call
-*	to \c mutexgear_rwlock_rdlock on the \c rwlock.
+*	to \c mutexgear_rwlock_rdlock or \c mutexgear_rwlock_tryrdlock on the \c rwlock.
 *	\return EOK on success or a system error code on failure.
 *	\see mutexgear_rwlock_rdlock
 */

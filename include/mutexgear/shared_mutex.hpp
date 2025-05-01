@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2024 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -38,7 +38,7 @@
 */
 
 
-#include <mutexgear/completion.hpp>
+#include <mutexgear/_mtx_helpers.hpp>
 #include <mutexgear/rwlock.h>
 #include <algorithm>
 #include <limits>
@@ -50,41 +50,10 @@ _MUTEXGEAR_BEGIN_NAMESPACE()
 
 _MUTEXGEAR_BEGIN_SHMTX_HELPERS_NAMESPACE()
 
-using _MUTEXGEAR_COMPLETION_NAMESPACE::worker;
-using _MUTEXGEAR_COMPLETION_NAMESPACE::waiter;
-using _MUTEXGEAR_COMPLETION_NAMESPACE::item;
-
-
-class bourgeois
-{
-public:
-	bourgeois() = default;
-
-	bourgeois(const bourgeois &bAnotherBourgeois) = delete;
-
-	~bourgeois() noexcept = default;
-
-	bourgeois &operator =(const bourgeois &bAnotherBourgeois) = delete;
-
-public:
-	void lock()
-	{
-		m_wWorkerInstance.lock();
-	}
-
-	void unlock() noexcept
-	{
-		m_wWorkerInstance.unlock();
-	}
-
-public:
-	operator worker::pointer() noexcept { return static_cast<worker::pointer>(m_wWorkerInstance); }
-	operator item::pointer() noexcept { return static_cast<item::pointer>(m_iItemInstance); }
-
-private:
-	worker			m_wWorkerInstance;
-	item			m_iItemInstance;
-};
+using _MUTEXGEAR_MTX_HELPERS_NAMESPACE::worker;
+using _MUTEXGEAR_MTX_HELPERS_NAMESPACE::waiter;
+using _MUTEXGEAR_MTX_HELPERS_NAMESPACE::item;
+using _MUTEXGEAR_MTX_HELPERS_NAMESPACE::bourgeois;
 
 
 _MUTEXGEAR_END_SHMTX_HELPERS_NAMESPACE();

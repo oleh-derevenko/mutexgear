@@ -9,7 +9,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2024 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -371,7 +371,6 @@ int _mutexgear_rwlock_init(mutexgear_rwlock_t *__rwlock, mutexgear_rwlockattr_t 
 		{
 			MG_CHECK(genattr_destroy_status, (genattr_destroy_status = _mutexgear_completion_genattr_destroy(&genattr)) == EOK); // This should succeed normally
 		}
-		// wheelattr_was_allocated = false;
 
 		mutexgear_dlraitem_t *const express_reads = _mutexgear_dlraitem_getfromprevious(&__rwlock->express_reads);
 		_mutexgear_dlraitem_initprevious(express_reads, express_reads);
@@ -1144,8 +1143,8 @@ bool rwlock_wrlock_push_readers_waiting_to_acquire_access__multiple_channels(mut
 
 	if (!fault)
 	{
-		bool exit_loop;
-		for (exit_loop = false; !exit_loop; exit_loop = push_lock_index == starting_push_lock_index)
+		bool exit_the_loop;
+		for (exit_the_loop = false; !exit_the_loop; exit_the_loop = push_lock_index == starting_push_lock_index)
 		{
 			--push_lock_index;
 
@@ -1181,12 +1180,12 @@ bool rwlock_wrlock_wait_all_reads_and_acquire_access(mutexgear_rwlock_t *__rwloc
 
 	// bool access_locked = true;
 
-	bool exit_loop;
-	for (exit_loop = false; !exit_loop;
+	bool exit_the_loop;
+	for (exit_the_loop = false; !exit_the_loop;
 		// NOTE! It should be more favorable to start waiting from the tail of the queue where 
 		// there are the most recent (and, hence, potentially last to release the lock) readers.
 		// This way, the algorithm should exit with less number iterations.
-		exit_loop = !_mutexgear_completion_queue_gettail(&reader_item, &__rwlock->acquired_reads)
+		exit_the_loop = !_mutexgear_completion_queue_gettail(&reader_item, &__rwlock->acquired_reads)
 		|| (reader_item == __separator_item && !_mutexgear_completion_queue_getpreceding(&reader_item, &__rwlock->acquired_reads, reader_item)))
 	{
 		if (!_mutexgear_completion_itemdata_modifyunsafetag(&reader_item->data, rdlock_itemtag_beingwaited, true)
@@ -1828,8 +1827,8 @@ bool rwlock_rdlock_wait_write_wait_emptiness(mutexgear_rwlock_t *__rwlock,
 	mutexgear_completion_item_t	*write_wait = last_write_wait;
 	MG_ASSERT(write_wait != NULL);
 
-	bool exit_loop;
-	for (exit_loop = false; !exit_loop; exit_loop = !_mutexgear_completion_queue_gettail(&write_wait, &__rwlock->waiting_writes))
+	bool exit_the_loop;
+	for (exit_the_loop = false; !exit_the_loop; exit_the_loop = !_mutexgear_completion_queue_gettail(&write_wait, &__rwlock->waiting_writes))
 	{
 		ret = _mutexgear_completion_queue_unlockandwait(&__rwlock->waiting_writes, write_wait, __waiter);
 		// waiting_writes_unlocked = true; // The unlock in the call above is not allowed to fail

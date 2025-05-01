@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2024 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -586,6 +586,18 @@ void _mutexgear_completion_drainablequeue_unsafegetindex(mutexgear_completion_dr
 	MG_ASSERT(queue_drain_index != MUTEXGEAR_COMPLETION_INVALID_DRAINIDX);
 }
 
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_drainablequeue_atomicgetindex(mutexgear_completion_drainidx_t *__out_queue_drain_index,
+	mutexgear_completion_drainablequeue_t *__queue_instance)
+{
+	MG_ASSERT(__out_queue_drain_index != NULL);
+
+	mutexgear_completion_drainidx_t queue_drain_index = _mg_atomic_load_relaxed_ptrdiff(_MG_PA_PTRDIFF(&__queue_instance->drain_index));
+
+	*__out_queue_drain_index = queue_drain_index;
+	MG_ASSERT(queue_drain_index != MUTEXGEAR_COMPLETION_INVALID_DRAINIDX);
+}
+
 
 _MUTEXGEAR_PURE_INLINE void _mutexgear_completion_drainablequeue_unsafedrain__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
 	mutexgear_completion_item_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,
@@ -650,7 +662,8 @@ void _mutexgear_completion_drainablequeue_unsafedrain__locked(mutexgear_completi
 		mutexgear_dlraitem_t *p_work_end = mutexgear_dlralist_getend(&__queue_instance->basic_queue.work_list);
 		mutexgear_dlralist_spliceback(&__target_drain->drain_list, p_item_work, p_work_end);
 
-		__queue_instance->drain_index = _mutexgear_completion_drainidx_increment(__queue_instance->drain_index);
+		mutexgear_completion_drainidx_t next_index = _mutexgear_completion_drainidx_increment(__queue_instance->drain_index);
+		_mg_atomic_store_relaxed_ptrdiff(_MG_PA_PTRDIFF(&__queue_instance->drain_index), next_index);
 		drain_execution_status = true;
 	}
 	else
@@ -663,6 +676,18 @@ void _mutexgear_completion_drainablequeue_unsafedrain__locked(mutexgear_completi
 	{
 		*__out_drain_execution_status = drain_execution_status;
 	}
+}
+
+_MUTEXGEAR_PURE_INLINE
+void _mutexgear_completion_drainablequeue_unsafedsplice__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_queue_t *__target_queue)
+{
+	mutexgear_dlraitem_t *p_work_begin = mutexgear_dlralist_getbegin(&__queue_instance->basic_queue.work_list);
+	mutexgear_dlraitem_t *p_work_end = mutexgear_dlralist_getend(&__queue_instance->basic_queue.work_list);
+	mutexgear_dlralist_spliceback(&__target_queue->work_list, p_work_begin, p_work_end);
+
+	mutexgear_completion_drainidx_t next_index = _mutexgear_completion_drainidx_increment(__queue_instance->drain_index);
+	_mg_atomic_store_relaxed_ptrdiff(_MG_PA_PTRDIFF(&__queue_instance->drain_index), next_index);
 }
 
 
@@ -1378,7 +1403,7 @@ int _mutexgear_completion_drainablequeue_init(mutexgear_completion_drainablequeu
 			break;
 		}
 
-		__queue_instance->drain_index = _mutexgear_completion_drainidx_getmin();
+		_mg_atomic_construct_ptrdiff(_MG_PA_PTRDIFF(&__queue_instance->drain_index), _mutexgear_completion_drainidx_getmin());
 
 		MG_ASSERT(ret == EOK);
 	}
@@ -1398,6 +1423,8 @@ int _mutexgear_completion_drainablequeue_destroy(mutexgear_completion_drainableq
 		{
 			break;
 		}
+
+		_mg_atomic_destroy_ptrdiff(_MG_PA_PTRDIFF(&__queue_instance->drain_index));
 
 		MG_ASSERT(ret == EOK);
 	}
@@ -1430,6 +1457,8 @@ int _mutexgear_completion_drainablequeue_preparedestroy(mutexgear_completion_dra
 void _mutexgear_completion_drainablequeue_completedestroy(mutexgear_completion_drainablequeue_t *__queue_instance)
 {
 	_mutexgear_completion_queue_completedestroy(&__queue_instance->basic_queue);
+
+	_mg_atomic_destroy_ptrdiff(_MG_PA_PTRDIFF(&__queue_instance->drain_index));
 }
 
 /*_MUTEXGEAR_PURE_INLINE */

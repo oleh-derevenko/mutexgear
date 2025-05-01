@@ -161,6 +161,7 @@
     <ClCompile Include="..\..\src\completion.c" />
     <ClCompile Include="..\..\src\rwlock.c" />
     <ClCompile Include="..\..\src\toggle.c" />
+    <ClCompile Include="..\..\src\maintlock.c" />
     <ClCompile Include="..\..\src\utility.c" />
     <ClCompile Include="..\..\src\wheel.c" />
   </ItemGroup>
@@ -178,11 +179,14 @@
     <ClInclude Include="..\..\include\mutexgear\shared_mutex.hpp" />
     <ClInclude Include="..\..\include\mutexgear\toggle.h" />
     <ClInclude Include="..\..\include\mutexgear\toggle.hpp" />
+    <ClInclude Include="..\..\include\mutexgear\maintlock.h" />
+    <ClInclude Include="..\..\include\mutexgear\maint_mutex.hpp" />
     <ClInclude Include="..\..\include\mutexgear\utility.h" />
     <ClInclude Include="..\..\include\mutexgear\wheel.h" />
     <ClInclude Include="..\..\include\mutexgear\wheel.hpp" />
     <ClInclude Include="..\..\include\mutexgear\_confvars.h" />
     <ClInclude Include="..\..\include\mutexgear\_llisttmpl.h" />
+    <ClInclude Include="..\..\include\mutexgear\_mtx_helpers.hpp" />
     <ClInclude Include="..\..\src\completion.h" />
     <ClInclude Include="..\..\src\dlralist.h" />
     <ClInclude Include="..\..\src\utility.h" />

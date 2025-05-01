@@ -16,6 +16,7 @@ libmutexgear_la_LDFLAGS = \
 libmutexgear_la_SOURCES = \
   completion.c completion.h \
   dlralist.h \
+  maintlock.c \
   rwlock.c \
   toggle.c \
   utility.c utility.h \

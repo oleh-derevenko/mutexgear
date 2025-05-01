@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2024 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -374,7 +374,7 @@ typedef struct _mutexgear_completion_locktoken *mutexgear_completion_locktoken_t
  *	\typedef mutexgear_completion_drainidx_t
  *	\brief A type to contain drain sequential counters.
  */
-typedef size_t mutexgear_completion_drainidx_t;
+typedef ptrdiff_t mutexgear_completion_drainidx_t;
 
 
 /**
@@ -387,10 +387,10 @@ typedef size_t mutexgear_completion_drainidx_t;
 typedef struct _mutexgear_completion_drainablequeue
 {
 	mutexgear_completion_queue_t basic_queue;
-	mutexgear_completion_drainidx_t drain_index;
+	ptrdiff_t drain_index; // == mutexgear_completion_drainidx_t
 
 } mutexgear_completion_drainablequeue_t;
-
+MG_STATIC_ASSERT(sizeof(ptrdiff_t) >= sizeof(mutexgear_completion_drainidx_t));
 
 /**
  *	\struct mutexgear_completion_drain_t
@@ -1015,13 +1015,13 @@ _MUTEXGEAR_API int mutexgear_completion_drainablequeue_getindex(mutexgear_comple
  *	\brief Drain queue's items locking and unlocking the queue as necessary
  *
  *	The function considers items starting with \c __drain_head_item to be removed into the drain.
- *	If the specified queue tail is drained if \c __drain_head_item is the actual queue head 
+ *	The specified queue remainder is drained if \c __drain_head_item is the actual queue head 
  *	or if \c __item_drain_index matches the current queue's drain index. Otherwise the drain request is ignored.
  *	The \c __out_drain_execution_status (if provided) receives the drain status.
  *
  *	Calling the function while \c __queue_instance is locked may result in a mutex lock error.
  *
- *	\param __drain_head_item Head item to be drained
+ *	\param __drain_head_item Head item of the sequence to be drained
  *	\param __item_drain_index The drain index retrieved at the time when \c __drain_head_item was inserted
  *	\param __target_drain Drain instance to receive the items (if removed)
  *	\param __out_drain_execution_status Optional pointer to a variable to receive the drain execution status
@@ -1038,13 +1038,15 @@ _MUTEXGEAR_API int mutexgear_completion_drainablequeue_safedrain(mutexgear_compl
  *	\brief Drain queue's items assuming the queue is already locked
  *
  *	The function considers items starting with \c __drain_head_item to be removed into the drain.
- *	If the specified queue tail is drained if \c __drain_head_item is the actual queue head
+ *	The specified queue remainder is drained if \c __drain_head_item is the actual queue head
  *	or if \c __item_drain_index matches the current queue's drain index. Otherwise the drain request is ignored.
+ *	If drained, the current queue's drain index is incremented.
+ * 
  *	The \c __out_drain_execution_status (if provided) receives the drain status.
  *
  *	Calling the function while \c __queue_instance is not locked may result in threading races and memory structure corruptions.
  *
- *	\param __drain_head_item Head item to be drained
+ *	\param __drain_head_item Head item of the sequence to be drained
  *	\param __item_drain_index The drain index retrieved at the time when \c __drain_head_item was inserted
  *	\param __target_drain Drain instance to receive the items (if removed)
  *	\param __out_drain_execution_status Optional pointer to a variable to receive the drain execution status
@@ -1054,6 +1056,22 @@ _MUTEXGEAR_API int mutexgear_completion_drainablequeue_safedrain(mutexgear_compl
 _MUTEXGEAR_API void mutexgear_completion_drainablequeue_unsafedrain__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
 	mutexgear_completion_item_t *__drain_head_item, mutexgear_completion_drainidx_t __item_drain_index,
 	mutexgear_completion_drain_t *__target_drain, bool *__out_drain_execution_status/*=NULL*/);
+
+/**
+*	\fn mutexgear_completion_drainablequeue_unsafedsplice__both_locked(mutexgear_completion_drainablequeue_t *__queue_instance,	mutexgear_completion_queue_t *__target_queue);
+*	\brief Splice queue's items into a basic completion queue assuming the both queues are already locked
+*
+*	With the splice, the current queue's drain index is incremented.
+* 
+*	Calling the function while \c __queue_instance or \c __target_queue is not locked 
+*	may result in threading races and memory structure corruptions.
+*
+*	\param __target_queue Queue instance to receive the items
+*	\see mutexgear_completion_drainablequeue_safedrain
+*	\see mutexgear_completion_drainablequeue_getindex
+*/
+_MUTEXGEAR_API void mutexgear_completion_drainablequeue_unsafedsplice__locked(mutexgear_completion_drainablequeue_t *__queue_instance,
+	mutexgear_completion_queue_t *__target_queue);
 
 /**
  *	\fn int mutexgear_completion_drainablequeue_plainunlock(mutexgear_completion_drainablequeue_t *__queue_instance)

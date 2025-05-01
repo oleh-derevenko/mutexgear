@@ -14,6 +14,9 @@ a restriction that the signaler must be a single thread pre-defined in advance
 * `mutexgear_rwlock_t` and `mutexgear_trdl_rwlock_t` — mutex-only RWLock implementations 
 without and with try_rdlock support respectively (customizable writer priority, inter-process support, 
 all direction implicit priority inheritance).
+* `mutexgear_maintlock_t` — a mutex-only object to lock a shared resource for maintenance (update)
+while that resource is accessed by multiple threads in shared lock mode 
+(the object can be used to wait for all the threads to stop accessing the resource);
 * `mutexgear_completion_queue_t` and `mutexgear_completion_cancelablequeue_t` — multi-threaded 
 server work queue skeletons with ability to wait for work item completion and, additionally, 
 request and conduct work item handling cancellation.
@@ -21,6 +24,7 @@ request and conduct work item handling cancellation.
 Also, the library provides header-only C++11 wrapper classes for its features:
 * `mg::mutex_toggle` and `mg::mutex_wheel` — wrappers for `mutexgear_toggle_t` and `mutexgear_wheel_t` respectively;
 * `mg::shared_mutex` and `mg::trdl::shared_mutex` — wrappers for `mutexgear_rwlock_t` and `mutexgear_trdl_rwlock_t` respectively;
+* `mg::main_mutex` — a wrapper for `mutexgear_maintlock_t`;
 * `mg::completion::waitable_queue` and `mg::completion::cancelable_queue` — wrappers for 
 `mutexgear_completion_queue_t` and `mutexgear_completion_cancelablequeue_t` respectively.
 

@@ -13,7 +13,7 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2024 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
 /* Skype: oleh_derevenko                                                */
@@ -153,6 +153,8 @@ extern volatile intmax_t mg_failed_check_status;
 #define __MUTEGEAR_ATOMIC_SWAP_RELEASE_PTRDIFF(destination, value) (destination)->exchange((ptrdiff_t)(value), std::memory_order_release)
 #define __MUTEGEAR_ATOMIC_FETCH_ADD_RELAXED_PTRDIFF(destination, value) (destination)->fetch_add((ptrdiff_t)(value), std::memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_FETCH_SUB_RELAXED_PTRDIFF(destination, value) (destination)->fetch_sub((ptrdiff_t)(value), std::memory_order_relaxed)
+// #define __MUTEGEAR_ATOMIC_OR_RELAXED_PTRDIFF(destination, value, original_storage) -- the fallback definition is to be used
+// #define __MUTEGEAR_ATOMIC_AND_RELAXED_PTRDIFF(destination, value, original_storage) -- the fallback definition is to be used
 #define __MUTEGEAR_ATOMIC_UNSAFEOR_RELAXED_PTRDIFF(destination, value, original_storage) ((original_storage) = (ptrdiff_t)(destination)->load(std::memory_order_relaxed), (void)(destination)->fetch_add((ptrdiff_t)(~(original_storage) & (ptrdiff_t)(value)), std::memory_order_relaxed))
 #define __MUTEGEAR_ATOMIC_UNSAFEAND_RELAXED_PTRDIFF(destination, value, original_storage) ((original_storage) = (ptrdiff_t)(destination)->load(std::memory_order_relaxed), (void)(destination)->fetch_sub((ptrdiff_t)((original_storage) & ~(ptrdiff_t)(value)), std::memory_order_relaxed))
 #define __MUTEGEAR_ATOMIC_LOAD_RELAXED_PTRDIFF(source) ((ptrdiff_t)(source)->load(std::memory_order_relaxed))
@@ -196,6 +198,8 @@ extern volatile intmax_t mg_failed_check_status;
 #define __MUTEGEAR_ATOMIC_SWAP_RELEASE_PTRDIFF(destination, value) atomic_exchange_explicit(destination, (ptrdiff_t)(value), memory_order_release)
 #define __MUTEGEAR_ATOMIC_FETCH_ADD_RELAXED_PTRDIFF(destination, value) atomic_fetch_add_explicit(destination, (ptrdiff_t)(value), memory_order_relaxed)
 #define __MUTEGEAR_ATOMIC_FETCH_SUB_RELAXED_PTRDIFF(destination, value) atomic_fetch_sub_explicit(destination, (ptrdiff_t)(value), memory_order_relaxed)
+// #define __MUTEGEAR_ATOMIC_OR_RELAXED_PTRDIFF(destination, value, original_storage) -- the fallback definition is to be used
+// #define __MUTEGEAR_ATOMIC_AND_RELAXED_PTRDIFF(destination, value, original_storage) -- the fallback definition is to be used
 #define __MUTEGEAR_ATOMIC_UNSAFEOR_RELAXED_PTRDIFF(destination, value, original_storage) ((original_storage) = (ptrdiff_t)atomic_load_explicit(destination, memory_order_relaxed), (void)atomic_fetch_add_explicit(destination, (ptrdiff_t)(~(original_storage) & (ptrdiff_t)(value)), memory_order_relaxed))
 #define __MUTEGEAR_ATOMIC_UNSAFEAND_RELAXED_PTRDIFF(destination, value, original_storage) ((original_storage) = (ptrdiff_t)atomic_load_explicit(destination, memory_order_relaxed), (void)atomic_fetch_sub_explicit(destination, (ptrdiff_t)((original_storage) & ~(ptrdiff_t)(value)), memory_order_relaxed))
 #define __MUTEGEAR_ATOMIC_LOAD_RELAXED_PTRDIFF(source) ((ptrdiff_t)atomic_load_explicit(source, memory_order_relaxed))
@@ -284,6 +288,44 @@ extern volatile intmax_t mg_failed_check_status;
 
 #ifndef __MUTEGEAR_ATOMIC_LOAD_ACQUIRE_PTRDIFF
 #error Please define __MUTEGEAR_ATOMIC_LOAD_ACQUIRE_PTRDIFF
+#endif
+
+#ifndef __MUTEGEAR_ATOMIC_OR_RELAXED_PTRDIFF
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE
+ptrdiff_t __mg_atomic_or_relaxed_ptrdiff_helper(volatile __MUTEXGEAR_ATOMIC_PTRDIFF_NS __MUTEXGEAR_ATOMIC_PTRDIFF_T *ppdDestination, ptrdiff_t pdValue)
+{
+	ptrdiff_t pdComparandAndUpdate = __MUTEGEAR_ATOMIC_LOAD_RELAXED_PTRDIFF(ppdDestination);
+
+	for (; (pdComparandAndUpdate | pdValue) != pdComparandAndUpdate; )
+	{
+		if (__MUTEGEAR_ATOMIC_CAS_RELAXED_PTRDIFF(ppdDestination, &pdComparandAndUpdate, pdComparandAndUpdate | pdValue))
+		{
+			break;
+		}
+	}
+
+	return pdComparandAndUpdate;
+}
+#define __MUTEGEAR_ATOMIC_OR_RELAXED_PTRDIFF(destination, value, original_storage) ((original_storage) = __mg_atomic_or_relaxed_ptrdiff_helper(destination, value))
+#endif
+
+#ifndef __MUTEGEAR_ATOMIC_AND_RELAXED_PTRDIFF
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE
+ptrdiff_t __mg_atomic_and_relaxed_ptrdiff_helper(volatile __MUTEXGEAR_ATOMIC_PTRDIFF_NS __MUTEXGEAR_ATOMIC_PTRDIFF_T *ppdDestination, ptrdiff_t pdValue)
+{
+	ptrdiff_t pdComparandAndUpdate = __MUTEGEAR_ATOMIC_LOAD_RELAXED_PTRDIFF(ppdDestination);
+
+	for (; (pdComparandAndUpdate & pdValue) != pdComparandAndUpdate; )
+	{
+		if (__MUTEGEAR_ATOMIC_CAS_RELAXED_PTRDIFF(ppdDestination, &pdComparandAndUpdate, pdComparandAndUpdate & pdValue))
+		{
+			break;
+		}
+	}
+
+	return pdComparandAndUpdate;
+}
+#define __MUTEGEAR_ATOMIC_AND_RELAXED_PTRDIFF(destination, value, original_storage) ((original_storage) = __mg_atomic_and_relaxed_ptrdiff_helper(destination, value))
 #endif
 
 
@@ -381,17 +423,39 @@ ptrdiff_t _mg_atomic_fetch_sub_relaxed_ptrdiff(volatile _mg_atomic_ptrdiff_t *__
 }
 
 _MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE
-void _mg_atomic_unsafeor_relaxed_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value1)
+ptrdiff_t _mg_atomic_or_relaxed_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value1)
 {
 	ptrdiff_t original_value_storage;
-	__MUTEGEAR_ATOMIC_UNSAFEOR_RELAXED_PTRDIFF(__destination, __value1, original_value_storage);
+	__MUTEGEAR_ATOMIC_OR_RELAXED_PTRDIFF(__destination, __value1, original_value_storage);
+
+	return original_value_storage;
 }
 
 _MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE
-void _mg_atomic_unsafeand_relaxed_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value1)
+ptrdiff_t _mg_atomic_and_relaxed_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value1)
+{
+	ptrdiff_t original_value_storage;
+	__MUTEGEAR_ATOMIC_AND_RELAXED_PTRDIFF(__destination, __value1, original_value_storage);
+
+	return original_value_storage;
+}
+
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE
+ptrdiff_t _mg_atomic_unsafeor_relaxed_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value1)
+{
+	ptrdiff_t original_value_storage;
+	__MUTEGEAR_ATOMIC_UNSAFEOR_RELAXED_PTRDIFF(__destination, __value1, original_value_storage);
+
+	return original_value_storage;
+}
+
+_MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE
+ptrdiff_t _mg_atomic_unsafeand_relaxed_ptrdiff(volatile _mg_atomic_ptrdiff_t *__destination, ptrdiff_t __value1)
 {
 	ptrdiff_t original_value_storage;
 	__MUTEGEAR_ATOMIC_UNSAFEAND_RELAXED_PTRDIFF(__destination, __value1, original_value_storage);
+
+	return original_value_storage;
 }
 
 _MUTEXGEAR_PURE_INLINE _MUTEXGEAR_ALWAYS_INLINE
