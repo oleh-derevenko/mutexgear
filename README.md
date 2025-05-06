@@ -24,7 +24,7 @@ request and conduct work item handling cancellation.
 Also, the library provides header-only C++11 wrapper classes for its features:
 * `mg::mutex_toggle` and `mg::mutex_wheel` — wrappers for `mutexgear_toggle_t` and `mutexgear_wheel_t` respectively;
 * `mg::shared_mutex` and `mg::trdl::shared_mutex` — wrappers for `mutexgear_rwlock_t` and `mutexgear_trdl_rwlock_t` respectively;
-* `mg::main_mutex` — a wrapper for `mutexgear_maintlock_t`;
+* `mg::maint_mutex` — a wrapper for `mutexgear_maintlock_t`;
 * `mg::completion::waitable_queue` and `mg::completion::cancelable_queue` — wrappers for 
 `mutexgear_completion_queue_t` and `mutexgear_completion_cancelablequeue_t` respectively.
 
