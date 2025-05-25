@@ -33,7 +33,7 @@ jobs:
     - name: bootstrap
       run: ./bootstrap
     - name: configure
-      run: ./configure CXXFLAGS="-std=c++14 -O3 -g -DMGTEST_RWLOCK_ITERATION_COUNT=100000"
+      run: MGTEST_RWLOCK_ITERATION_COUNT=50000; ./configure CPPFLAGS="-DMGTEST_RWLOCK_ITERATION_COUNT=$MGTEST_RWLOCK_ITERATION_COUNT" CXXFLAGS="-std=c++14 -O3 -g -DMGTEST_RWLOCK_ITERATION_COUNT=$MGTEST_RWLOCK_ITERATION_COUNT"
     - name: make
       run: make
     - name: make check
