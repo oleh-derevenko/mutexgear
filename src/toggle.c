@@ -9,10 +9,10 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2026 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
-/* Skype: oleh_derevenko                                                */
+/*                                                                      */
 /************************************************************************/
 
 
@@ -24,8 +24,9 @@
  *
  *	The "Toggle" set of functions defined in this file
  *	implements a synchronization mechanism being a subject
- *	of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and Image Database search
- *	(currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
+ *	of the U.S. Patent No. 9983913. Use USPTO Patent Public Search
+ *	(currently, https://ppubs.uspto.gov/pubwebapp/static/pages/ppubsbasic.html) 
+ *	to view the patent text.
  */
 
 
@@ -395,6 +396,7 @@ int mutexgear_toggle_pushon(mutexgear_toggle_t *__toggle)
  *
  *	The "Toggle" set of functions defined in this file
  *	implements a synchronization mechanism being a subject
- *	of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and Image Database search
- *	(currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm) to view the patent text.
+ *	of the U.S. Patent No. 9983913. Use USPTO Patent Public Search
+ *	(currently, https://ppubs.uspto.gov/pubwebapp/static/pages/ppubsbasic.html) 
+ *	to view the patent text.
  */

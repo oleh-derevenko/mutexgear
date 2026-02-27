@@ -5,10 +5,10 @@
 /* The MutexGear Library                                                */
 /* The Library Test Application Shared Declarations                     */
 /*                                                                      */
-/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2026 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
-/* Skype: oleh_derevenko                                                */
+/*                                                                      */
 /************************************************************************/
 
 

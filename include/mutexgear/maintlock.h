@@ -13,10 +13,10 @@
 /* THIS IS A PRE-RELEASE LIBRARY SNAPSHOT.                              */
 /* AWAIT THE RELEASE AT https://mutexgear.com                           */
 /*                                                                      */
-/* Copyright (c) 2016-2025 Oleh Derevenko. All rights are reserved.     */
+/* Copyright (c) 2016-2026 Oleh Derevenko. All rights are reserved.     */
 /*                                                                      */
 /* E-mail: oleh.derevenko@gmail.com                                     */
-/* Skype: oleh_derevenko                                                */
+/*                                                                      */
 /************************************************************************/
 
 /**
@@ -26,13 +26,13 @@
 *	The header defines "maintenance lock" (\c maintlock) object.
 * 
 *	A maintenance lock is an object that can be used to manage multi-threaded access
-*	to a resource that needs to be periodicallly locked down for maintenance. 
+*	to a resource that needs to be periodically locked down for maintenance. 
 *	It allows resource user threads to try-acquire read locks for accessing the resource
 *	(the acquisition fails if the resource is switched to maintenance mode) and then release 
-*	their read locks after they finished the access.
+*	their read locks after they finish the access.
 * 
 *	At the same time, a thread that needs to modify the resource can switch it to maintenance mode, 
-*	preventing new read locks, and wait untils all the existing read locks are released 
+*	preventing new read locks, and wait until all the existing read locks are released 
 *	to proceed with its changes; then clear the maintenance flag to allow further access.
 *
 *	Alternatively, the modification thread can skip altering object's operation mode, 
@@ -50,8 +50,8 @@
 *	NOTE:
 *
 *	The \c mutexgear_maintlock_t object depends on a synchronization
-*	mechanism being a subject of the U.S. Patent No. 9983913. Use USPTO Patent Full-Text and
-*	Image Database search (currently, http://patft.uspto.gov/netahtml/PTO/search-adv.htm)
+*	mechanism being a subject of the U.S. Patent No. 9983913. Use USPTO Patent Public Search
+*	(currently, https://ppubs.uspto.gov/pubwebapp/static/pages/ppubsbasic.html)
 *	to view the patent text.
 */
 
